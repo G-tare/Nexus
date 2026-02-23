@@ -1,4 +1,4 @@
-import { GuildMember, PermissionsBitField, ChatInputCommandInteraction } from 'discord.js';
+import { GuildMember, PermissionsBitField, PermissionResolvable, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
 import { getDb } from '../database/connection';
 import { commandPermissions } from '../database/models/schema';
 import { eq, and } from 'drizzle-orm';
@@ -30,10 +30,14 @@ const CACHE_TTL = 300; // 5 minutes
 export class PermissionManager {
   /**
    * Check if a member can use a specific command.
+   * @param interaction The command interaction
+   * @param commandPath Permission path (e.g., "moderation.ban", "fun.8ball")
+   * @param defaultPermissions Discord permissions required when no custom rules exist
    */
   async canUse(
     interaction: ChatInputCommandInteraction,
-    commandPath: string  // e.g., "moderation.ban", "fun.8ball"
+    commandPath: string,
+    defaultPermissions?: PermissionResolvable | null,
   ): Promise<{ allowed: boolean; reason?: string }> {
     const member = interaction.member as GuildMember;
     const guildId = interaction.guildId!;
@@ -55,7 +59,24 @@ export class PermissionManager {
 
     // If no custom rules, fall back to default Discord permissions
     if (rules.length === 0) {
-      return { allowed: true }; // Default: allow if no rules configured
+      if (defaultPermissions) {
+        const memberPerms = member.permissions;
+        // Administrator always passes any permission check
+        if (memberPerms.has(PermissionFlagsBits.Administrator)) {
+          return { allowed: true };
+        }
+        const hasPerms = memberPerms.has(defaultPermissions);
+        if (!hasPerms) {
+          // Build a human-readable list of missing permissions
+          const required = new PermissionsBitField(defaultPermissions);
+          const missing = required.toArray().filter(p => !memberPerms.has(PermissionFlagsBits[p as keyof typeof PermissionFlagsBits]));
+          return {
+            allowed: false,
+            reason: `You need the following permission(s): ${missing.join(', ')}`,
+          };
+        }
+      }
+      return { allowed: true }; // No rules and no default perms → allow
     }
 
     // Priority 1: User-specific DENY

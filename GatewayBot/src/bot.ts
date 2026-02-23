@@ -12,6 +12,7 @@ import { connectAll } from '../../Shared/src/database/connection';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { loadModules } from './handlers/moduleLoader';
 import { handleInteraction } from './handlers/interactionHandler';
+import { groupModuleCommands, GrouperResult } from './handlers/commandGrouper';
 import { BotCommand, BotContextMenuCommand, BotModule } from '../../Shared/src/types/command';
 
 const logger = createModuleLogger('Bot');
@@ -53,6 +54,9 @@ const client = new Client({
   },
 });
 
+// 38 modules register many event listeners — raise the limit to avoid warnings
+client.setMaxListeners(50);
+
 // ============================================
 // Collections for commands and modules
 // ============================================
@@ -64,6 +68,10 @@ declare module 'discord.js' {
     contextMenuCommands: Collection<string, BotContextMenuCommand>;
     modules: Collection<string, BotModule>;
     cooldowns: Collection<string, Collection<string, number>>;
+    /** Route key → BotCommand handler (populated by commandGrouper) */
+    commandRoutes: Map<string, BotCommand>;
+    /** Module slug → module name for reverse lookup */
+    slugToModule: Map<string, string>;
   }
 }
 
@@ -71,6 +79,8 @@ client.commands = new Collection();
 client.contextMenuCommands = new Collection();
 client.modules = new Collection();
 client.cooldowns = new Collection();
+client.commandRoutes = new Map();
+client.slugToModule = new Map();
 
 // ============================================
 // Boot Sequence
@@ -96,18 +106,35 @@ async function boot() {
     process.exit(1);
   }
 
-  // 3. Register slash commands with Discord
+  // 3. Group module commands into parent slash commands with subcommand groups
+  let grouperResult: GrouperResult;
   try {
-    await registerCommands();
+    // Convert Collection<string, BotModule> to Map<string, BotModule>
+    const modulesMap = new Map<string, BotModule>();
+    for (const [key, mod] of client.modules) {
+      modulesMap.set(key, mod);
+    }
+    grouperResult = groupModuleCommands(modulesMap);
+    client.commandRoutes = grouperResult.routingMap;
+    client.slugToModule = grouperResult.slugToModule;
+    logger.info(`Grouped into ${grouperResult.registrationData.length} parent commands, ${client.commandRoutes.size} routes`);
+  } catch (err: any) {
+    logger.error('Command grouping failed', { error: err.message, stack: err.stack });
+    process.exit(1);
+  }
+
+  // 4. Register slash commands with Discord
+  try {
+    await registerCommands(grouperResult);
   } catch (err: any) {
     logger.error('Command registration failed', { error: err.message });
     // Non-fatal: bot can still work with previously registered commands
   }
 
-  // 4. Set up event handlers
+  // 5. Set up event handlers
   setupEventHandlers();
 
-  // 5. Login
+  // 6. Login
   try {
     await client.login(config.discord.token);
   } catch (err: any) {
@@ -120,15 +147,16 @@ async function boot() {
 // Register Slash Commands
 // ============================================
 
-async function registerCommands() {
+async function registerCommands(grouperResult: GrouperResult) {
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
+  // Grouped parent commands (each module = 1 parent) + context menu commands
   const commandData = [
-    ...client.commands.map(cmd => cmd.data.toJSON()),
+    ...grouperResult.registrationData,
     ...client.contextMenuCommands.map(cmd => cmd.data.toJSON()),
   ];
 
-  logger.info(`Registering ${commandData.length} application commands...`);
+  logger.info(`Registering ${commandData.length} application commands (${grouperResult.registrationData.length} grouped + ${client.contextMenuCommands.size} context menu)...`);
 
   if (config.isDev) {
     // In development, register to a test guild for instant updates

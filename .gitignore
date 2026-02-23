@@ -7,6 +7,9 @@ node_modules/
 dist/
 build/
 *.js.map
+.next/
+out/
+tsconfig.tsbuildinfo
 
 # Environment
 .env
@@ -35,3 +38,5 @@ coverage/
 # Misc
 *.tgz
 .cache/
+landing-temp/
+build_errors.txt

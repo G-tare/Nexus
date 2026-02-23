@@ -7,6 +7,7 @@ import {
   StringSelectMenuInteraction,
   ModalSubmitInteraction,
   Collection,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { permissionManager } from '../../../Shared/src/permissions/permissionManager';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
@@ -18,6 +19,101 @@ import { formatDuration } from '../../../Shared/src/utils/time';
 import { eventBus } from '../../../Shared/src/events/eventBus';
 
 const logger = createModuleLogger('InteractionHandler');
+
+// ============================================
+// Default Discord permission requirements
+// for commands that don't set defaultPermissions.
+// Checked by prefix — first match wins.
+// ============================================
+
+const PERMISSION_PATH_DEFAULTS: [string, bigint | bigint[]][] = [
+  // Moderation — bans
+  ['moderation.ban',        PermissionFlagsBits.BanMembers],
+  ['moderation.unban',      PermissionFlagsBits.BanMembers],
+  ['moderation.tempban',    PermissionFlagsBits.BanMembers],
+  ['moderation.massban',    PermissionFlagsBits.BanMembers],
+  ['moderation.banlist',    PermissionFlagsBits.BanMembers],
+  // Moderation — kicks
+  ['moderation.kick',       PermissionFlagsBits.KickMembers],
+  ['moderation.softban',    PermissionFlagsBits.KickMembers],
+  // Moderation — mutes
+  ['moderation.mute',       PermissionFlagsBits.ModerateMembers],
+  ['moderation.unmute',     PermissionFlagsBits.ModerateMembers],
+  ['moderation.mutelist',   PermissionFlagsBits.ModerateMembers],
+  ['moderation.massmute',   PermissionFlagsBits.ModerateMembers],
+  // Moderation — warns
+  ['moderation.warn',           PermissionFlagsBits.ModerateMembers],
+  ['moderation.unwarn',         PermissionFlagsBits.ModerateMembers],
+  ['moderation.warnings',       PermissionFlagsBits.ModerateMembers],
+  ['moderation.clearwarnings',  PermissionFlagsBits.ModerateMembers],
+  ['moderation.serverwarns',    PermissionFlagsBits.ModerateMembers],
+  // Moderation — channel management
+  ['moderation.slowmode',   PermissionFlagsBits.ManageChannels],
+  ['moderation.lock',       PermissionFlagsBits.ManageChannels],
+  ['moderation.unlock',     PermissionFlagsBits.ManageChannels],
+  ['moderation.lockdown',   PermissionFlagsBits.ManageChannels],
+  ['moderation.unlockdown', PermissionFlagsBits.ManageChannels],
+  ['moderation.nuke',       PermissionFlagsBits.ManageChannels],
+  // Moderation — purge / bulk delete
+  ['moderation.purge',      PermissionFlagsBits.ManageMessages],
+  ['moderation.purgeuser',  PermissionFlagsBits.ManageMessages],
+  ['moderation.purgebot',   PermissionFlagsBits.ManageMessages],
+  ['moderation.purgehuman', PermissionFlagsBits.ManageMessages],
+  ['moderation.bulkdelete', PermissionFlagsBits.ManageMessages],
+  // Moderation — user management
+  ['moderation.nickname',   PermissionFlagsBits.ManageNicknames],
+  ['moderation.role',       PermissionFlagsBits.ManageRoles],
+  ['moderation.userinfo',   PermissionFlagsBits.ModerateMembers],
+  // Moderation — advanced
+  ['moderation.shadowban',      PermissionFlagsBits.ModerateMembers],
+  ['moderation.unshadowban',    PermissionFlagsBits.ModerateMembers],
+  ['moderation.quarantine',     PermissionFlagsBits.ModerateMembers],
+  ['moderation.unquarantine',   PermissionFlagsBits.ModerateMembers],
+  // Moderation — investigation & cases
+  ['moderation.altdetect',  PermissionFlagsBits.ModerateMembers],
+  ['moderation.watchlist',  PermissionFlagsBits.ModerateMembers],
+  ['moderation.case',       PermissionFlagsBits.ModerateMembers],
+  ['moderation.modstats',   PermissionFlagsBits.ModerateMembers],
+  ['moderation.history',    PermissionFlagsBits.ModerateMembers],
+  ['moderation.note',       PermissionFlagsBits.ModerateMembers],
+  ['moderation.notes',      PermissionFlagsBits.ModerateMembers],
+  // Moderation — reputation management
+  ['moderation.addreputation',     PermissionFlagsBits.ModerateMembers],
+  ['moderation.removereputation',  PermissionFlagsBits.ModerateMembers],
+  ['moderation.setreputation',     PermissionFlagsBits.ModerateMembers],
+  ['moderation.reputationhistory', PermissionFlagsBits.ModerateMembers],
+  // AntiRaid
+  ['antiraid.raid-lockdown',   PermissionFlagsBits.ManageGuild],
+  ['antiraid.raid-unlockdown', PermissionFlagsBits.ManageGuild],
+  // Automod core
+  ['automod.testword', PermissionFlagsBits.ManageMessages],
+];
+
+/**
+ * Resolve the effective Discord permission for a command.
+ * Priority: command.defaultPermissions > PERMISSION_PATH_DEFAULTS > staff fallback > allow
+ */
+function resolveDefaultPermissions(command: { defaultPermissions?: any; permissionPath?: string }): bigint | bigint[] | null {
+  // 1. Explicit defaultPermissions on the command object
+  if (command.defaultPermissions) return command.defaultPermissions;
+
+  // 2. Check the permission path defaults map
+  if (command.permissionPath) {
+    for (const [prefix, perms] of PERMISSION_PATH_DEFAULTS) {
+      if (command.permissionPath === prefix || command.permissionPath.startsWith(prefix + '.')) {
+        return perms;
+      }
+    }
+  }
+
+  // 3. Staff command fallback
+  if (command.permissionPath?.includes('.staff.')) {
+    return PermissionFlagsBits.ManageGuild;
+  }
+
+  // 4. No restriction
+  return null;
+}
 
 /**
  * Central interaction handler — processes all Discord interactions.
@@ -72,9 +168,28 @@ export async function handleInteraction(client: Client, interaction: Interaction
 // ============================================
 
 async function handleSlashCommand(client: Client, interaction: ChatInputCommandInteraction): Promise<void> {
-  const command = client.commands.get(interaction.commandName);
-  if (!command) return;
+  // Build the route key to find the correct command handler.
+  // Route keys follow the format: "slug:group:subcommand" or "slug::subcommand" (no group)
+  const slug = interaction.commandName;
+  const group = interaction.options.getSubcommandGroup(false);
+  const sub = interaction.options.getSubcommand(false);
 
+  if (!sub) {
+    // All commands should be subcommands after grouping — this shouldn't happen
+    logger.warn(`No subcommand found for /${slug}`);
+    return;
+  }
+
+  const routeKey = group ? `${slug}:${group}:${sub}` : `${slug}::${sub}`;
+  const command = client.commandRoutes.get(routeKey);
+
+  if (!command) {
+    logger.warn(`No route found for key: ${routeKey}`);
+    return;
+  }
+
+  // Look up the module name from the slug for module-enabled checks
+  const moduleName = client.slugToModule.get(slug) || command.module;
   const guildId = interaction.guildId!;
 
   // Guild-only check
@@ -89,7 +204,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
   if (guildId) {
     // Module enabled check
     if (command.requiresModule !== false) {
-      const isEnabled = await moduleConfig.isEnabled(guildId, command.module);
+      const isEnabled = await moduleConfig.isEnabled(guildId, moduleName);
       if (!isEnabled) {
         await interaction.reply({
           embeds: [errorEmbed('Module Disabled', t('common:moduleDisabled'))],
@@ -115,7 +230,8 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
     }
 
     // Permission check
-    const permResult = await permissionManager.canUse(interaction, command.permissionPath);
+    const effectivePerms = resolveDefaultPermissions(command);
+    const permResult = await permissionManager.canUse(interaction, command.permissionPath, effectivePerms);
     if (!permResult.allowed) {
       await interaction.reply({
         embeds: [errorEmbed('No Permission', permResult.reason || t('common:noPermission'))],
@@ -125,14 +241,15 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
     }
   }
 
-  // Cooldown check
+  // Cooldown check — use routeKey as cooldown key to avoid collisions
+  // (multiple modules may have commands with the same name, e.g., "config")
   const cooldownSeconds = command.cooldown ?? 3;
   if (cooldownSeconds > 0) {
-    if (!client.cooldowns.has(command.data.name)) {
-      client.cooldowns.set(command.data.name, new Collection());
+    if (!client.cooldowns.has(routeKey)) {
+      client.cooldowns.set(routeKey, new Collection());
     }
 
-    const timestamps = client.cooldowns.get(command.data.name)!;
+    const timestamps = client.cooldowns.get(routeKey)!;
     const now = Date.now();
     const cooldownMs = cooldownSeconds * 1000;
 
@@ -166,11 +283,12 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
       });
     }
   } catch (err: any) {
-    logger.error(`Command execution error: ${interaction.commandName}`, {
+    logger.error(`Command execution error: /${slug} ${group || ''} ${sub}`, {
       error: err.message,
       stack: err.stack,
       guild: guildId,
       user: interaction.user.id,
+      routeKey,
     });
 
     const errorMsg = {
@@ -191,13 +309,21 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
 // ============================================
 
 async function handleAutocomplete(client: Client, interaction: AutocompleteInteraction): Promise<void> {
-  const command = client.commands.get(interaction.commandName);
+  // Build the same route key as slash commands to find the correct handler
+  const slug = interaction.commandName;
+  const group = interaction.options.getSubcommandGroup(false);
+  const sub = interaction.options.getSubcommand(false);
+
+  if (!sub) return;
+
+  const routeKey = group ? `${slug}:${group}:${sub}` : `${slug}::${sub}`;
+  const command = client.commandRoutes.get(routeKey);
   if (!command?.autocomplete) return;
 
   try {
     await command.autocomplete(interaction);
   } catch (err: any) {
-    logger.error(`Autocomplete error: ${interaction.commandName}`, { error: err.message });
+    logger.error(`Autocomplete error: ${routeKey}`, { error: err.message });
     await interaction.respond([]).catch(() => {});
   }
 }

@@ -231,22 +231,35 @@ const raidDetectionHandler: ModuleEvent = { event: Events.GuildMemberAdd,
                 (ch) => ch.isTextBased() && !ch.isDMBased()
               );
 
+              const lockedChannelIds: string[] = [];
+
               for (const [, channel] of channels) {
                 try {
                   const textChannel = channel as BaseGuildTextChannel;
+                  // Only lock channels that aren't already locked (don't touch intentionally restricted channels)
+                  const everyoneOverride = textChannel.permissionOverwrites.cache.get(
+                    member.guild.roles.everyone.id
+                  );
+                  if (everyoneOverride?.deny.has(PermissionFlagsBits.SendMessages)) {
+                    continue; // Already restricted — skip so we don't undo it later
+                  }
                   await textChannel.permissionOverwrites.edit(
                     member.guild.roles.everyone,
                     { SendMessages: false },
                     { reason: 'Raid detection - lockdown activated' }
                   );
+                  lockedChannelIds.push(channel.id);
                 } catch (error) {
                   logger.error(`Failed to lock channel ${channel.id}:`, error);
                 }
               }
 
               const lockdownKey = `automod:lockdown:${member.guild.id}`;
+              const lockedChannelsKey = `automod:lockdown:channels:${member.guild.id}`;
               const lockdownDuration = config.antiraid.lockdownDurationMinutes * 60;
               await redis.setex(lockdownKey, lockdownDuration, JSON.stringify({ lockedAt: now }));
+              // Store which channels WE locked so we only unlock those
+              await redis.setex(lockedChannelsKey, lockdownDuration + 120, JSON.stringify(lockedChannelIds));
             }
 
             await logAutomodAction(
@@ -492,37 +505,53 @@ const raidLockdownExpiryHandler: ModuleEvent = { event: Events.ClientReady,
         for (const guild of client.guilds.cache.values()) {
           try {
             const lockdownKey = `automod:lockdown:${guild.id}`;
+            const lockedChannelsKey = `automod:lockdown:channels:${guild.id}`;
             const lockdownData = await redis.get(lockdownKey);
 
+            // If lockdown is still active, skip this guild
             if (lockdownData) continue;
 
-            const channels = guild.channels.cache.filter(
-              (ch) => ch.isTextBased() && !ch.isDMBased()
-            );
+            // Check if we have a record of channels WE locked
+            const lockedChannelsData = await redis.get(lockedChannelsKey);
+            if (!lockedChannelsData) continue; // No record = nothing to unlock
+
+            const lockedChannelIds: string[] = JSON.parse(lockedChannelsData);
+            if (lockedChannelIds.length === 0) {
+              await redis.del(lockedChannelsKey);
+              continue;
+            }
 
             let unlocked = false;
 
-            for (const [, channel] of channels) {
+            // Only unlock channels that WE locked during the raid lockdown
+            for (const channelId of lockedChannelIds) {
               try {
+                const channel = guild.channels.cache.get(channelId);
+                if (!channel || !channel.isTextBased() || channel.isDMBased()) continue;
+
                 const textChannel = channel as BaseGuildTextChannel;
                 const everyoneOverride = textChannel.permissionOverwrites.cache.get(
                   guild.roles.everyone.id
                 );
 
                 if (everyoneOverride?.deny.has(PermissionFlagsBits.SendMessages)) {
-                  await textChannel.permissionOverwrites.delete(
+                  await textChannel.permissionOverwrites.edit(
                     guild.roles.everyone,
-                    'Raid lockdown expired'
+                    { SendMessages: null },
+                    { reason: 'Raid lockdown expired — restoring channel' }
                   );
                   unlocked = true;
                 }
               } catch (error) {
-                logger.error(`Failed to unlock channel ${channel.id}:`, error);
+                logger.error(`Failed to unlock channel ${channelId}:`, error);
               }
             }
 
+            // Clean up the record
+            await redis.del(lockedChannelsKey);
+
             if (unlocked) {
-              logger.info(`Unlocked channels in guild ${guild.id} after raid lockdown expiry`);
+              logger.info(`Unlocked ${lockedChannelIds.length} channels in guild ${guild.id} after raid lockdown expiry`);
               const config = await getAutomodConfig(guild.id);
               await logAutomodAction(
                 guild,

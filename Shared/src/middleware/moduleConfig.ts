@@ -17,7 +17,8 @@ export class ModuleConfigManager {
    */
   async isEnabled(guildId: string, moduleName: string): Promise<boolean> {
     const config = await this.getModuleConfig(guildId, moduleName);
-    return config?.enabled ?? false;
+    // Default to enabled when no config row exists (module hasn't been explicitly disabled)
+    return config?.enabled ?? true;
   }
 
   /**

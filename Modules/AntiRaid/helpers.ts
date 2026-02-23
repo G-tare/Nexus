@@ -1,4 +1,4 @@
-import { Guild, GuildMember, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { Guild, GuildMember, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
 import { getDb, getRedis } from '../../Shared/src/database/connection';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
@@ -27,11 +27,11 @@ export interface AntiRaidConfig {
 }
 
 export const defaultAntiRaidConfig: AntiRaidConfig = {
-  enabled: true,
+  enabled: false,
   joinThreshold: 10,
   joinWindow: 60,
   minAccountAge: 24,
-  autoLockdown: true,
+  autoLockdown: false,
   lockdownDuration: 3600,
   massActionThreshold: 5,
   massActionWindow: 60,
@@ -142,26 +142,38 @@ export async function checkMassAction(guildId: string, userId: string): Promise<
 export async function triggerLockdown(guild: Guild, duration: number): Promise<void> {
   const redis = getRedis();
   const lockdownKey = `antiraid:lockdown:${guild.id}`;
+  const lockedChannelsKey = `antiraid:lockdown:channels:${guild.id}`;
   const expiryTime = Math.floor(Date.now() / 1000) + duration;
 
   await redis.setex(lockdownKey, duration, JSON.stringify({ startTime: Date.now(), duration, expiryTime }));
 
   try {
+    const lockedChannelIds: string[] = [];
+
     for (const channel of guild.channels.cache.values()) {
       if (channel.isTextBased() || channel.isVoiceBased()) {
         try {
-          await (channel as any).permissionOverwrites.create(guild.roles.everyone, {
+          // Skip channels that are already restricted — don't touch intentional overrides
+          const everyoneOverride = (channel as any).permissionOverwrites?.cache?.get(guild.roles.everyone.id);
+          if (everyoneOverride?.deny.has(PermissionFlagsBits.SendMessages)) {
+            continue;
+          }
+          await (channel as any).permissionOverwrites.edit(guild.roles.everyone, {
             SendMessages: false,
             Connect: false,
             Speak: false,
           }, { reason: 'AntiRaid lockdown triggered' });
+          lockedChannelIds.push(channel.id);
         } catch (error) {
           logger.warn(`Failed to lockdown channel ${channel.id}: ${error}`);
         }
       }
     }
 
-    logger.info(`Lockdown triggered for guild ${guild.id} for ${duration}s`);
+    // Store which channels WE locked so we only unlock those
+    await redis.setex(lockedChannelsKey, duration + 120, JSON.stringify(lockedChannelIds));
+
+    logger.info(`Lockdown triggered for guild ${guild.id} for ${duration}s (${lockedChannelIds.length} channels locked)`);
     await sendRaidAlert(guild, { action: 'LOCKDOWN_TRIGGERED', duration, reason: 'Suspected raid detected' });
 
     eventBus.emit('antiraid:lockdown', { guildId: guild.id, initiatedBy: 'system', reason: 'Suspected raid detected', duration });
@@ -173,25 +185,41 @@ export async function triggerLockdown(guild: Guild, duration: number): Promise<v
 export async function endLockdown(guild: Guild): Promise<void> {
   const redis = getRedis();
   const lockdownKey = `antiraid:lockdown:${guild.id}`;
+  const lockedChannelsKey = `antiraid:lockdown:channels:${guild.id}`;
 
   await redis.del(lockdownKey);
 
   try {
-    for (const channel of guild.channels.cache.values()) {
-      if (channel.isTextBased() || channel.isVoiceBased()) {
-        try {
-          const everyoneRole = guild.roles.everyone;
-          const overwrite = (channel as any).permissionOverwrites.cache.get(everyoneRole.id);
-          if (overwrite) {
-            await overwrite.delete('AntiRaid lockdown ended');
-          }
-        } catch (error) {
-          logger.warn(`Failed to restore channel ${channel.id}: ${error}`);
-        }
+    // Only unlock channels that WE locked during the raid lockdown
+    const lockedChannelsData = await redis.get(lockedChannelsKey);
+    const lockedChannelIds: string[] = lockedChannelsData ? JSON.parse(lockedChannelsData) : [];
+
+    if (lockedChannelIds.length === 0) {
+      logger.info(`No tracked locked channels for guild ${guild.id} — skipping unlock`);
+      await redis.del(lockedChannelsKey);
+      await sendRaidAlert(guild, { action: 'LOCKDOWN_ENDED', reason: 'Manual unlock (no channels to restore)' });
+      eventBus.emit('antiraid:unlockdown', { guildId: guild.id, initiatedBy: 'system' });
+      return;
+    }
+
+    for (const channelId of lockedChannelIds) {
+      try {
+        const channel = guild.channels.cache.get(channelId);
+        if (!channel) continue;
+
+        await (channel as any).permissionOverwrites.edit(guild.roles.everyone, {
+          SendMessages: null,
+          Connect: null,
+          Speak: null,
+        }, { reason: 'AntiRaid lockdown ended — restoring channel' });
+      } catch (error) {
+        logger.warn(`Failed to restore channel ${channelId}: ${error}`);
       }
     }
 
-    logger.info(`Lockdown ended for guild ${guild.id}`);
+    await redis.del(lockedChannelsKey);
+
+    logger.info(`Lockdown ended for guild ${guild.id} (${lockedChannelIds.length} channels restored)`);
     await sendRaidAlert(guild, { action: 'LOCKDOWN_ENDED', reason: 'Manual unlock or expiry' });
 
     eventBus.emit('antiraid:unlockdown', { guildId: guild.id, initiatedBy: 'system' });

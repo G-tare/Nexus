@@ -1,0 +1,142 @@
+{
+  "common": {
+    "success": "Success!",
+    "error": "An error occurred. Please try again later.",
+    "noPermission": "You don't have permission to use this command.",
+    "moduleDisabled": "This module is not enabled on this server.",
+    "premiumRequired": "This feature requires a premium subscription.",
+    "invalidUser": "Could not find that user.",
+    "invalidChannel": "Could not find that channel.",
+    "invalidRole": "Could not find that role.",
+    "cooldown": "Please wait {{time}} before using this command again.",
+    "dmOnly": "This command can only be used in DMs.",
+    "guildOnly": "This command can only be used in a server.",
+    "ownerOnly": "This command can only be used by the bot owner.",
+    "adminOnly": "This command requires Administrator permission.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "on": "On",
+    "off": "Off",
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "page": "Page {{current}}/{{total}}",
+    "noResults": "No results found."
+  },
+  "moderation": {
+    "ban": {
+      "success": "**{{user}}** has been banned. Case #{{case}}",
+      "alreadyBanned": "That user is already banned.",
+      "cannotBan": "I cannot ban that user. They may have a higher role than me.",
+      "cannotBanSelf": "You cannot ban yourself.",
+      "cannotBanMod": "You cannot ban another moderator.",
+      "dmNotification": "You have been banned from **{{guild}}**.\nReason: {{reason}}",
+      "reason": "Reason: {{reason}}",
+      "noReason": "No reason provided"
+    },
+    "kick": {
+      "success": "**{{user}}** has been kicked. Case #{{case}}",
+      "cannotKick": "I cannot kick that user.",
+      "dmNotification": "You have been kicked from **{{guild}}**.\nReason: {{reason}}"
+    },
+    "mute": {
+      "success": "**{{user}}** has been muted for {{duration}}. Case #{{case}}",
+      "unmute": "**{{user}}** has been unmuted. Case #{{case}}",
+      "alreadyMuted": "That user is already muted.",
+      "notMuted": "That user is not muted."
+    },
+    "warn": {
+      "success": "**{{user}}** has been warned. Case #{{case}} ({{count}} total warnings)",
+      "cleared": "All warnings cleared for **{{user}}**.",
+      "removed": "Warning #{{id}} removed from **{{user}}**.",
+      "dmNotification": "You have been warned in **{{guild}}**.\nReason: {{reason}}\nTotal warnings: {{count}}"
+    },
+    "purge": {
+      "success": "Deleted {{count}} messages.",
+      "noMessages": "No messages found matching that filter."
+    },
+    "lock": {
+      "success": "Channel locked.",
+      "unlock": "Channel unlocked."
+    }
+  },
+  "leveling": {
+    "levelUp": "Congratulations {{user}}! You've reached **Level {{level}}**!",
+    "rank": "Rank #{{rank}} | Level {{level}} | {{xp}}/{{xpNeeded}} XP",
+    "noXp": "You haven't earned any XP yet.",
+    "doubleXpActive": "Double XP is currently active!"
+  },
+  "currency": {
+    "balance": "**{{user}}'s Balance**\n{{coins}} Coins | {{gems}} Gems",
+    "daily": "You claimed your daily reward of **{{amount}} {{currency}}**!\nStreak: {{streak}} days",
+    "dailyAlready": "You've already claimed your daily reward. Come back in {{time}}!",
+    "weekly": "You claimed your weekly reward of **{{amount}} {{currency}}**!",
+    "weeklyAlready": "You've already claimed your weekly reward. Come back in {{time}}!",
+    "transferSuccess": "Transferred **{{amount}} {{currency}}** to **{{user}}**.",
+    "transferCapReached": "You've reached your daily transfer cap.",
+    "receiveCapReached": "That user has reached their daily receive cap.",
+    "insufficientFunds": "You don't have enough {{currency}}."
+  },
+  "welcome": {
+    "defaultMessage": "Welcome to **{{server}}**, {{user}}! You are member #{{count}}!",
+    "defaultLeaveMessage": "**{{user}}** has left the server. We now have {{count}} members."
+  },
+  "giveaway": {
+    "title": "🎉 GIVEAWAY 🎉",
+    "ended": "🎉 GIVEAWAY ENDED 🎉",
+    "winners": "Winner(s): {{winners}}",
+    "noWinner": "No valid entries — no winner could be determined.",
+    "entered": "You've entered the giveaway! Good luck!",
+    "alreadyEntered": "You've already entered this giveaway.",
+    "requirementsNotMet": "You don't meet the requirements for this giveaway.",
+    "ended_dm": "Congratulations! You won **{{prize}}** in **{{guild}}**!"
+  },
+  "tickets": {
+    "created": "Your ticket has been created: {{channel}}",
+    "closed": "Ticket #{{number}} has been closed.",
+    "claimed": "Ticket claimed by {{user}}.",
+    "maxOpen": "You already have the maximum number of open tickets."
+  },
+  "confession": {
+    "submitted": "Your confession has been submitted.",
+    "submittedReview": "Your confession has been submitted and is pending review.",
+    "cooldown": "Please wait before submitting another confession.",
+    "banned": "You have been banned from submitting confessions in this server."
+  },
+  "music": {
+    "nowPlaying": "Now Playing",
+    "addedToQueue": "Added to queue: **{{title}}** [{{duration}}]",
+    "queueEmpty": "The queue is empty.",
+    "notInVoice": "You need to be in a voice channel to use this command.",
+    "notPlaying": "Nothing is currently playing.",
+    "skipped": "Skipped **{{title}}**.",
+    "paused": "Playback paused.",
+    "resumed": "Playback resumed.",
+    "stopped": "Playback stopped and queue cleared.",
+    "volume": "Volume set to **{{volume}}%**.",
+    "loop": "Loop mode: **{{mode}}**.",
+    "noResults": "No results found for your search."
+  },
+  "fun": {
+    "coinflip": "The coin landed on **{{result}}**!",
+    "8ball": "🎱 {{answer}}",
+    "rps": "{{user1}} chose {{choice1}}, {{user2}} chose {{choice2}}. **{{result}}**!",
+    "roll": "🎲 You rolled: **{{result}}**"
+  },
+  "reminders": {
+    "set": "Reminder set for {{time}}.",
+    "triggered": "⏰ Reminder: {{message}}",
+    "cancelled": "Reminder cancelled.",
+    "noReminders": "You have no active reminders."
+  },
+  "afk": {
+    "set": "You are now AFK: {{reason}}",
+    "returned": "Welcome back, {{user}}! You were AFK for {{duration}}. You received {{count}} ping(s).",
+    "notify": "{{user}} is AFK: {{reason}} ({{duration}} ago)"
+  },
+  "reputation": {
+    "given": "You gave a reputation point to **{{user}}**! They now have **{{total}}** rep.",
+    "cooldown": "You can give reputation again in {{time}}.",
+    "cannotSelf": "You cannot give reputation to yourself."
+  }
+}

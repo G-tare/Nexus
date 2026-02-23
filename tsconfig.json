@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["Shared/src/*"],
+      "@modules/*": ["Modules/*"],
+      "@gateway/*": ["GatewayBot/src/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./Shared/src/types"]
+  },
+  "include": [
+    "GatewayBot/**/*.ts",
+    "Modules/**/*.ts",
+    "Shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "Dashboards",
+    "LandingPage"
+  ]
+}

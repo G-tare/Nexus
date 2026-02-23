@@ -1,0 +1,17 @@
+StickyMessages Module Directory Structure
+==========================================
+
+StickyMessages/
+├── staff/
+│   ├── stick.ts              # /stick command - Create sticky messages
+│   ├── unstick.ts            # /unstick command - Remove sticky messages  
+│   ├── stickyedit.ts         # /stickyedit command - Edit sticky messages
+│   └── config.ts             # /stickyconfig command - Module configuration
+├── tracker.ts                # ActivityTracker class for activity detection
+├── helpers.ts                # Database operations and helpers
+├── events.ts                 # Event handlers (messageCreate, messageDelete, etc)
+├── index.ts                  # Module initialization and exports
+├── README.md                 # Comprehensive module documentation
+└── IMPLEMENTATION_SUMMARY.md # Implementation details and checklist
+
+Total: 10 files (8 TypeScript + 2 Markdown)

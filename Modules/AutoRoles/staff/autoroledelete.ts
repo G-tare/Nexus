@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { deleteAutoRoleRule, getAutoRoleRule } from '../helpers';
 
@@ -27,7 +26,7 @@ const command: BotCommand = {
 
     const rule = await getAutoRoleRule(guild.id, ruleId);
     if (!rule) {
-      await interaction.reply({ content: `❌ Rule with ID \`${ruleId}\` not found.`, ephemeral: true });
+      await interaction.reply({ content: `❌ Rule with ID \`${ruleId}\` not found.` });
       return;
     }
 

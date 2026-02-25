@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { removeAFK } from '../helpers';
 
@@ -21,7 +20,7 @@ const command: BotCommand = {
         .setRequired(true)
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const targetUser = interaction.options.getUser('user')!;
@@ -40,8 +39,8 @@ const command: BotCommand = {
       if (afkData.nickname && targetMember && 'setNickname' in targetMember) {
         try {
           await targetMember.setNickname(afkData.nickname);
-        } catch (err) {
-          console.error('Error restoring nickname:', err);
+        } catch {
+          // Bot may lack permission to change nickname for this user
         }
       }
 

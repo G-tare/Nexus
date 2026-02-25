@@ -25,18 +25,19 @@ const autoTranslateHandler: ModuleEvent = { event: Events.MessageCreate,
     if (!message.content || message.content.length < 2) return;
 
     const guildId = message.guild.id;
-    const targetLang = await getChannelLanguage(guildId, message.channel.id);
-    if (!targetLang) return;
-
-    const config = await getTranslationConfig(guildId);
-
-    if (message.content.length < config.minLength) return;
-
-    // Check cooldown
-    const onCooldown = await checkTranslateCooldown(guildId, message.author.id);
-    if (onCooldown) return;
 
     try {
+      const targetLang = await getChannelLanguage(guildId, message.channel.id);
+      if (!targetLang) return;
+
+      const config = await getTranslationConfig(guildId);
+
+      if (message.content.length < config.minLength) return;
+
+      // Check cooldown
+      const onCooldown = await checkTranslateCooldown(guildId, message.author.id);
+      if (onCooldown) return;
+
       const result = await translateText(guildId, message.content, targetLang);
       if (!result) return;
 
@@ -91,23 +92,24 @@ const flagReactionHandler: ModuleEvent = { event: Events.MessageReactionAdd,
     if (!message.guild) return;
 
     const guildId = message.guild.id;
-    const config = await getTranslationConfig(guildId);
-    if (!config.flagReactions) return;
-
-    const emoji = reaction.emoji.name;
-    if (!emoji) return;
-
-    const targetLang = FLAG_TO_LANGUAGE[emoji];
-    if (!targetLang) return;
-
-    // Need message content
-    if (!message.content || message.content.length < 2) return;
-
-    // Check cooldown
-    const onCooldown = await checkTranslateCooldown(guildId, user.id);
-    if (onCooldown) return;
 
     try {
+      const config = await getTranslationConfig(guildId);
+      if (!config.flagReactions) return;
+
+      const emoji = reaction.emoji.name;
+      if (!emoji) return;
+
+      const targetLang = FLAG_TO_LANGUAGE[emoji];
+      if (!targetLang) return;
+
+      // Need message content
+      if (!message.content || message.content.length < 2) return;
+
+      // Check cooldown
+      const onCooldown = await checkTranslateCooldown(guildId, user.id);
+      if (onCooldown) return;
+
       const result = await translateText(guildId, message.content, targetLang);
       if (!result) return;
 

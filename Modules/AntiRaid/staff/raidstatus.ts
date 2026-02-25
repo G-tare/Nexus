@@ -1,9 +1,8 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { getAntiRaidConfig, getJoinVelocity, isInLockdown, checkRaidCondition } from '../helpers';
@@ -24,7 +23,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
@@ -62,7 +61,7 @@ const command: BotCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       logger.error('Error in raidstatus command:', error);
-      await interaction.reply({ content: '❌ An error occurred while fetching raid status.', ephemeral: true });
+      await interaction.reply({ content: '❌ An error occurred while fetching raid status.' });
     }
   },
 };

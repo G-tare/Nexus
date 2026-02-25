@@ -12,6 +12,10 @@ export const modActionType = pgEnum('mod_action_type', [
   'warn', 'mute', 'unmute', 'kick', 'ban', 'unban', 'tempban', 'softban', 'note'
 ]);
 
+export const automodActionType = pgEnum('automod_action_type', [
+  'delete', 'warn', 'mute', 'kick', 'ban'
+]);
+
 export const ticketStatus = pgEnum('ticket_status', [
   'open', 'claimed', 'closed'
 ]);
@@ -50,7 +54,7 @@ export const guildModuleConfigs = pgTable('guild_module_configs', {
   id: serial('id').primaryKey(),
   guildId: varchar('guild_id', { length: 20 }).notNull().references(() => guilds.id, { onDelete: 'cascade' }),
   module: varchar('module', { length: 50 }).notNull(),
-  enabled: boolean('enabled').default(false).notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
   config: jsonb('config').default({}).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -126,7 +130,7 @@ export const guildMembers = pgTable('guild_members', {
   inviteLeaveCount: integer('invite_leave_count').default(0).notNull(),
   invitedBy: varchar('invited_by', { length: 20 }),
   // Reputation
-  reputation: integer('reputation').default(0).notNull(),
+  reputation: integer('reputation').default(80).notNull(),
   lastRepGiven: timestamp('last_rep_given'),
   // Moderation
   warnCount: integer('warn_count').default(0).notNull(),
@@ -163,6 +167,26 @@ export const modCases = pgTable('mod_cases', {
 }, (table) => ({
   guildCaseIdx: uniqueIndex('guild_case_idx').on(table.guildId, table.caseNumber),
   guildTargetIdx: index('mod_guild_target_idx').on(table.guildId, table.targetId),
+}));
+
+// ============================================
+// AUTOMOD LOGS
+// ============================================
+
+export const automodLogs = pgTable('automod_logs', {
+  id: serial('id').primaryKey(),
+  guildId: varchar('guild_id', { length: 20 }).notNull().references(() => guilds.id, { onDelete: 'cascade' }),
+  targetId: varchar('target_id', { length: 20 }).notNull(),
+  action: automodActionType('action').notNull(),
+  violationType: varchar('violation_type', { length: 50 }).notNull(),
+  reason: text('reason'),
+  messageContent: text('message_content'),
+  channelId: varchar('channel_id', { length: 20 }),
+  duration: integer('duration'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  guildIdx: index('automod_guild_idx').on(table.guildId, table.createdAt),
+  guildTargetIdx: index('automod_guild_target_idx').on(table.guildId, table.targetId),
 }));
 
 // ============================================

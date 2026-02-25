@@ -140,14 +140,20 @@ const messageFilterHandler: ModuleEvent = { event: Events.MessageCreate,
         // Execute the action on the message
         await executeAction(action, message, `Automod: ${violationReason}`);
 
-        // Log to automod log channel
+        // Log to automod log channel + database
         await logAutomodAction(
           message.guild,
           config,
           message.author.id,
           action.type,
           violationReason,
-          `Violation type: ${violationType}`
+          `Violation type: ${violationType}`,
+          {
+            violationType,
+            channelId: message.channel.id,
+            messageContent: message.content,
+            duration: 'duration' in action ? action.duration : undefined,
+          }
         );
 
         // Send warning message (auto-delete after 5s)

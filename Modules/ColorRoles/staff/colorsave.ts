@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   savePalette,
@@ -32,7 +31,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -40,7 +39,7 @@ const command: BotCommand = {
     const colors = await getColorPalette(guild.id);
 
     if (colors.length === 0) {
-      await interaction.reply({ content: 'No colors to save.', ephemeral: true });
+      await interaction.reply({ content: 'No colors to save.' });
       return;
     }
 
@@ -49,7 +48,6 @@ const command: BotCommand = {
     if (existingSaves.length >= 20) {
       await interaction.reply({
         content: 'You\'ve reached the maximum of 20 saves. Delete some old saves first.',
-        ephemeral: true,
       });
       return;
     }

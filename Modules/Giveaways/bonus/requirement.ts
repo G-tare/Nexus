@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { giveaways } from '../../../Shared/src/database/models/schema';
@@ -39,7 +39,7 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guildId) {
-      return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      return interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
     }
     const subcommand = interaction.options.getSubcommand();
     const giveawayId = interaction.options.getInteger('id', true);
@@ -47,7 +47,7 @@ const command: BotCommand = {
     const rows = await db.select().from(giveaways).where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, interaction.guildId!)));
     const giveaway = rows[0] as any;
     if (!giveaway) {
-      return interaction.reply({ content: `No giveaway found with ID ${giveawayId}.`, ephemeral: true });
+      return interaction.reply({ content: `No giveaway found with ID ${giveawayId}.`, flags: MessageFlags.Ephemeral });
     }
     try {
       const reqs = (giveaway.requirements as any) || {};
@@ -56,19 +56,19 @@ const command: BotCommand = {
           const role = interaction.options.getRole('role', true);
           reqs.requiredRoles = [...(reqs.requiredRoles || []), role.id];
           await db.update(giveaways).set({ requirements: reqs }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: `Added role requirement: ${role.name}`, ephemeral: true });
+          return interaction.reply({ content: `Added role requirement: ${role.name}`, flags: MessageFlags.Ephemeral });
         }
         case 'level': {
           const level = interaction.options.getInteger('level', true);
           reqs.minLevel = level;
           await db.update(giveaways).set({ requirements: reqs }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: `Set minimum level requirement to ${level}`, ephemeral: true });
+          return interaction.reply({ content: `Set minimum level requirement to ${level}`, flags: MessageFlags.Ephemeral });
         }
         case 'messages': {
           const count = interaction.options.getInteger('count', true);
           reqs.minMessages = count;
           await db.update(giveaways).set({ requirements: reqs }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: `Set minimum messages requirement to ${count}`, ephemeral: true });
+          return interaction.reply({ content: `Set minimum messages requirement to ${count}`, flags: MessageFlags.Ephemeral });
         }
         case 'view': {
           const parts: string[] = [];
@@ -77,17 +77,17 @@ const command: BotCommand = {
           if (reqs.minMessages) parts.push(`Min Messages: ${reqs.minMessages}`);
           return interaction.reply({
             embeds: [{ title: `Requirements - Giveaway #${giveawayId}`, description: parts.length ? parts.join('\n') : 'No requirements set', color: 0x2f3136 }],
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         case 'clear': {
           await db.update(giveaways).set({ requirements: {} }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: 'Cleared all requirements.', ephemeral: true });
+          return interaction.reply({ content: 'Cleared all requirements.', flags: MessageFlags.Ephemeral });
         }
       }
     } catch (error) {
       console.error('Error managing requirements:', error);
-      return interaction.reply({ content: 'An error occurred while managing requirements.', ephemeral: true });
+      return interaction.reply({ content: 'An error occurred while managing requirements.', flags: MessageFlags.Ephemeral });
     }
   },
 };

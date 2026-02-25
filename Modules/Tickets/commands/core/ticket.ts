@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, ChannelType } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, ChannelType, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { createTicket } from '../../helpers';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
@@ -29,7 +29,7 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -39,11 +39,11 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Check if feature is enabled
     if (!config.features?.basic) {

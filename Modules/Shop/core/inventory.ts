@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+  ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -23,7 +22,7 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guildId = interaction.guildId!;
       const userId = interaction.user.id;

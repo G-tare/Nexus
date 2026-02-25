@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
@@ -20,7 +19,7 @@ export const vcinfo: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guild = interaction.guild;
       const user = interaction.user;

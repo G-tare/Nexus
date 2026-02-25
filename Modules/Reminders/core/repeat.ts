@@ -1,8 +1,7 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createReminder, parseDuration, formatDuration, generateReminderId } from '../helpers';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -42,7 +41,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!interval || interval <= 0) {
     await interaction.reply({
       content: '❌ Invalid interval format. Use "1h", "1d", "1w", etc.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -54,7 +53,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (interval < ONE_HOUR) {
     await interaction.reply({
       content: '❌ Minimum interval is 1 hour.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -62,7 +61,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (interval > THIRTY_DAYS) {
     await interaction.reply({
       content: '❌ Maximum interval is 30 days.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -72,7 +71,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (userReminders.length >= 25) {
     await interaction.reply({
       content: '❌ You already have 25 active reminders. Cancel some before adding more.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -120,7 +119,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
 
   await interaction.reply({
     embeds: [embed],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 };
 

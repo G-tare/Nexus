@@ -1,7 +1,6 @@
-import {
+import { 
   SlashCommandBuilder, ChannelType, TextChannel, EmbedBuilder,
-  ButtonBuilder, ActionRowBuilder, ButtonStyle, ChatInputCommandInteraction,
-} from 'discord.js';
+  ButtonBuilder, ActionRowBuilder, ButtonStyle, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
 import { createGiveaway, getActiveGiveaways, getGiveawayConfig, buildGiveawayEmbed, buildGiveawayComponents } from '../helpers';
@@ -23,7 +22,7 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) {
-      return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      return interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
     }
 
     const prize = interaction.options.getString('prize', true);
@@ -34,18 +33,18 @@ export default {
 
     const durationMs = parseDuration(durationStr);
     if (!durationMs) {
-      return interaction.reply({ content: 'Invalid duration format. Use formats like: 1h, 2d, 30m', ephemeral: true });
+      return interaction.reply({ content: 'Invalid duration format. Use formats like: 1h, 2d, 30m', flags: MessageFlags.Ephemeral });
     }
 
     const endTime = new Date(Date.now() + durationMs);
 
     if (!targetChannel || !(targetChannel instanceof TextChannel)) {
-      return interaction.reply({ content: 'Target channel must be a text channel.', ephemeral: true });
+      return interaction.reply({ content: 'Target channel must be a text channel.', flags: MessageFlags.Ephemeral });
     }
 
     const activeGiveaways = await getActiveGiveaways(interaction.guild.id);
     if (activeGiveaways.length >= 10) {
-      return interaction.reply({ content: 'Maximum of 10 active giveaways reached. End or cancel some first.', ephemeral: true });
+      return interaction.reply({ content: 'Maximum of 10 active giveaways reached. End or cancel some first.', flags: MessageFlags.Ephemeral });
     }
 
     try {
@@ -90,10 +89,10 @@ export default {
         }
       }
 
-      return interaction.reply({ content: `✅ Giveaway created! [View here](${message.url})`, ephemeral: true });
+      return interaction.reply({ content: `✅ Giveaway created! [View here](${message.url})`, flags: MessageFlags.Ephemeral });
     } catch (error) {
       console.error('Error creating giveaway:', error);
-      return interaction.reply({ content: 'An error occurred while creating the giveaway.', ephemeral: true });
+      return interaction.reply({ content: 'An error occurred while creating the giveaway.', flags: MessageFlags.Ephemeral });
     }
   },
 } as BotCommand;

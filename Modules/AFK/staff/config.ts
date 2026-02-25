@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAFKConfig, setAFKConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
@@ -93,7 +92,7 @@ const command: BotCommand = {
         )
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const subcommand = interaction.options.getSubcommand();

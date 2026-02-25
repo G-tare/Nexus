@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -29,7 +28,7 @@ const command: BotCommand = {
     if (colors.length === 0) {
       await interaction.reply({
         content: 'This server doesn\'t have any colors set up yet. Ask a staff member to add some!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

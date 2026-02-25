@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
@@ -24,7 +24,7 @@ const command: BotCommand = {
 
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guildId = interaction.guildId!;
       const pageInput = interaction.options.getInteger('page') || 1;

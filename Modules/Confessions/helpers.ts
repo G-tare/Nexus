@@ -1,6 +1,7 @@
-import { EmbedBuilder, TextChannel } from 'discord.js';
+import { EmbedBuilder, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import crypto from 'crypto';
 import { getRedis } from '../../Shared/src/database/connection';
+import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 const CONFESSION_SALT = 'confessions_salt_v1';
 
 export interface ConfessionConfig {
@@ -18,7 +19,7 @@ export interface ConfessionConfig {
 }
 
 const DEFAULT_CONFIG: ConfessionConfig = {
-  enabled: false,
+  enabled: true,
   moderationEnabled: false,
   fullAnonymity: false,
   cooldownSeconds: 300,
@@ -30,14 +31,25 @@ const DEFAULT_CONFIG: ConfessionConfig = {
 };
 
 /**
- * Get confession config with defaults for a guild
+ * Get confession config with defaults for a guild.
+ * Also respects the module-level enabled toggle from the dashboard.
  */
 export async function getConfessionConfig(guildId: string): Promise<ConfessionConfig> {
+  let config: ConfessionConfig;
   const cached = await getRedis().get(`confessions_config:${guildId}`);
   if (cached) {
-    return JSON.parse(cached);
+    config = { ...DEFAULT_CONFIG, ...JSON.parse(cached) };
+  } else {
+    config = { ...DEFAULT_CONFIG };
   }
-  return { ...DEFAULT_CONFIG };
+
+  // If the module-level toggle is off (dashboard), override enabled to false
+  const moduleEnabled = await moduleConfig.isEnabled(guildId, 'confessions');
+  if (!moduleEnabled) {
+    config.enabled = false;
+  }
+
+  return config;
 }
 
 /**
@@ -188,6 +200,25 @@ export function buildModerationEmbed(number: number, content: string, config: Co
     .setDescription(content)
     .setFooter({ text: 'Awaiting Moderation' })
     .setTimestamp();
+}
+
+/**
+ * Build action row with Submit + Respond buttons for confession embeds.
+ */
+export function buildConfessionButtons(confessionNumber: number): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`confession_submit_new`)
+        .setLabel('Submit Confession')
+        .setEmoji('✏️')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`confession_respond_${confessionNumber}`)
+        .setLabel('Respond')
+        .setEmoji('💬')
+        .setStyle(ButtonStyle.Secondary),
+    );
 }
 
 /**

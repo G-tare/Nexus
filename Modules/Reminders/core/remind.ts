@@ -1,9 +1,8 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createReminder, parseDuration, formatDuration, generateReminderId } from '../helpers';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -43,7 +42,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!duration || duration <= 0) {
     await interaction.reply({
       content: '❌ Invalid time format. Use "30m", "2h", "1d", "1w", or "tomorrow".',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -53,7 +52,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (userReminders.length >= 25) {
     await interaction.reply({
       content: '❌ You already have 25 active reminders. Cancel some before adding more.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -100,7 +99,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
 
   await interaction.reply({
     embeds: [embed],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 };
 

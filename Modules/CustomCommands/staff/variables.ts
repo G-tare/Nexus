@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,8 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  ComponentType
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('CustomCommands');
@@ -136,8 +135,7 @@ export const variablesCommand: BotCommand = {
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -145,8 +143,7 @@ export const variablesCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -175,8 +172,7 @@ export const variablesCommand: BotCommand = {
         embed.setFooter({ text: 'Use these variables in your custom command responses' });
 
         await interaction.reply({
-          embeds: [embed],
-          ephemeral: true
+          embeds: [embed]
         });
         return;
       }
@@ -203,8 +199,7 @@ export const variablesCommand: BotCommand = {
 
       if (pages.length === 0) {
         await interaction.reply({
-          content: 'No variables available.',
-          ephemeral: true
+          content: 'No variables available.'
         });
         return;
       }
@@ -231,8 +226,7 @@ export const variablesCommand: BotCommand = {
 
       const response = await interaction.reply({
         embeds: [pages[currentPage]],
-        components: [generateRow(currentPage)],
-        ephemeral: true
+        components: [generateRow(currentPage)]
       });
 
       const collector = response.createMessageComponentCollector({
@@ -243,8 +237,7 @@ export const variablesCommand: BotCommand = {
       collector.on('collect', async (buttonInteraction) => {
         if (buttonInteraction.user.id !== interaction.user.id) {
           await buttonInteraction.reply({
-            content: 'You cannot interact with this pagination.',
-            ephemeral: true
+            content: 'You cannot interact with this pagination.'
           });
           return;
         }
@@ -271,8 +264,7 @@ export const variablesCommand: BotCommand = {
     } catch (error) {
       logger.error('Failed to show variables', error);
       await interaction.reply({
-        content: 'Failed to show variables. Please try again later.',
-        ephemeral: true
+        content: 'Failed to show variables. Please try again later.'
       });
     }
   }

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
 import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
@@ -34,7 +33,7 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -44,7 +43,7 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -55,7 +54,7 @@ const command: BotCommand = {
     ) {
       return interaction.reply({
         content: '❌ You need the Manage Guild permission to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -74,14 +73,14 @@ const command: BotCommand = {
 
       return interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (!channel) {
       return interaction.reply({
         content: '❌ Please specify a channel or use the `disable` option.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -96,7 +95,7 @@ const command: BotCommand = {
 
     return interaction.reply({
       embeds: [embed],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

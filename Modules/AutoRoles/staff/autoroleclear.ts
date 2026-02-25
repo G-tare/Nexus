@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType,
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { clearAutoRoleRules, getAutoRoleRules } from '../helpers';
 
@@ -26,7 +25,7 @@ const command: BotCommand = {
     const rules = await getAutoRoleRules(guild.id);
 
     if (rules.length === 0) {
-      await interaction.reply({ content: 'No auto-role rules to clear.', ephemeral: true });
+      await interaction.reply({ content: 'No auto-role rules to clear.' });
       return;
     }
 

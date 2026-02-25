@@ -1,14 +1,12 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getPollConfig,
   setPollConfig,
 } from '../helpers';
-
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -102,7 +100,6 @@ const command: BotCommand = {
 
         return await interaction.reply({
           content: lines.join('\n'),
-          ephemeral: true,
         });
       }
 
@@ -112,7 +109,6 @@ const command: BotCommand = {
 
         return await interaction.reply({
           content: `✅ Default anonymous voting is now ${enabled ? '**enabled**' : '**disabled**'}.`,
-          ephemeral: true,
         });
       }
 
@@ -122,7 +118,6 @@ const command: BotCommand = {
 
         return await interaction.reply({
           content: `✅ Default live results visibility is now ${enabled ? '**enabled**' : '**disabled**'}.`,
-          ephemeral: true,
         });
       }
 
@@ -133,7 +128,6 @@ const command: BotCommand = {
         const text = count === 0 ? 'unlimited' : `${count}`;
         return await interaction.reply({
           content: `✅ Default max votes per user is now set to **${text}**.`,
-          ephemeral: true,
         });
       }
 
@@ -143,7 +137,6 @@ const command: BotCommand = {
 
         return await interaction.reply({
           content: `✅ Max options per poll is now set to **${count}**.`,
-          ephemeral: true,
         });
       }
 
@@ -153,14 +146,12 @@ const command: BotCommand = {
 
         return await interaction.reply({
           content: `✅ Max poll duration is now set to **${hours}** hours.`,
-          ephemeral: true,
         });
       }
     } catch (error) {
       console.error('Error in /poll-config command:', error);
       await interaction.reply({
         content: '❌ An error occurred while updating poll configuration.',
-        ephemeral: true,
       });
     }
   },

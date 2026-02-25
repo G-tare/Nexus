@@ -54,6 +54,47 @@ const command: BotCommand = {
           opt.setName('enabled')
             .setDescription('Show server name')
             .setRequired(true)))
+    .addSubcommand(sub =>
+      sub.setName('reportchannel')
+        .setDescription('Set the channel where userphone reports are sent')
+        .addChannelOption(opt =>
+          opt.setName('channel')
+            .setDescription('Report channel (leave empty to disable)')
+            .addChannelTypes(ChannelType.GuildText)))
+    .addSubcommand(sub =>
+      sub.setName('filter')
+        .setDescription('Configure content filter for incoming messages')
+        .addStringOption(opt =>
+          opt.setName('setting')
+            .setDescription('Filter setting to toggle')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Block NSFW', value: 'blockNSFW' },
+              { name: 'Block Profanity', value: 'blockProfanity' },
+              { name: 'Block Links', value: 'blockLinks' },
+            ))
+        .addBooleanOption(opt =>
+          opt.setName('enabled')
+            .setDescription('Enable or disable this filter')
+            .setRequired(true)))
+    .addSubcommand(sub =>
+      sub.setName('blockedwords')
+        .setDescription('Add or remove a custom blocked word')
+        .addStringOption(opt =>
+          opt.setName('word')
+            .setDescription('Word to add/remove from the block list')
+            .setRequired(true)))
+    .addSubcommand(sub =>
+      sub.setName('messageformat')
+        .setDescription('Set how incoming messages appear in this server')
+        .addStringOption(opt =>
+          opt.setName('format')
+            .setDescription('Message display format')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Embed (default)', value: 'embed' },
+              { name: 'Plain Text', value: 'plain' },
+            )))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'userphone',
@@ -72,6 +113,16 @@ const command: BotCommand = {
         ? config.allowedChannels.map(id => `<#${id}>`).join(', ')
         : 'Any channel';
 
+      const filterStatus = [
+        config.contentFilter.blockNSFW ? '✅ Block NSFW' : '❌ Block NSFW',
+        config.contentFilter.blockProfanity ? '✅ Block Profanity' : '❌ Block Profanity',
+        config.contentFilter.blockLinks ? '✅ Block Links' : '❌ Block Links',
+      ].join('\n');
+
+      const blockedWords = config.contentFilter.customBlockedWords.length > 0
+        ? config.contentFilter.customBlockedWords.map(w => `\`${w}\``).join(', ')
+        : 'None';
+
       const embed = new EmbedBuilder()
         .setColor(0x9B59B6)
         .setTitle('📞 Userphone Settings')
@@ -81,7 +132,11 @@ const command: BotCommand = {
           { name: 'Attachments', value: config.allowAttachments ? '✅' : '❌', inline: true },
           { name: 'Show Server Name', value: config.showServerName ? '✅' : '❌', inline: true },
           { name: 'Call Cooldown', value: `${config.callCooldown}s`, inline: true },
-          { name: 'Blacklisted Servers', value: config.blacklistedServers.length > 0 ? config.blacklistedServers.join(', ') : 'None', inline: true },
+          { name: 'Report Channel', value: config.reportChannelId ? `<#${config.reportChannelId}>` : 'Not set', inline: true },
+          { name: 'Message Format', value: config.messageFormat === 'plain' ? '📝 Plain Text' : '📦 Embed', inline: true },
+          { name: 'Blacklisted Servers', value: config.blacklistedServers.length > 0 ? config.blacklistedServers.join(', ') : 'None' },
+          { name: 'Content Filter', value: filterStatus },
+          { name: 'Custom Blocked Words', value: blockedWords },
         );
 
       await interaction.reply({ embeds: [embed] });
@@ -91,16 +146,16 @@ const command: BotCommand = {
     if (sub === 'channel') {
       const channel = interaction.options.getChannel('channel', true);
       const config = await getUserphoneConfig(guild.id);
-      const channels = [...config.allowedChannels];
+      const list = [...config.allowedChannels];
 
-      const idx = channels.indexOf(channel.id);
+      const idx = list.indexOf(channel.id);
       if (idx >= 0) {
-        channels.splice(idx, 1);
-        await moduleConfig.updateConfig(guild.id, 'userphone', { allowedChannels: channels });
+        list.splice(idx, 1);
+        await moduleConfig.updateConfig(guild.id, 'userphone', { allowedChannels: list });
         await interaction.reply({ content: `✅ Removed <#${channel.id}> from allowed channels.` });
       } else {
-        channels.push(channel.id);
-        await moduleConfig.updateConfig(guild.id, 'userphone', { allowedChannels: channels });
+        list.push(channel.id);
+        await moduleConfig.updateConfig(guild.id, 'userphone', { allowedChannels: list });
         await interaction.reply({ content: `✅ Added <#${channel.id}> to allowed channels.` });
       }
       return;
@@ -142,6 +197,65 @@ const command: BotCommand = {
       const enabled = interaction.options.getBoolean('enabled', true);
       await moduleConfig.updateConfig(guild.id, 'userphone', { showServerName: enabled });
       await interaction.reply({ content: `✅ Server name display ${enabled ? 'enabled' : 'disabled'}.` });
+      return;
+    }
+
+    if (sub === 'reportchannel') {
+      const channel = interaction.options.getChannel('channel');
+      const channelId = channel?.id || null;
+      await moduleConfig.updateConfig(guild.id, 'userphone', { reportChannelId: channelId });
+      if (channelId) {
+        await interaction.reply({ content: `✅ Report channel set to <#${channelId}>.` });
+      } else {
+        await interaction.reply({ content: '✅ Report channel cleared.' });
+      }
+      return;
+    }
+
+    if (sub === 'filter') {
+      const setting = interaction.options.getString('setting', true);
+      const enabled = interaction.options.getBoolean('enabled', true);
+      const config = await getUserphoneConfig(guild.id);
+
+      const updatedFilter = { ...config.contentFilter };
+      if (setting === 'blockNSFW') updatedFilter.blockNSFW = enabled;
+      else if (setting === 'blockProfanity') updatedFilter.blockProfanity = enabled;
+      else if (setting === 'blockLinks') updatedFilter.blockLinks = enabled;
+
+      await moduleConfig.updateConfig(guild.id, 'userphone', { contentFilter: updatedFilter });
+
+      const settingName = setting === 'blockNSFW' ? 'NSFW blocking'
+        : setting === 'blockProfanity' ? 'Profanity blocking'
+        : 'Link blocking';
+      await interaction.reply({ content: `✅ ${settingName} ${enabled ? 'enabled' : 'disabled'}.` });
+      return;
+    }
+
+    if (sub === 'blockedwords') {
+      const word = interaction.options.getString('word', true).toLowerCase().trim();
+      const config = await getUserphoneConfig(guild.id);
+      const list = [...config.contentFilter.customBlockedWords];
+
+      const idx = list.indexOf(word);
+      if (idx >= 0) {
+        list.splice(idx, 1);
+        const updatedFilter = { ...config.contentFilter, customBlockedWords: list };
+        await moduleConfig.updateConfig(guild.id, 'userphone', { contentFilter: updatedFilter });
+        await interaction.reply({ content: `✅ Removed \`${word}\` from blocked words.` });
+      } else {
+        list.push(word);
+        const updatedFilter = { ...config.contentFilter, customBlockedWords: list };
+        await moduleConfig.updateConfig(guild.id, 'userphone', { contentFilter: updatedFilter });
+        await interaction.reply({ content: `✅ Added \`${word}\` to blocked words.` });
+      }
+      return;
+    }
+
+    if (sub === 'messageformat') {
+      const format = interaction.options.getString('format', true) as 'embed' | 'plain';
+      await moduleConfig.updateConfig(guild.id, 'userphone', { messageFormat: format });
+      const label = format === 'plain' ? '📝 Plain Text' : '📦 Embed';
+      await interaction.reply({ content: `✅ Incoming message format set to **${label}**.` });
       return;
     }
   },

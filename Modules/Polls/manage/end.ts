@@ -1,15 +1,13 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getPoll,
   endPoll,
   buildResultsEmbed,
 } from '../helpers';
-
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -25,7 +23,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction, deps: any) => {
     const { redis, client } = deps;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     try {
       const pollId = interaction.options.getString('id', true);

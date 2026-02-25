@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
   EmbedBuilder,
-  TextChannel,
-} from 'discord.js';
+  TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   translateText,
@@ -44,7 +43,7 @@ const command: BotCommand = {
     if (!targetLang) {
       await interaction.reply({
         content: `Unknown language: \`${targetInput}\`. Use \`/languages\` to see supported languages.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

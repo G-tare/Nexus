@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   AutocompleteInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   deleteColor,
@@ -51,7 +50,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -66,7 +65,7 @@ const command: BotCommand = {
     }
 
     if (!color) {
-      await interaction.reply({ content: `Color "${colorInput}" not found.`, ephemeral: true });
+      await interaction.reply({ content: `Color "${colorInput}" not found.` });
       return;
     }
 

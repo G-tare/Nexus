@@ -1,10 +1,9 @@
-import {
+import { 
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   SlashCommandBuilder,
   TextChannel,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import premiumCheck from '../../../Shared/src/middleware/premiumCheck';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -47,7 +46,7 @@ const suggest: BotCommand = {
       if (!hasFeature) {
         await interaction.reply({
           content: 'The Suggestions module is a premium feature.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -57,7 +56,7 @@ const suggest: BotCommand = {
       if (!config.enabled) {
         await interaction.reply({
           content: 'Suggestions are disabled on this server.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -66,7 +65,7 @@ const suggest: BotCommand = {
       if (!config.channelId) {
         await interaction.reply({
           content: 'Suggestions channel has not been configured. Contact staff to set it up.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -79,7 +78,7 @@ const suggest: BotCommand = {
         const ttl = await redis.ttl(cooldownKey);
         await interaction.reply({
           content: `You're on cooldown! Try again in ${ttl}s.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -90,7 +89,7 @@ const suggest: BotCommand = {
       if (!suggestion) {
         await interaction.reply({
           content: 'Please provide a suggestion.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -111,7 +110,7 @@ const suggest: BotCommand = {
       if (!channel) {
         await interaction.reply({
           content: 'Suggestion channel not found. Contact staff to reconfigure.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -151,13 +150,13 @@ const suggest: BotCommand = {
       // Reply to user
       await interaction.reply({
         content: `✅ Your suggestion #${suggestNumber} has been submitted!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error('Error in suggest command:', error);
       await interaction.reply({
         content: 'An error occurred while submitting your suggestion.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

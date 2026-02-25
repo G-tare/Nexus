@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
 
@@ -55,7 +54,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before rolling again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -66,7 +65,7 @@ export default {
       return interaction.reply({
         content:
           '❌ Invalid dice notation! Use format like `2d20` or `3d6`. Max 100 dice, max 1000 sides.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 

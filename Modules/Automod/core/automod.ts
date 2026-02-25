@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, infoEmbed } from '../../../Shared/src/utils/embed';
 import { getAutomodConfig } from '../helpers';
@@ -23,7 +22,7 @@ const command: BotCommand = {
     if (!interaction.guildId) {
       await interaction.reply({
         content: 'This command can only be used in a guild.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -167,13 +166,13 @@ const command: BotCommand = {
 
       await interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error('Error in automod command:', error);
       await interaction.reply({
         content: 'Failed to retrieve automod configuration.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

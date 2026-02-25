@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 
 // TODO: Implement getRandomGif helper
@@ -34,7 +34,7 @@ export default {
       console.error('Hug command error:', error);
       await interaction.reply({
         content: 'Failed to execute hug. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

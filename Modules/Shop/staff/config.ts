@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Colors, PermissionFlagsBits, ChannelSelectMenuBuilder, ChannelType } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Colors, PermissionFlagsBits, ChannelSelectMenuBuilder, ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers, ShopConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -108,7 +108,7 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const guildId = interaction.guildId!;
       const subcommand = interaction.options.getSubcommand();

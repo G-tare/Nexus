@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createStatsChannel,
@@ -60,7 +59,6 @@ const command: BotCommand = {
     if (existing.length >= 10) {
       await interaction.reply({
         content: 'You can have a maximum of 10 stats channels. Delete some first.',
-        ephemeral: true,
       });
       return;
     }

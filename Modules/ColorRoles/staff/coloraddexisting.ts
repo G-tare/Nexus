@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   addExistingRoleAsColor,
@@ -38,7 +37,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -50,7 +49,6 @@ const command: BotCommand = {
     if (existingByRole) {
       await interaction.reply({
         content: `That role is already registered as color **${existingByRole.name}**.`,
-        ephemeral: true,
       });
       return;
     }
@@ -60,7 +58,6 @@ const command: BotCommand = {
     if (existingByName) {
       await interaction.reply({
         content: `A color named **${existingByName.name}** already exists.`,
-        ephemeral: true,
       });
       return;
     }
@@ -71,7 +68,6 @@ const command: BotCommand = {
     if (colors.length >= config.maxColors) {
       await interaction.reply({
         content: `The palette is full (${config.maxColors} colors max).`,
-        ephemeral: true,
       });
       return;
     }

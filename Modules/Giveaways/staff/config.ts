@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, TextChannel, Role } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, TextChannel, Role, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -135,7 +135,6 @@ const command: BotCommand = {
     if (!interaction.guildId) {
       return interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -201,7 +200,6 @@ const command: BotCommand = {
                 color: 0x2f3136,
               },
             ],
-            ephemeral: true,
           });
         }
 
@@ -213,7 +211,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Default giveaway channel set to ${channel}.`,
-            ephemeral: true,
           });
         }
 
@@ -225,7 +222,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Reaction emoji set to ${emoji}.`,
-            ephemeral: true,
           });
         }
 
@@ -237,7 +233,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Button mode ${enabled ? 'enabled' : 'disabled'}.`,
-            ephemeral: true,
           });
         }
 
@@ -249,7 +244,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Giveaway winner DMs ${enabled ? 'enabled' : 'disabled'}.`,
-            ephemeral: true,
           });
         }
 
@@ -263,7 +257,6 @@ const command: BotCommand = {
             content: role
               ? `Ping role set to ${role}.`
               : 'Ping role disabled.',
-            ephemeral: true,
           });
         }
 
@@ -274,7 +267,6 @@ const command: BotCommand = {
           if (!/^#[0-9A-F]{6}$/i.test(color)) {
             return interaction.reply({
               content: 'Invalid hex color. Please use format: #RRGGBB',
-              ephemeral: true,
             });
           }
 
@@ -284,7 +276,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Embed color set to ${color}.`,
-            ephemeral: true,
           });
         }
 
@@ -296,7 +287,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `End action set to ${action}.`,
-            ephemeral: true,
           });
         }
 
@@ -308,7 +298,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Maximum active giveaways set to ${max}.`,
-            ephemeral: true,
           });
         }
 
@@ -320,7 +309,6 @@ const command: BotCommand = {
           });
           return interaction.reply({
             content: `Self entry ${enabled ? 'enabled' : 'disabled'}.`,
-            ephemeral: true,
           });
         }
       }
@@ -328,7 +316,6 @@ const command: BotCommand = {
       console.error('Error updating giveaway config:', error);
       return interaction.reply({
         content: 'An error occurred while updating configuration.',
-        ephemeral: true,
       });
     }
   },

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  TextChannel,
-} from 'discord.js';
+  TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
 
@@ -44,12 +43,11 @@ const command: BotCommand = {
     if (!channel || !channel.isTextBased() || channel.isDMBased()) {
       await interaction.reply({
         embeds: [errorEmbed('Invalid Channel', 'This command only works in text channels.')],
-        ephemeral: true,
       });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     try {
       // Fetch messages based on filter

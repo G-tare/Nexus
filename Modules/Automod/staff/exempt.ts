@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
@@ -91,7 +90,7 @@ const command: BotCommand = {
       sub.setName('list').setDescription('List all current exemptions')
     ),
   execute: async (interaction: ChatInputCommandInteraction) => {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const guildId = interaction.guildId!;

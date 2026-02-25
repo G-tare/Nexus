@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import {
@@ -139,7 +138,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -177,20 +176,20 @@ const command: BotCommand = {
         } else if (mode === 'specific') {
           const colorName = interaction.options.getString('color');
           if (!colorName) {
-            await interaction.reply({ content: 'You must specify a color name for specific mode.', ephemeral: true });
+            await interaction.reply({ content: 'You must specify a color name for specific mode.' });
             return;
           }
           const colors = await getColorPalette(guild.id);
           const color = colors.find(c => c.name.toLowerCase() === colorName.toLowerCase());
           if (!color) {
-            await interaction.reply({ content: `Color "${colorName}" not found.`, ephemeral: true });
+            await interaction.reply({ content: `Color "${colorName}" not found.` });
             return;
           }
           joinColor = color.id;
         }
 
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, joinColor });
-        await interaction.reply({ content: `✅ Join color set to **${mode}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Join color set to **${mode}**.` });
         break;
       }
 
@@ -200,7 +199,6 @@ const command: BotCommand = {
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, commandChannelId: channelId });
         await interaction.reply({
           content: channelId ? `✅ Color commands restricted to <#${channelId}>.` : '✅ Channel restriction removed.',
-          ephemeral: true,
         });
         break;
       }
@@ -208,7 +206,7 @@ const command: BotCommand = {
       case 'reactionmessages': {
         const enabled = interaction.options.getBoolean('enabled', true);
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, reactionMessages: enabled });
-        await interaction.reply({ content: `✅ Reaction DMs ${enabled ? 'enabled' : 'disabled'}.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Reaction DMs ${enabled ? 'enabled' : 'disabled'}.` });
         break;
       }
 
@@ -216,7 +214,7 @@ const command: BotCommand = {
         const enabled = interaction.options.getBoolean('enabled', true);
         const delay = interaction.options.getInteger('delay') || config.deleteResponseDelay;
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, deleteResponses: enabled, deleteResponseDelay: delay });
-        await interaction.reply({ content: `✅ Auto-delete ${enabled ? `enabled (${delay}s delay)` : 'disabled'}.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Auto-delete ${enabled ? `enabled (${delay}s delay)` : 'disabled'}.` });
         break;
       }
 
@@ -224,14 +222,14 @@ const command: BotCommand = {
         const enabled = interaction.options.getBoolean('enabled', true);
         const threshold = interaction.options.getInteger('threshold') || config.overlapThreshold;
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, overlapWarning: enabled, overlapThreshold: threshold });
-        await interaction.reply({ content: `✅ Overlap warning ${enabled ? `enabled (threshold: ${threshold})` : 'disabled'}.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Overlap warning ${enabled ? `enabled (threshold: ${threshold})` : 'disabled'}.` });
         break;
       }
 
       case 'maxcolors': {
         const max = interaction.options.getInteger('max', true);
         await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, maxColors: max });
-        await interaction.reply({ content: `✅ Max colors set to **${max}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Max colors set to **${max}**.` });
         break;
       }
 
@@ -242,21 +240,21 @@ const command: BotCommand = {
 
         if (action === 'add') {
           if (roles.includes(role.id)) {
-            await interaction.reply({ content: 'That role is already a management role.', ephemeral: true });
+            await interaction.reply({ content: 'That role is already a management role.' });
             return;
           }
           roles.push(role.id);
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, managementRoleIds: roles });
-          await interaction.reply({ content: `✅ <@&${role.id}> added as a color management role.`, ephemeral: true });
+          await interaction.reply({ content: `✅ <@&${role.id}> added as a color management role.` });
         } else {
           const idx = roles.indexOf(role.id);
           if (idx === -1) {
-            await interaction.reply({ content: 'That role is not a management role.', ephemeral: true });
+            await interaction.reply({ content: 'That role is not a management role.' });
             return;
           }
           roles.splice(idx, 1);
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, managementRoleIds: roles });
-          await interaction.reply({ content: `✅ <@&${role.id}> removed from color management roles.`, ephemeral: true });
+          await interaction.reply({ content: `✅ <@&${role.id}> removed from color management roles.` });
         }
         break;
       }
@@ -267,29 +265,28 @@ const command: BotCommand = {
 
         if (action === 'enable') {
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, whitelistEnabled: true });
-          await interaction.reply({ content: '✅ Color whitelist enabled. Only whitelisted roles can use color commands.', ephemeral: true });
+          await interaction.reply({ content: '✅ Color whitelist enabled. Only whitelisted roles can use color commands.' });
         } else if (action === 'disable') {
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, whitelistEnabled: false });
-          await interaction.reply({ content: '✅ Color whitelist disabled. Everyone can use color commands.', ephemeral: true });
+          await interaction.reply({ content: '✅ Color whitelist disabled. Everyone can use color commands.' });
         } else if (action === 'add') {
-          if (!role) { await interaction.reply({ content: 'You must specify a role to add.', ephemeral: true }); return; }
+          if (!role) { await interaction.reply({ content: 'You must specify a role to add.' }); return; }
           const roles = [...config.whitelistRoleIds];
-          if (roles.includes(role.id)) { await interaction.reply({ content: 'Role already whitelisted.', ephemeral: true }); return; }
+          if (roles.includes(role.id)) { await interaction.reply({ content: 'Role already whitelisted.' }); return; }
           roles.push(role.id);
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, whitelistRoleIds: roles });
-          await interaction.reply({ content: `✅ <@&${role.id}> added to whitelist.`, ephemeral: true });
+          await interaction.reply({ content: `✅ <@&${role.id}> added to whitelist.` });
         } else if (action === 'remove') {
-          if (!role) { await interaction.reply({ content: 'You must specify a role to remove.', ephemeral: true }); return; }
+          if (!role) { await interaction.reply({ content: 'You must specify a role to remove.' }); return; }
           const roles = config.whitelistRoleIds.filter(id => id !== role.id);
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, whitelistRoleIds: roles });
-          await interaction.reply({ content: `✅ <@&${role.id}> removed from whitelist.`, ephemeral: true });
+          await interaction.reply({ content: `✅ <@&${role.id}> removed from whitelist.` });
         } else if (action === 'view') {
           const roleList = config.whitelistRoleIds.length > 0
             ? config.whitelistRoleIds.map(id => `<@&${id}>`).join(', ')
             : 'No roles whitelisted';
           await interaction.reply({
             content: `**Whitelist:** ${config.whitelistEnabled ? 'Enabled' : 'Disabled'}\n**Roles:** ${roleList}`,
-            ephemeral: true,
           });
         }
         break;
@@ -301,10 +298,10 @@ const command: BotCommand = {
 
         if (!role) {
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, colorRoleAnchorId: null });
-          await interaction.reply({ content: '✅ Role anchor removed. Color roles will use default positioning.', ephemeral: true });
+          await interaction.reply({ content: '✅ Role anchor removed. Color roles will use default positioning.' });
         } else {
           await moduleConfig.setConfig(guild.id, 'colorroles', { ...config, colorRoleAnchorId: role.id, colorRolePosition: position });
-          await interaction.reply({ content: `✅ Color roles will be placed **${position}** <@&${role.id}>.`, ephemeral: true });
+          await interaction.reply({ content: `✅ Color roles will be placed **${position}** <@&${role.id}>.` });
         }
         break;
       }

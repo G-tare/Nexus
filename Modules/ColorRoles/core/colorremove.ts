@@ -1,7 +1,6 @@
-import {
+import { 
   SlashCommandBuilder,
-  ChatInputCommandInteraction,
-} from 'discord.js';
+  ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   removeColor,
@@ -27,7 +26,7 @@ const command: BotCommand = {
     if (!currentColor) {
       await interaction.reply({
         content: 'You don\'t have a color role to remove.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -36,14 +35,14 @@ const command: BotCommand = {
     if (!removed) {
       await interaction.reply({
         content: 'Failed to remove your color role.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     await interaction.reply({
       content: `✅ Your color role **${currentColor.name}** has been removed.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     // Auto-delete if configured

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getServerLeaderboard,
@@ -112,7 +111,7 @@ const leaderboardCommand: BotCommand = {
       console.error('[Counting] Error in /counting-leaderboard:', error);
       return interaction.reply({
         content: 'An error occurred while fetching the leaderboard.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

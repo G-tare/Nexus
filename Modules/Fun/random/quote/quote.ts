@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
 
 const quotes = [
@@ -52,7 +52,7 @@ export default {
       console.error('Quote command error:', error);
       await interaction.reply({
         content: 'Failed to fetch quote. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

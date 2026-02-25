@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors } from '../../../Shared/src/utils/embed';
 import { getDb } from '../../../Shared/src/database/connection';
@@ -100,7 +100,7 @@ export default {
 			console.error('Error fetching economy stats:', error);
 			return await interaction.reply({
 				content: 'An error occurred while fetching economy statistics.',
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		}
 	}

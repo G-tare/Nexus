@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { deleteBackup, getBackupList } from '../helpers';
 
@@ -31,7 +30,6 @@ const command: BotCommand = {
     if (!backup) {
       await interaction.reply({
         content: `Backup with ID \`${backupId}\` not found.`,
-        ephemeral: true,
       });
       return;
     }
@@ -40,7 +38,6 @@ const command: BotCommand = {
 
     await interaction.reply({
       content: `✅ Backup **"${backup.name}"** (ID: \`${backupId}\`) deleted.`,
-      ephemeral: true,
     });
   },
 };

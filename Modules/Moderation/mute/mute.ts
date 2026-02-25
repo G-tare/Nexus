@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, modActionEmbed,
@@ -35,13 +34,13 @@ const command: BotCommand = {
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
     if (!targetMember) {
-      await interaction.reply({ content: 'User not found in this server.', ephemeral: true });
+      await interaction.reply({ content: 'User not found in this server.' });
       return;
     }
 
     const check = canModerate(interaction.member as any, targetMember, 'mute');
     if (check) {
-      await interaction.reply({ content: check, ephemeral: true });
+      await interaction.reply({ content: check });
       return;
     }
 
@@ -50,13 +49,12 @@ const command: BotCommand = {
     if (!durationMs || durationMs < 60000 || durationMs > 28 * 24 * 60 * 60 * 1000) {
       await interaction.reply({
         content: 'Invalid duration. Must be between 1 minute and 28 days (e.g., 10m, 1h, 7d).',
-        ephemeral: true,
       });
       return;
     }
 
     if (targetMember.isCommunicationDisabled()) {
-      await interaction.reply({ content: 'That user is already muted.', ephemeral: true });
+      await interaction.reply({ content: 'That user is already muted.' });
       return;
     }
 
@@ -94,7 +92,7 @@ const command: BotCommand = {
     await targetMember.timeout(durationMs, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
 
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.mute);
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.mute, 'Mute');
     }
 
     const embed = modActionEmbed({

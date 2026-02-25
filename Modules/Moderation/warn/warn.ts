@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, modActionEmbed,
@@ -35,13 +34,13 @@ const command: BotCommand = {
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
     if (!targetMember) {
-      await interaction.reply({ content: 'User not found in this server.', ephemeral: true });
+      await interaction.reply({ content: 'User not found in this server.' });
       return;
     }
 
     const check = canModerate(interaction.member as any, targetMember, 'warn');
     if (check) {
-      await interaction.reply({ content: check, ephemeral: true });
+      await interaction.reply({ content: check });
       return;
     }
 
@@ -89,7 +88,7 @@ const command: BotCommand = {
 
     // Reputation penalty
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.warn);
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.warn, 'Warning');
     }
 
     // Check thresholds for auto-escalation

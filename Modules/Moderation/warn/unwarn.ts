@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases, guildMembers } from '../../../Shared/src/database/models/schema';
@@ -47,7 +46,6 @@ const command: BotCommand = {
     if (!warn) {
       await interaction.reply({
         embeds: [errorEmbed('Not Found', `No active warning with Case #${caseId} found for ${target.tag}.`)],
-        ephemeral: true,
       });
       return;
     }

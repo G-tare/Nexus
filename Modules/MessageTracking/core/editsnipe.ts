@@ -1,9 +1,8 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { getLastEditedMessage } from '../helpers';
@@ -29,14 +28,14 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
 
       if (!targetChannel || !(targetChannel as any).isTextBased()) {
-        await interaction.reply({ content: 'Invalid channel specified.', ephemeral: true });
+        await interaction.reply({ content: 'Invalid channel specified.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -45,7 +44,7 @@ const command: BotCommand = {
       if (!editedMessage) {
         await interaction.reply({
           content: `No edited messages found in <#${targetChannel.id}> within the snipe timeout.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -69,10 +68,10 @@ const command: BotCommand = {
         embed.addFields({ name: 'New Embedded Content', value: `${editedMessage.newEmbeds.length} embed(s)`, inline: false });
       }
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     } catch (error) {
       logger.error('Error executing editsnipe command:', error);
-      await interaction.reply({ content: '❌ An error occurred while retrieving the edited message.', ephemeral: true });
+      await interaction.reply({ content: '❌ An error occurred while retrieving the edited message.', flags: MessageFlags.Ephemeral });
     }
   },
 };

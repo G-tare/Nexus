@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -102,7 +101,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before playing again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -113,7 +112,7 @@ export default {
     if (!betResult.success) {
       return interaction.reply({
         content: '❌ Insufficient currency to place this bet!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -255,14 +254,14 @@ export default {
       if (buttonInteraction.user.id !== interaction.user.id) {
         return buttonInteraction.reply({
           content: '❌ This is not your game!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (gameState.gameOver) {
         return buttonInteraction.reply({
           content: '❌ Game already over!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

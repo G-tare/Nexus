@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder} from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors } from '../../../Shared/src/utils/embed';
 
@@ -32,7 +32,7 @@ const command: BotCommand = {
   premiumFeature: 'logging.basic',
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const embed = new EmbedBuilder()
       .setTitle('Logging Configuration Overview')

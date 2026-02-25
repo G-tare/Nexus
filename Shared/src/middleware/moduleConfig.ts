@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { createModuleLogger } from '../utils/logger';
 
 const logger = createModuleLogger('ModuleConfig');
-const CACHE_TTL = 300; // 5 minutes
+const CACHE_TTL = 60; // 1 minute — short TTL to prevent stale enable/disable state
 
 /**
  * Manage per-guild module configurations.
@@ -14,9 +14,10 @@ const CACHE_TTL = 300; // 5 minutes
 export class ModuleConfigManager {
   /**
    * Check if a module is enabled for a guild.
+   * Normalises the module name to lowercase to avoid case-sensitive mismatches.
    */
   async isEnabled(guildId: string, moduleName: string): Promise<boolean> {
-    const config = await this.getModuleConfig(guildId, moduleName);
+    const config = await this.getModuleConfig(guildId, moduleName.toLowerCase());
     // Default to enabled when no config row exists (module hasn't been explicitly disabled)
     return config?.enabled ?? true;
   }
@@ -28,8 +29,9 @@ export class ModuleConfigManager {
     guildId: string,
     moduleName: string
   ): Promise<{ enabled: boolean; config: T } | null> {
+    const normalised = moduleName.toLowerCase();
     const redis = getRedis();
-    const cacheKey = `modcfg:${guildId}:${moduleName}`;
+    const cacheKey = `modcfg:${guildId}:${normalised}`;
 
     // Try cache
     try {
@@ -44,7 +46,7 @@ export class ModuleConfigManager {
       .where(
         and(
           eq(guildModuleConfigs.guildId, guildId),
-          eq(guildModuleConfigs.module, moduleName)
+          eq(guildModuleConfigs.module, normalised)
         )
       )
       .limit(1);
@@ -65,23 +67,24 @@ export class ModuleConfigManager {
    * Set module enabled/disabled.
    */
   async setEnabled(guildId: string, moduleName: string, enabled: boolean): Promise<void> {
-    await this.upsertConfig(guildId, moduleName, { enabled });
+    await this.upsertConfig(guildId, moduleName.toLowerCase(), { enabled });
   }
 
   /**
    * Update module configuration (partial update, merges with existing).
    */
   async updateConfig(guildId: string, moduleName: string, configUpdate: Record<string, any>): Promise<void> {
-    const existing = await this.getModuleConfig(guildId, moduleName);
+    const normalised = moduleName.toLowerCase();
+    const existing = await this.getModuleConfig(guildId, normalised);
     const newConfig = { ...(existing?.config || {}), ...configUpdate };
-    await this.upsertConfig(guildId, moduleName, { config: newConfig });
+    await this.upsertConfig(guildId, normalised, { config: newConfig });
   }
 
   /**
    * Set the full module configuration.
    */
   async setConfig(guildId: string, moduleName: string, moduleConfig: Record<string, any>): Promise<void> {
-    await this.upsertConfig(guildId, moduleName, { config: moduleConfig });
+    await this.upsertConfig(guildId, moduleName.toLowerCase(), { config: moduleConfig });
   }
 
   /**
@@ -109,7 +112,18 @@ export class ModuleConfigManager {
     update: { enabled?: boolean; config?: Record<string, any> }
   ): Promise<void> {
     const db = getDb();
-    const existing = await this.getModuleConfig(guildId, moduleName);
+    const normalised = moduleName.toLowerCase();
+
+    // Skip cache for the DB read — go directly to DB to avoid stale state
+    const [existing] = await db.select()
+      .from(guildModuleConfigs)
+      .where(
+        and(
+          eq(guildModuleConfigs.guildId, guildId),
+          eq(guildModuleConfigs.module, normalised)
+        )
+      )
+      .limit(1);
 
     if (existing) {
       const setValues: Record<string, any> = { updatedAt: new Date() };
@@ -121,25 +135,29 @@ export class ModuleConfigManager {
         .where(
           and(
             eq(guildModuleConfigs.guildId, guildId),
-            eq(guildModuleConfigs.module, moduleName)
+            eq(guildModuleConfigs.module, normalised)
           )
         );
     } else {
       await db.insert(guildModuleConfigs).values({
         guildId,
-        module: moduleName,
-        enabled: update.enabled ?? false,
+        module: normalised,
+        enabled: update.enabled ?? true,
         config: update.config ?? {},
       });
     }
 
-    // Invalidate cache
+    // Invalidate cache and immediately set the new value
     const redis = getRedis();
     try {
-      await redis.del(`modcfg:${guildId}:${moduleName}`);
+      const newState = {
+        enabled: update.enabled ?? existing?.enabled ?? true,
+        config: update.config ?? existing?.config ?? {},
+      };
+      await redis.setex(`modcfg:${guildId}:${normalised}`, CACHE_TTL, JSON.stringify(newState));
     } catch { /* ignore */ }
 
-    logger.debug('Module config updated', { guildId, moduleName, update });
+    logger.debug('Module config updated', { guildId, moduleName: normalised, update });
   }
 }
 

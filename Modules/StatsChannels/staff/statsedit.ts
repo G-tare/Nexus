@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   editStatsChannel,
@@ -60,7 +59,6 @@ const command: BotCommand = {
     if (!newLabel && !newType) {
       await interaction.reply({
         content: 'You must provide a new label or type to edit.',
-        ephemeral: true,
       });
       return;
     }

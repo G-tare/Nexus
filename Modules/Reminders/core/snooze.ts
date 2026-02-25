@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { snoozeReminder, parseDuration, formatDuration, getReminder } from '../helpers';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -30,7 +30,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!duration || duration <= 0) {
     await interaction.reply({
       content: '❌ Invalid time format. Use "30m", "2h", "1d", "1w", or "tomorrow".',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -41,7 +41,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!snoozed) {
     await interaction.reply({
       content: '❌ Reminder not found or does not belong to you.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -59,7 +59,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
 
   await interaction.reply({
     embeds: [embed],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 };
 

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBackupList, getBackupConfig, formatSize } from '../helpers';
 
@@ -26,7 +25,6 @@ const command: BotCommand = {
     if (backups.length === 0) {
       await interaction.reply({
         content: 'No backups found. Use `/backupcreate` to create one.',
-        ephemeral: true,
       });
       return;
     }

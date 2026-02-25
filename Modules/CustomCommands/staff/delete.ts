@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,8 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  ComponentType
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -33,8 +32,7 @@ export const deleteCommand: BotCommand = {
 
     if (!interaction.guild || !interaction.member) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -42,8 +40,7 @@ export const deleteCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -54,8 +51,7 @@ export const deleteCommand: BotCommand = {
 
       if (!command) {
         await interaction.reply({
-          content: `Custom command "${name}" not found.`,
-          ephemeral: true
+          content: `Custom command "${name}" not found.`
         });
         return;
       }
@@ -85,8 +81,7 @@ export const deleteCommand: BotCommand = {
 
       const response = await interaction.reply({
         embeds: [confirmEmbed],
-        components: [row],
-        ephemeral: true
+        components: [row]
       });
 
       // Wait for button click
@@ -100,8 +95,7 @@ export const deleteCommand: BotCommand = {
       collector.on('collect', async (buttonInteraction) => {
         if (buttonInteraction.user.id !== interaction.user.id) {
           await buttonInteraction.reply({
-            content: 'You cannot interact with this button.',
-            ephemeral: true
+            content: 'You cannot interact with this button.'
           });
           return;
         }
@@ -150,8 +144,7 @@ export const deleteCommand: BotCommand = {
     } catch (error) {
       logger.error('Failed to delete custom command', error);
       await interaction.reply({
-        content: 'Failed to delete custom command. Please try again later.',
-        ephemeral: true
+        content: 'Failed to delete custom command. Please try again later.'
       });
     }
   }

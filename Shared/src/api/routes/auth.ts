@@ -18,6 +18,7 @@ const DISCORD_OAUTH_URL = 'https://discord.com/api/oauth2';
  * Returns the Discord OAuth2 authorization URL.
  */
 router.get('/login', (req: Request, res: Response) => {
+  const platform = req.query.platform as string | undefined; // "ios", "android", etc.
   const redirectUri = `${config.api.apiUrl}/api/auth/callback`;
   const scopes = ['identify', 'guilds', 'guilds.members.read'];
 
@@ -26,6 +27,11 @@ router.get('/login', (req: Request, res: Response) => {
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', scopes.join(' '));
+
+  // Pass platform through OAuth state so the callback knows where to redirect
+  if (platform) {
+    url.searchParams.set('state', platform);
+  }
 
   res.json({ url: url.toString() });
 });
@@ -36,6 +42,7 @@ router.get('/login', (req: Request, res: Response) => {
  */
 router.get('/callback', async (req: Request, res: Response) => {
   const { code } = req.query;
+  logger.info('OAuth callback received', { hasCode: !!code, state: req.query.state ?? 'none' });
 
   if (!code || typeof code !== 'string') {
     res.status(400).json({ error: 'Missing authorization code' });
@@ -101,13 +108,23 @@ router.get('/callback', async (req: Request, res: Response) => {
     // Check if user is an owner
     const isOwner = config.discord.ownerIds.includes(discordUser.id);
 
-    // Redirect back to dashboard with token
-    const dashboardUrl = new URL(config.api.dashboardUrl);
-    dashboardUrl.pathname = '/auth/callback';
-    dashboardUrl.searchParams.set('token', token);
-    dashboardUrl.searchParams.set('isOwner', String(isOwner));
+    // Determine where to redirect based on platform (passed via OAuth state)
+    const platform = req.query.state as string | undefined;
 
-    res.redirect(dashboardUrl.toString());
+    if (platform === 'ios') {
+      // Redirect to iOS app via custom URL scheme
+      // Note: Don't use new URL() for custom schemes — it may not parse them correctly
+      const callbackUrl = `nexusbot://callback?token=${encodeURIComponent(token)}&isOwner=${isOwner}`;
+      logger.info('Redirecting to iOS app', { url: callbackUrl.substring(0, 50) + '...' });
+      res.redirect(callbackUrl);
+    } else {
+      // Redirect back to web dashboard
+      const dashboardUrl = new URL(config.api.dashboardUrl);
+      dashboardUrl.pathname = '/auth/callback';
+      dashboardUrl.searchParams.set('token', token);
+      dashboardUrl.searchParams.set('isOwner', String(isOwner));
+      res.redirect(dashboardUrl.toString());
+    }
   } catch (err: any) {
     logger.error('OAuth2 callback failed', { error: err.message });
     res.status(500).json({ error: 'Authentication failed' });
@@ -127,13 +144,19 @@ router.get('/me', async (req: Request, res: Response) => {
 
   try {
     const decoded = jwt.verify(authHeader.split(' ')[1], config.api.jwtSecret) as any;
-
-    // Get fresh user guilds from Discord
-    const guildsResponse = await axios.get(`${DISCORD_API}/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${decoded.accessToken}` },
-    });
-
     const isOwner = config.discord.ownerIds.includes(decoded.id);
+
+    // Try to get fresh user guilds from Discord, but don't fail if Discord API is down
+    let guilds: any[] = [];
+    try {
+      const guildsResponse = await axios.get(`${DISCORD_API}/users/@me/guilds`, {
+        headers: { Authorization: `Bearer ${decoded.accessToken}` },
+      });
+      guilds = guildsResponse.data;
+    } catch (discordErr: any) {
+      logger.warn('Failed to fetch guilds from Discord', { error: discordErr.message });
+      // Return empty guilds rather than failing the whole auth
+    }
 
     res.json({
       user: {
@@ -142,9 +165,10 @@ router.get('/me', async (req: Request, res: Response) => {
         avatar: decoded.avatar,
         isOwner,
       },
-      guilds: guildsResponse.data,
+      guilds,
     });
   } catch (err: any) {
+    logger.error('Auth /me failed', { error: err.message });
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 });

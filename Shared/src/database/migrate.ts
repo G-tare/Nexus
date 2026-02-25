@@ -125,7 +125,7 @@ async function migrate() {
         invite_fake_count INTEGER NOT NULL DEFAULT 0,
         invite_leave_count INTEGER NOT NULL DEFAULT 0,
         invited_by VARCHAR(20),
-        reputation INTEGER NOT NULL DEFAULT 0,
+        reputation INTEGER NOT NULL DEFAULT 80,
         last_rep_given TIMESTAMP,
         warn_count INTEGER NOT NULL DEFAULT 0,
         is_muted BOOLEAN NOT NULL DEFAULT false,
@@ -454,6 +454,21 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS activity_guild_hour_idx ON activity_hourly(guild_id, hour);
 
       -- ============================================
+      -- ACTIVITY TRACKING (daily aggregation, used by ActivityTracking module)
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS activity_tracking (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        date DATE NOT NULL,
+        message_count INTEGER NOT NULL DEFAULT 0,
+        voice_minutes INTEGER NOT NULL DEFAULT 0,
+        reaction_count INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS activity_tracking_guild_user_date_idx ON activity_tracking(guild_id, user_id, date);
+      CREATE INDEX IF NOT EXISTS activity_tracking_guild_date_idx ON activity_tracking(guild_id, date);
+
+      -- ============================================
       -- MUSIC PLAYLISTS
       -- ============================================
       CREATE TABLE IF NOT EXISTS playlists (
@@ -497,6 +512,18 @@ async function migrate() {
       );
 
       -- ============================================
+      -- TRANSLATION CHANNELS
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS translation_channels (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        channel_id VARCHAR(20) NOT NULL,
+        target_lang VARCHAR(10) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS translation_channel_idx ON translation_channels(guild_id, channel_id);
+
+      -- ============================================
       -- STATS CHANNELS
       -- ============================================
       CREATE TABLE IF NOT EXISTS stats_channels (
@@ -508,6 +535,339 @@ async function migrate() {
         custom_value INTEGER,
         last_updated TIMESTAMP
       );
+
+      -- ============================================
+      -- REPUTATION
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS reputation_users (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        reputation INTEGER NOT NULL DEFAULT 80,
+        last_active BIGINT NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS rep_guild_user_idx ON reputation_users(guild_id, user_id);
+
+      CREATE TABLE IF NOT EXISTS reputation_history (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        given_by VARCHAR(20) NOT NULL,
+        delta INTEGER NOT NULL,
+        reason TEXT,
+        created_at BIGINT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS rep_history_guild_user_idx ON reputation_history(guild_id, user_id);
+
+      CREATE TABLE IF NOT EXISTS reputation_roles (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        role_id VARCHAR(20) NOT NULL,
+        required_rep INTEGER NOT NULL,
+        remove_on_drop BOOLEAN NOT NULL DEFAULT false
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS rep_role_guild_role_idx ON reputation_roles(guild_id, role_id);
+
+      -- ============================================
+      -- AUTOROLES
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS autorole_rules (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        role_id VARCHAR(20) NOT NULL,
+        condition VARCHAR(50) NOT NULL,
+        condition_value TEXT,
+        delay_seconds INTEGER NOT NULL DEFAULT 0,
+        created_by VARCHAR(20) NOT NULL,
+        created_at BIGINT NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT true
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS autorole_guild_role_cond_idx ON autorole_rules(guild_id, role_id, condition);
+
+      CREATE TABLE IF NOT EXISTS autorole_persistent (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        member_id VARCHAR(20) NOT NULL,
+        role_ids JSONB NOT NULL DEFAULT '[]',
+        saved_at BIGINT NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS autorole_persist_guild_member_idx ON autorole_persistent(guild_id, member_id);
+
+      -- ============================================
+      -- COLOR ROLES
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS color_roles (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        hex VARCHAR(6) NOT NULL,
+        role_id VARCHAR(20) NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        created_by VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS color_guild_hex_idx ON color_roles(guild_id, hex);
+      CREATE UNIQUE INDEX IF NOT EXISTS color_guild_role_idx ON color_roles(guild_id, role_id);
+
+      CREATE TABLE IF NOT EXISTS color_reaction_lists (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        channel_id VARCHAR(20) NOT NULL,
+        message_id VARCHAR(20) NOT NULL,
+        color_ids INTEGER[] NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS color_react_guild_msg_idx ON color_reaction_lists(guild_id, message_id);
+
+      CREATE TABLE IF NOT EXISTS color_saves (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        colors JSONB NOT NULL DEFAULT '[]',
+        created_by VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        export_code VARCHAR(255)
+      );
+
+      -- ============================================
+      -- CUSTOM COMMANDS EXTENDED
+      -- ============================================
+      ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS dm BOOLEAN DEFAULT false;
+      ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS ephemeral BOOLEAN DEFAULT false;
+      ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS delete_invocation BOOLEAN DEFAULT false;
+      ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS add_reaction VARCHAR(100);
+      ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS allowed_channels JSONB DEFAULT '[]';
+
+      -- InviteTracker columns on guild_members
+      ALTER TABLE guild_members ADD COLUMN IF NOT EXISTS invites INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE guild_members ADD COLUMN IF NOT EXISTS bonus_invites INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS command_cooldowns (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        command_id VARCHAR(36) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        cooldown_expires_at TIMESTAMP NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS cmd_cd_guild_cmd_user_idx ON command_cooldowns(guild_id, command_id, user_id);
+
+      CREATE TABLE IF NOT EXISTS custom_commands_config (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL UNIQUE,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        prefix VARCHAR(10) NOT NULL DEFAULT '!',
+        max_commands INTEGER NOT NULL DEFAULT 50,
+        allow_slash BOOLEAN NOT NULL DEFAULT true
+      );
+
+      -- ============================================
+      -- FORMS CONFIG
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS forms_config (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL UNIQUE,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        require_approval BOOLEAN NOT NULL DEFAULT false,
+        notification_channel_id VARCHAR(20)
+      );
+
+      -- ============================================
+      -- INVITE TRACKER
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS invite_records (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        inviter_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        code VARCHAR(100),
+        joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        left_at TIMESTAMP,
+        is_fake BOOLEAN NOT NULL DEFAULT false
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS invite_guild_user_code_idx ON invite_records(guild_id, user_id, code);
+      CREATE INDEX IF NOT EXISTS invite_guild_inviter_idx ON invite_records(guild_id, inviter_id);
+
+      CREATE TABLE IF NOT EXISTS guild_settings (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL UNIQUE,
+        config JSONB NOT NULL DEFAULT '{}'
+      );
+
+      -- ============================================
+      -- ANTI-RAID LOGS
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS raid_logs (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        action VARCHAR(100) NOT NULL,
+        details JSONB,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS raid_logs_guild_idx ON raid_logs(guild_id, created_at);
+
+      -- ============================================
+      -- TRANSLATION USER PREFS
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS translation_user_prefs (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        user_id VARCHAR(20) NOT NULL,
+        language VARCHAR(10) NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS trans_user_pref_guild_user_idx ON translation_user_prefs(guild_id, user_id);
+
+      -- Update translation_channels: add created_by if missing
+      ALTER TABLE translation_channels ADD COLUMN IF NOT EXISTS created_by VARCHAR(20);
+
+      -- ============================================
+      -- USERPHONE HISTORY
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS userphone_history (
+        id SERIAL PRIMARY KEY,
+        call_id VARCHAR(36) NOT NULL UNIQUE,
+        guild1_id VARCHAR(20) NOT NULL,
+        channel1_id VARCHAR(20) NOT NULL,
+        guild2_id VARCHAR(20) NOT NULL,
+        channel2_id VARCHAR(20) NOT NULL,
+        started_at BIGINT NOT NULL,
+        duration INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- ============================================
+      -- STICKY MESSAGES (camelCase — used by StickyMessages module)
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS "stickyMessages" (
+        id VARCHAR(100) PRIMARY KEY,
+        "guildId" VARCHAR(20) NOT NULL,
+        "channelId" VARCHAR(20) NOT NULL,
+        content TEXT,
+        "embedData" JSONB,
+        "currentMessageId" VARCHAR(20),
+        interval INTEGER NOT NULL DEFAULT 5,
+        "messagesSince" INTEGER NOT NULL DEFAULT 0,
+        priority INTEGER NOT NULL DEFAULT 0,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "createdAt" TIMESTAMP DEFAULT NOW(),
+        "updatedAt" TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS "stickyConfigs" (
+        id SERIAL PRIMARY KEY,
+        "guildId" VARCHAR(20) NOT NULL UNIQUE,
+        config JSONB NOT NULL DEFAULT '{}'
+      );
+
+      -- ============================================
+      -- SCHEDULED MESSAGES CONFIG (camelCase — used by ScheduledMessages module)
+      -- ============================================
+      CREATE TABLE IF NOT EXISTS "scheduledMessagesConfig" (
+        id SERIAL PRIMARY KEY,
+        "guildId" VARCHAR(20) NOT NULL UNIQUE,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        "maxScheduledPerGuild" INTEGER NOT NULL DEFAULT 25,
+        timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+        "createdAt" TIMESTAMP DEFAULT NOW(),
+        "updatedAt" TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // ============================================
+    // One-time fix: re-enable all modules that were incorrectly inserted as
+    // disabled due to the old `enabled: update.enabled ?? false` bug in
+    // upsertConfig. Safe because the dashboard isn't hosted yet, so no
+    // module has been intentionally disabled by anyone.
+    // TODO: Remove this block once all guilds have been fixed.
+    // ============================================
+    const fixResult = await pool.query(`
+      UPDATE guild_module_configs
+      SET enabled = true, updated_at = NOW()
+      WHERE enabled = false
+    `);
+    if (fixResult.rowCount && fixResult.rowCount > 0) {
+      logger.info('Re-enabled ' + fixResult.rowCount + ' modules that were incorrectly disabled');
+    }
+
+    // ============================================
+    // Userphone Reports & Server Bans
+    // ============================================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS userphone_reports (
+        id SERIAL PRIMARY KEY,
+        call_id VARCHAR(64) NOT NULL,
+        reporter_guild_id VARCHAR(20) NOT NULL,
+        reporter_user_id VARCHAR(20) NOT NULL,
+        reported_guild_id VARCHAR(20) NOT NULL,
+        reason TEXT NOT NULL,
+        transcript TEXT,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        staff_notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        resolved_at TIMESTAMP,
+        resolved_by VARCHAR(20)
+      );
+      CREATE INDEX IF NOT EXISTS userphone_reports_guild_idx ON userphone_reports(reported_guild_id);
+
+      CREATE TABLE IF NOT EXISTS userphone_server_bans (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        reason TEXT NOT NULL,
+        report_id INTEGER REFERENCES userphone_reports(id),
+        banned_at TIMESTAMP DEFAULT NOW(),
+        banned_by VARCHAR(20) NOT NULL,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS userphone_ban_guild_idx ON userphone_server_bans(guild_id) WHERE is_active = true;
+    `);
+
+    // Userphone contacts table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS userphone_contacts (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL,
+        contact_guild_id VARCHAR(20) NOT NULL,
+        contact_guild_name VARCHAR(100) NOT NULL,
+        added_by VARCHAR(20) NOT NULL,
+        added_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(guild_id, contact_guild_id)
+      );
+      CREATE INDEX IF NOT EXISTS userphone_contacts_guild_idx ON userphone_contacts(guild_id);
+    `);
+
+    // ============================================
+    // AUTOMOD LOGS
+    // ============================================
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE automod_action_type AS ENUM ('delete', 'warn', 'mute', 'kick', 'ban');
+      EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+      CREATE TABLE IF NOT EXISTS automod_logs (
+        id SERIAL PRIMARY KEY,
+        guild_id VARCHAR(20) NOT NULL REFERENCES guilds(id) ON DELETE CASCADE,
+        target_id VARCHAR(20) NOT NULL,
+        action automod_action_type NOT NULL,
+        violation_type VARCHAR(50) NOT NULL,
+        reason TEXT,
+        message_content TEXT,
+        channel_id VARCHAR(20),
+        duration INTEGER,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS automod_guild_idx ON automod_logs(guild_id, created_at);
+      CREATE INDEX IF NOT EXISTS automod_guild_target_idx ON automod_logs(guild_id, target_id);
+    `);
+
+    // ============================================
+    // Reputation default update: 0 → 80
+    // ============================================
+    await pool.query(`
+      ALTER TABLE guild_members ALTER COLUMN reputation SET DEFAULT 80;
+      ALTER TABLE reputation_users ALTER COLUMN reputation SET DEFAULT 80;
+
+      -- Update existing users stuck at 0 (never been adjusted) to the new default
+      UPDATE guild_members SET reputation = 80 WHERE reputation = 0;
+      UPDATE reputation_users SET reputation = 80 WHERE reputation = 0;
     `);
 
     logger.info('All migrations completed successfully');

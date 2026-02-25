@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getAFKConfig,
@@ -27,7 +26,7 @@ const command: BotCommand = {
         .setMaxLength(200)
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // Check if AFK module is enabled
@@ -57,23 +56,22 @@ const command: BotCommand = {
       const message = interaction.options.getString('message') || 'AFK';
 
       // Try to update nickname with AFK prefix
-      let originalNickname: string | null = null;
-      if (interaction.member && typeof (interaction.member as any).nickname === 'string') {
-        originalNickname = (interaction.member as any).nickname;
-      }
+      // Store the original nickname — even if null (meaning no custom nick)
+      // so we can restore properly when they return
+      const memberObj = interaction.member as any;
+      const originalNickname: string | null = memberObj?.nickname ?? null;
 
       try {
         const newNickname = `[AFK] ${originalNickname || interaction.user.username}`.slice(0, 32);
         if (interaction.member && 'setNickname' in interaction.member) {
           await interaction.member.setNickname(newNickname);
         }
-      } catch (err) {
-        console.error('Error setting AFK nickname:', err);
-        // Continue anyway, nickname change is not critical
+      } catch {
+        // Nickname change is not critical — bot may lack permission for server owner or higher-ranked roles
       }
 
-      // Set AFK in database
-      await setAFK(interaction.guildId!, interaction.user.id, message, originalNickname ?? undefined);
+      // Set AFK in database — use sentinel "__NONE__" when no nickname, so we know to restore to null
+      await setAFK(interaction.guildId!, interaction.user.id, message, originalNickname ?? '__NONE__');
 
       const embed = new EmbedBuilder()
         .setColor('#FFA500')

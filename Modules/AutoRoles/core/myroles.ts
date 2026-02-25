@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutoRoleRules, CONDITION_LABELS } from '../helpers';
 
@@ -40,7 +39,7 @@ const command: BotCommand = {
     if (autoRoles.length === 0) {
       await interaction.reply({
         content: 'You don\'t have any auto-assigned roles in this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -54,7 +53,7 @@ const command: BotCommand = {
       .setFooter({ text: `${autoRoles.length} auto-role${autoRoles.length > 1 ? 's' : ''}` })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   },
 };
 

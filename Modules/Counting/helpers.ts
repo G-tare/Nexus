@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import Redis from 'ioredis';
+import { getRedis } from '../../Shared/src/database/connection';
 
 export interface CountingConfig {
   enabled: boolean;
@@ -42,19 +42,6 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
-let redis: Redis;
-
-export function setRedis(redisClient: Redis) {
-  redis = redisClient;
-}
-
-export function getRedis(): Redis {
-  if (!redis) {
-    throw new Error('Redis client not initialized');
-  }
-  return redis;
-}
-
 const DEFAULT_CONFIG: CountingConfig = {
   enabled: false,
   currentCount: 0,
@@ -76,18 +63,18 @@ const DEFAULT_CONFIG: CountingConfig = {
 };
 
 export async function getCountingConfig(guildId: string): Promise<CountingConfig> {
-  const cached = await redis.get(`counting:config:${guildId}`);
+  const cached = await getRedis().get(`counting:config:${guildId}`);
   if (cached) {
     return JSON.parse(cached);
   }
 
   const config = { ...DEFAULT_CONFIG };
-  await redis.setex(`counting:config:${guildId}`, 86400, JSON.stringify(config));
+  await getRedis().setex(`counting:config:${guildId}`, 86400, JSON.stringify(config));
   return config;
 }
 
 export async function saveCountingConfig(guildId: string, config: CountingConfig): Promise<void> {
-  await redis.setex(`counting:config:${guildId}`, 86400 * 7, JSON.stringify(config));
+  await getRedis().setex(`counting:config:${guildId}`, 86400 * 7, JSON.stringify(config));
 }
 
 export async function getCurrentCount(guildId: string): Promise<number> {
@@ -162,14 +149,14 @@ export async function handleWrongCount(
 }
 
 export async function getUserCountingLives(guildId: string, userId: string): Promise<number> {
-  const lives = await redis.get(`counting:lives:${guildId}:${userId}`);
+  const lives = await getRedis().get(`counting:lives:${guildId}:${userId}`);
   return lives ? parseInt(lives, 10) : 0;
 }
 
 export async function consumeLife(guildId: string, userId: string): Promise<number> {
   const lives = await getUserCountingLives(guildId, userId);
   const remaining = Math.max(0, lives - 1);
-  await redis.setex(`counting:lives:${guildId}:${userId}`, 2592000, String(remaining));
+  await getRedis().setex(`counting:lives:${guildId}:${userId}`, 2592000, String(remaining));
 
   // Emit event for Shop/Currency module
   const eventBus = require('../../../core/events').getEventBus?.();
@@ -187,7 +174,7 @@ export async function consumeLife(guildId: string, userId: string): Promise<numb
 export async function addLives(guildId: string, userId: string, count: number): Promise<number> {
   const currentLives = await getUserCountingLives(guildId, userId);
   const newTotal = currentLives + count;
-  await redis.setex(`counting:lives:${guildId}:${userId}`, 2592000, String(newTotal));
+  await getRedis().setex(`counting:lives:${guildId}:${userId}`, 2592000, String(newTotal));
   return newTotal;
 }
 
@@ -214,7 +201,7 @@ export function evaluateMath(expression: string): number | null {
 }
 
 export async function getUserStats(guildId: string, userId: string): Promise<CountingUserStats> {
-  const cached = await redis.get(`counting:stats:${guildId}:${userId}`);
+  const cached = await getRedis().get(`counting:stats:${guildId}:${userId}`);
   if (cached) {
     return JSON.parse(cached);
   }
@@ -230,7 +217,7 @@ export async function getUserStats(guildId: string, userId: string): Promise<Cou
     bestStreak: 0,
   };
 
-  await redis.setex(`counting:stats:${guildId}:${userId}`, 2592000, JSON.stringify(stats));
+  await getRedis().setex(`counting:stats:${guildId}:${userId}`, 2592000, JSON.stringify(stats));
   return stats;
 }
 
@@ -255,7 +242,7 @@ export async function updateUserStats(
   stats.lastCountedAt = new Date();
   stats.currentLives = await getUserCountingLives(guildId, userId);
 
-  await redis.setex(`counting:stats:${guildId}:${userId}`, 2592000, JSON.stringify(stats));
+  await getRedis().setex(`counting:stats:${guildId}:${userId}`, 2592000, JSON.stringify(stats));
 }
 
 export async function getServerLeaderboard(
@@ -263,12 +250,12 @@ export async function getServerLeaderboard(
   type: 'counts' | 'streak' | 'highest'
 ): Promise<LeaderboardEntry[]> {
   const pattern = `counting:stats:${guildId}:*`;
-  const keys = await redis.keys(pattern);
+  const keys = await getRedis().keys(pattern);
 
   const entries: LeaderboardEntry[] = [];
 
   for (const key of keys) {
-    const data = await redis.get(key);
+    const data = await getRedis().get(key);
     if (!data) continue;
 
     const stats: CountingUserStats = JSON.parse(data);
@@ -297,7 +284,7 @@ export async function getServerLeaderboard(
 }
 
 export async function getGlobalHighestCounts(): Promise<LeaderboardEntry[]> {
-  const entries = await redis.zrevrange(`counting:global:highest`, 0, 9, 'WITHSCORES');
+  const entries = await getRedis().zrevrange(`counting:global:highest`, 0, 9, 'WITHSCORES');
 
   const result: LeaderboardEntry[] = [];
 
@@ -323,7 +310,7 @@ export async function updateGlobalLeaderboard(
   highestCount: number
 ): Promise<void> {
   const member = `${guildId}:${guildName}`;
-  await redis.zadd(`counting:global:highest`, highestCount, member);
+  await getRedis().zadd(`counting:global:highest`, highestCount, member);
 }
 
 export function checkMilestone(count: number, interval: number): boolean {
@@ -333,12 +320,12 @@ export function checkMilestone(count: number, interval: number): boolean {
 
 export async function getStreakLeaderboard(guildId: string): Promise<LeaderboardEntry[]> {
   const pattern = `counting:stats:${guildId}:*`;
-  const keys = await redis.keys(pattern);
+  const keys = await getRedis().keys(pattern);
 
   const entries: LeaderboardEntry[] = [];
 
   for (const key of keys) {
-    const data = await redis.get(key);
+    const data = await getRedis().get(key);
     if (!data) continue;
 
     const stats: CountingUserStats = JSON.parse(data);

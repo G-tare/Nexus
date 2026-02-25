@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
 
@@ -184,7 +183,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before playing again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 

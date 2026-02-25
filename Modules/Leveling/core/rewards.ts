@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getLevelingConfig } from '../helpers';
@@ -14,7 +14,7 @@ const command: BotCommand = {
 
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guildId = interaction.guildId!;
 

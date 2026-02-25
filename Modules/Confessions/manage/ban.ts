@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getConfessionConfig,
@@ -10,7 +9,6 @@ import {
   unbanByConfessionId,
   getConfessionData,
 } from '../helpers';
-
 
 const command: BotCommand = {
   module: 'confessions',
@@ -62,7 +60,6 @@ const command: BotCommand = {
         if (!confessionData) {
           await interaction.reply({
             content: `Confession #${confessionId} not found.`,
-            ephemeral: true,
           });
           return;
         }
@@ -71,12 +68,10 @@ const command: BotCommand = {
         if (success) {
           await interaction.reply({
             content: `User banned from confessions. They cannot confess again.`,
-            ephemeral: true,
           });
         } else {
           await interaction.reply({
             content: 'Failed to ban user.',
-            ephemeral: true,
           });
         }
       } else if (subcommand === 'unban') {
@@ -86,12 +81,10 @@ const command: BotCommand = {
         if (success) {
           await interaction.reply({
             content: `User unbanned from confessions.`,
-            ephemeral: true,
           });
         } else {
           await interaction.reply({
             content: `Confession #${confessionId} not found.`,
-            ephemeral: true,
           });
         }
       } else if (subcommand === 'list') {
@@ -99,13 +92,11 @@ const command: BotCommand = {
         if (bannedCount === 0) {
           await interaction.reply({
             content: 'No users are currently banned from confessions.',
-            ephemeral: true,
           });
         } else {
           const hashList = config.bannedHashes.map((hash, index) => `${index + 1}. ${hash.substring(0, 8)}...`).join('\n');
           await interaction.reply({
             content: `**Banned Users (${bannedCount}):**\n${hashList}`,
-            ephemeral: true,
           });
         }
       }
@@ -113,7 +104,6 @@ const command: BotCommand = {
       console.error('Error in confession ban command:', error);
       await interaction.reply({
         content: 'An error occurred.',
-        ephemeral: true,
       });
     }
   },

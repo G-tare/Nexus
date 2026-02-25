@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import {
@@ -132,7 +131,7 @@ const command: BotCommand = {
       const langInput = interaction.options.getString('language', true);
       const lang = isValidLanguage(langInput) ? langInput : findLanguageByName(langInput)[0]?.code;
       if (!lang) {
-        await interaction.reply({ content: `Unknown language: \`${langInput}\`.`, ephemeral: true });
+        await interaction.reply({ content: `Unknown language: \`${langInput}\`.` });
         return;
       }
       await moduleConfig.updateConfig(guild.id, 'translation', { defaultLanguage: lang });

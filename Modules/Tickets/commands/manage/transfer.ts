@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
 import { Colors } from '../../../../Shared/src/utils/embed';
@@ -29,7 +28,6 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild || !interaction.channel) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -38,7 +36,6 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
       });
     }
 
@@ -46,7 +43,6 @@ const command: BotCommand = {
     if (!config.claimEnabled) {
       return interaction.reply({
         content: '❌ The claim system is not enabled on this server.',
-        ephemeral: true,
       });
     }
 
@@ -55,11 +51,10 @@ const command: BotCommand = {
     if (!ticketData) {
       return interaction.reply({
         content: '❌ This command can only be used in a ticket channel.',
-        ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     // Check if user has permission (must be claimer or admin)
     const member = await interaction.guild.members.fetch(interaction.user.id);

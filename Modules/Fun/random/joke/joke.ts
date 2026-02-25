@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
 
 const jokes = {
@@ -74,7 +74,7 @@ export default {
       console.error('Joke command error:', error);
       await interaction.reply({
         content: 'Failed to fetch joke. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

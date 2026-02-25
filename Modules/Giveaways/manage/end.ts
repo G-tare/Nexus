@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getGiveaway, endGiveaway } from '../helpers';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
@@ -13,17 +13,17 @@ export default {
   permissionPath: 'giveaways.manage.end',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guild) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guild) return interaction.reply({ content: 'Server only.' });
     const id = interaction.options.getInteger('id', true);
     const giveaway = await getGiveaway(id);
     if (!giveaway || giveaway.guildId !== interaction.guild.id) {
-      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')]  });
     }
     if (!giveaway.isActive) {
-      return interaction.reply({ embeds: [errorEmbed('Giveaway is not active.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Giveaway is not active.')]  });
     }
     const winners = await endGiveaway(giveaway, interaction.guild);
     const winnerStr = winners.length ? winners.map((w) => `<@${w}>`).join(', ') : 'No winners';
-    return interaction.reply({ embeds: [successEmbed(`Giveaway ended! Winners: ${winnerStr}`)] , ephemeral: true });
+    return interaction.reply({ embeds: [successEmbed(`Giveaway ended! Winners: ${winnerStr}`)]  });
   },
 } as BotCommand;

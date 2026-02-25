@@ -1,10 +1,9 @@
-import {
+import { 
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   SlashCommandBuilder,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getSuggestionConfig, setSuggestionConfig } from '../helpers';
 
@@ -109,7 +108,6 @@ const configCommand: BotCommand = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         await interaction.reply({
           content: 'You need `Manage Guild` permission to use this command.',
-          ephemeral: true,
         });
         return;
       }
@@ -147,7 +145,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           embeds: [embed],
-          ephemeral: true,
         });
         return;
       }
@@ -158,7 +155,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Suggestion channel set to ${channel}`,
-          ephemeral: true,
         });
         return;
       }
@@ -169,7 +165,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Anonymous mode is now ${newValue ? 'enabled' : 'disabled'}`,
-          ephemeral: true,
         });
         return;
       }
@@ -185,7 +180,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Vote emojis updated to ${upvote} and ${downvote}`,
-          ephemeral: true,
         });
         return;
       }
@@ -196,7 +190,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Auto-thread is now ${newValue ? 'enabled' : 'disabled'}`,
-          ephemeral: true,
         });
         return;
       }
@@ -207,7 +200,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Require reason is now ${newValue ? 'enabled' : 'disabled'}`,
-          ephemeral: true,
         });
         return;
       }
@@ -218,7 +210,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ DM notifications are now ${newValue ? 'enabled' : 'disabled'}`,
-          ephemeral: true,
         });
         return;
       }
@@ -229,7 +220,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ Author editing is now ${newValue ? 'enabled' : 'disabled'}`,
-          ephemeral: true,
         });
         return;
       }
@@ -242,7 +232,6 @@ const configCommand: BotCommand = {
         if (!/#[0-9A-F]{6}/i.test(color)) {
           await interaction.reply({
             content: 'Invalid hex color. Use format: #FF9B05',
-            ephemeral: true,
           });
           return;
         }
@@ -258,7 +247,6 @@ const configCommand: BotCommand = {
 
         await interaction.reply({
           content: `✅ ${status!.charAt(0).toUpperCase() + status.slice(1)} color changed to ${color}`,
-          ephemeral: true,
         });
         return;
       }
@@ -266,7 +254,6 @@ const configCommand: BotCommand = {
       console.error('Error in suggestion-config command:', error);
       await interaction.reply({
         content: 'An error occurred while updating configuration.',
-        ephemeral: true,
       });
     }
   },

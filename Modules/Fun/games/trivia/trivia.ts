@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ButtonInteraction,
-} from 'discord.js';
+  ButtonInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown, emitGameWon } from '../../helpers';
 
@@ -129,7 +128,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before playing again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -199,14 +198,14 @@ export default {
       if (buttonInteraction.user.id !== interaction.user.id) {
         return buttonInteraction.reply({
           content: '❌ This is not your game!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (answered) {
         return buttonInteraction.reply({
           content: '❌ You already answered!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

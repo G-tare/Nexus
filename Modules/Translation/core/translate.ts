@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  AutocompleteInteraction,
-} from 'discord.js';
+  AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   translateText,
@@ -49,7 +48,7 @@ const command: BotCommand = {
     if (!targetLang) {
       await interaction.reply({
         content: `Unknown language: \`${targetInput}\`. Use \`/languages\` to see supported languages.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -61,7 +60,7 @@ const command: BotCommand = {
       if (!sourceLang) {
         await interaction.reply({
           content: `Unknown source language: \`${sourceInput}\`. Use \`/languages\` to see supported languages.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }

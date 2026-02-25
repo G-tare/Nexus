@@ -7,8 +7,10 @@ import {
   ButtonStyle,
   PermissionFlagsBits,
   AttachmentBuilder,
-} from 'discord.js';
+  MessageFlags,
+  TextChannel } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { getRedis } from '../../../Shared/src/database/connection';
 import {
   getConfessionConfig,
   getNextConfessionNumber,
@@ -17,6 +19,7 @@ import {
   checkBlacklist,
   storeConfession,
   buildConfessionEmbed,
+  buildConfessionButtons,
   buildModerationEmbed,
   storePendingConfession,
   checkCooldown,
@@ -55,7 +58,7 @@ const command: BotCommand = {
     if (!config.enabled) {
       await interaction.reply({
         content: 'Confessions are not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -64,7 +67,7 @@ const command: BotCommand = {
     if (!config.channelId) {
       await interaction.reply({
         content: 'Confession channel is not configured.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -74,7 +77,7 @@ const command: BotCommand = {
     if (cooldownRemaining) {
       await interaction.reply({
         content: `You can confess again in ${cooldownRemaining} seconds.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -84,7 +87,7 @@ const command: BotCommand = {
     if (isBanned) {
       await interaction.reply({
         content: 'You are banned from confessing.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -93,7 +96,7 @@ const command: BotCommand = {
     if (checkBlacklist(message, config.blacklistedWords)) {
       await interaction.reply({
         content: 'Your confession contains prohibited content.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -102,7 +105,7 @@ const command: BotCommand = {
     if (imageAttachment && !config.allowImages) {
       await interaction.reply({
         content: 'Image attachments are not allowed.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -116,7 +119,7 @@ const command: BotCommand = {
     if (!channel || !channel.isTextBased()) {
       await interaction.reply({
         content: 'Confession channel not found.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -157,7 +160,7 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Your confession has been submitted for review. You'll be notified when it's posted.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       } else {
         // Post directly
@@ -168,11 +171,30 @@ const command: BotCommand = {
           embed.setImage(imageUrl);
         }
 
-        await (channel as any).send({ embeds: [embed] });
+        const buttons = buildConfessionButtons(confessionNumber);
+
+        // Remove buttons from the previous confession (if any)
+        const redis = getRedis();
+        const lastMsgId = await redis.get(`confession_last_msg:${guildId}`);
+        if (lastMsgId) {
+          try {
+            const oldMsg = await (channel as TextChannel).messages.fetch(lastMsgId);
+            if (oldMsg?.editable) {
+              await oldMsg.edit({ components: [] });
+            }
+          } catch {
+            // Old message may have been deleted — ignore
+          }
+        }
+
+        const sentMsg = await (channel as any).send({ embeds: [embed], components: [buttons] });
+
+        // Track this message as the latest confession for button removal
+        await redis.set(`confession_last_msg:${guildId}`, sentMsg.id);
 
         await interaction.reply({
           content: `Confession #${confessionNumber} submitted!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -182,7 +204,7 @@ const command: BotCommand = {
       console.error('Error posting confession:', error);
       await interaction.reply({
         content: 'Failed to post confession.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

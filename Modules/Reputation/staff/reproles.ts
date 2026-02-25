@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getRepRoles, addRepRole, removeRepRole } from '../helpers';
 
@@ -50,7 +49,7 @@ const command: BotCommand = {
       const roles = await getRepRoles(guild.id);
 
       if (roles.length === 0) {
-        await interaction.reply({ content: 'No rep-gated roles configured. Use `/reproles add` to create one.', ephemeral: true });
+        await interaction.reply({ content: 'No rep-gated roles configured. Use `/reproles add` to create one.' });
         return;
       }
 
@@ -76,14 +75,14 @@ const command: BotCommand = {
       const removeOnDrop = interaction.options.getBoolean('remove_on_drop') ?? true;
 
       if (role.managed || role.id === guild.id) {
-        await interaction.reply({ content: '❌ Can\'t gate managed roles or @everyone.', ephemeral: true });
+        await interaction.reply({ content: '❌ Can\'t gate managed roles or @everyone.' });
         return;
       }
 
       // Max 20 rep roles
       const existing = await getRepRoles(guild.id);
       if (existing.length >= 20) {
-        await interaction.reply({ content: '❌ Maximum 20 rep-gated roles.', ephemeral: true });
+        await interaction.reply({ content: '❌ Maximum 20 rep-gated roles.' });
         return;
       }
 
@@ -100,7 +99,7 @@ const command: BotCommand = {
       const removed = await removeRepRole(guild.id, role.id);
 
       if (!removed) {
-        await interaction.reply({ content: `**${role.name}** is not a rep-gated role.`, ephemeral: true });
+        await interaction.reply({ content: `**${role.name}** is not a rep-gated role.` });
         return;
       }
 

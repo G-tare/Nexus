@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
 
 const catFallback = {
@@ -37,7 +37,7 @@ export default {
       console.error('Cat command error:', error);
       await interaction.reply({
         content: 'Failed to fetch cat image. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

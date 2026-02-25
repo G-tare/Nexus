@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModCase, ensureGuild, ensureGuildMember } from '../helpers';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
@@ -34,17 +33,17 @@ const command: BotCommand = {
 
     const durationMs = parseDuration(durationStr);
     if (!durationMs || durationMs < 60000 || durationMs > 28 * 24 * 60 * 60 * 1000) {
-      await interaction.reply({ content: 'Invalid duration. Must be between 1 minute and 28 days.', ephemeral: true });
+      await interaction.reply({ content: 'Invalid duration. Must be between 1 minute and 28 days.' });
       return;
     }
 
     const ids = idsRaw.split(/[\s,]+/).filter(id => /^\d{17,20}$/.test(id.trim()));
     if (ids.length === 0) {
-      await interaction.reply({ content: 'No valid user IDs provided.', ephemeral: true });
+      await interaction.reply({ content: 'No valid user IDs provided.' });
       return;
     }
     if (ids.length > 50) {
-      await interaction.reply({ content: 'Maximum 50 users per mass mute.', ephemeral: true });
+      await interaction.reply({ content: 'Maximum 50 users per mass mute.' });
       return;
     }
 

@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getActiveCall,
@@ -12,6 +11,7 @@ import {
   joinQueue,
   startCall,
   setCallCooldown,
+  isServerBanned,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -32,7 +32,7 @@ const command: BotCommand = {
     if (config.allowedChannels.length > 0 && !config.allowedChannels.includes(channel.id)) {
       await interaction.reply({
         content: `❌ Userphone can only be used in: ${config.allowedChannels.map(id => `<#${id}>`).join(', ')}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -42,7 +42,7 @@ const command: BotCommand = {
     if (existingCall) {
       await interaction.reply({
         content: '📞 This channel already has an active call. Use `/hangup` to end it first.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -51,7 +51,16 @@ const command: BotCommand = {
     if (await isOnCallCooldown(guild.id, channel.id)) {
       await interaction.reply({
         content: '⏳ Please wait before starting another call.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Check if server is banned from userphone
+    if (await isServerBanned(guild.id)) {
+      await interaction.reply({
+        content: '🚫 This server has been restricted from using userphone.',
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

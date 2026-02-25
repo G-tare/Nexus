@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
-  Colors,
-} from 'discord.js';
+  Colors, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -29,7 +28,6 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
       });
       return;
     }
@@ -52,7 +50,6 @@ const command: BotCommand = {
     if (!hasManageGuild && !hasDJRole) {
       await interaction.reply({
         content: 'You need the **Manage Guild** permission or the DJ role to use this command.',
-        ephemeral: true,
       });
       return;
     }

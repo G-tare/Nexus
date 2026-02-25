@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { clearHistory, getAIConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -18,14 +18,14 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       const config = await getAIConfig(interaction.guildId!);
 
       if (!config.enabled) {
-        await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', ephemeral: true });
+        await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -41,7 +41,7 @@ const command: BotCommand = {
       await interaction.reply({ embeds: [embed] });
     } catch (error) {
       logger.error('Error in aiclear command execution', error);
-      await interaction.reply({ content: '❌ Failed to clear conversation history.', ephemeral: true });
+      await interaction.reply({ content: '❌ Failed to clear conversation history.', flags: MessageFlags.Ephemeral });
     }
   },
 };

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAIConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
@@ -77,7 +77,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
@@ -104,38 +104,38 @@ const command: BotCommand = {
           .setFooter({ text: `Viewed by ${interaction.user.username}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'provider') {
         const provider = interaction.options.getString('provider', true) as 'openai' | 'anthropic';
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, provider });
-        await interaction.reply({ content: `✅ AI provider set to **${provider}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ AI provider set to **${provider}**.` });
       } else if (subcommand === 'model') {
         const model = interaction.options.getString('model', true);
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, model });
-        await interaction.reply({ content: `✅ AI model set to **${model}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ AI model set to **${model}**.` });
       } else if (subcommand === 'temperature') {
         const temperature = interaction.options.getNumber('temperature', true);
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, temperature });
-        await interaction.reply({ content: `✅ Temperature set to **${temperature}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Temperature set to **${temperature}**.` });
       } else if (subcommand === 'maxtokens') {
         const maxTokens = interaction.options.getInteger('tokens', true);
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, maxTokens });
-        await interaction.reply({ content: `✅ Max tokens set to **${maxTokens}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Max tokens set to **${maxTokens}**.` });
       } else if (subcommand === 'cooldown') {
         const cooldown = interaction.options.getInteger('seconds', true);
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, cooldown });
-        await interaction.reply({ content: `✅ Cooldown set to **${cooldown}s**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Cooldown set to **${cooldown}s**.` });
       } else if (subcommand === 'toggle') {
         const feature = interaction.options.getString('feature', true) as 'autoReply' | 'mentionReply' | 'enabled';
         const newValue = !config[feature];
         await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, [feature]: newValue });
 
         const label = feature === 'autoReply' ? 'Auto-reply' : feature === 'mentionReply' ? 'Mention reply' : 'AI Chatbot';
-        await interaction.reply({ content: `✅ ${label} is now ${newValue ? '**enabled**' : '**disabled**'}.`, ephemeral: true });
+        await interaction.reply({ content: `✅ ${label} is now ${newValue ? '**enabled**' : '**disabled**'}.` });
       }
     } catch (error) {
       logger.error('Error in aiconfig command execution', error);
-      await interaction.reply({ content: '❌ Failed to update configuration.', ephemeral: true });
+      await interaction.reply({ content: '❌ Failed to update configuration.' });
     }
   },
 };

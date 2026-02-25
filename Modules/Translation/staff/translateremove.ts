@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { removeChannelTranslation } from '../helpers';
 
@@ -32,7 +31,6 @@ const command: BotCommand = {
     if (!removed) {
       await interaction.reply({
         content: `<#${channel.id}> doesn't have auto-translation configured.`,
-        ephemeral: true,
       });
       return;
     }

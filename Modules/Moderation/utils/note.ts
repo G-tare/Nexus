@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getDb } from '../../../Shared/src/database/connection';
@@ -30,7 +30,7 @@ export default {
   permissionPath: 'moderation.note',
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const guildId = interaction.guildId!;
     if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });

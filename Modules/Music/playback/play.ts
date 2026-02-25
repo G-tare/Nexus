@@ -4,6 +4,8 @@ import {
   getQueue,
   createQueue,
   addTrack,
+  joinVC,
+  getConnection,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -44,8 +46,19 @@ const command: BotCommand = {
       queue = createQueue(interaction.guild!.id, interaction.channelId!, voiceChannelId);
     }
 
-    // Check if user is in the same voice channel as the bot
-    if (queue.voiceChannelId !== voiceChannelId) {
+    // Auto-join: if bot isn't in a voice channel, join the user's VC
+    let connection: any = getConnection(interaction.guild!.id);
+    if (!connection) {
+      connection = await joinVC(interaction.guild!, voiceChannelId);
+      if (!connection) {
+        const embed = new EmbedBuilder()
+          .setDescription('Failed to join your voice channel. Make sure I have permission to connect.')
+          .setColor(0xff0000);
+        return interaction.editReply({ embeds: [embed] });
+      }
+      queue.voiceChannelId = voiceChannelId;
+    } else if (queue.voiceChannelId !== voiceChannelId) {
+      // Bot is in a different VC
       const embed = new EmbedBuilder()
         .setDescription('You must be in the same voice channel as the bot to add songs.')
         .setColor(0xff0000);

@@ -1,14 +1,12 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getPendingConfessionData,
   removePendingConfession,
 } from '../helpers';
-
 
 const command: BotCommand = {
   module: 'confessions',
@@ -41,7 +39,6 @@ const command: BotCommand = {
     if (!pendingData) {
       await interaction.reply({
         content: `Pending confession #${confessionId} not found.`,
-        ephemeral: true,
       });
       return;
     }
@@ -53,13 +50,11 @@ const command: BotCommand = {
       const reasonText = reason ? ` (Reason: ${reason})` : '';
       await interaction.reply({
         content: `Confession #${confessionId} has been denied.${reasonText}`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error denying confession:', error);
       await interaction.reply({
         content: 'Failed to deny confession.',
-        ephemeral: true,
       });
     }
   },

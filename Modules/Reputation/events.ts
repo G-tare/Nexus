@@ -2,6 +2,9 @@ import { Events, MessageReaction, User, Client, PartialMessageReaction, PartialU
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { eventBus } from '../../Shared/src/events/eventBus';
+import { getDb } from '../../Shared/src/database/connection';
+import { getRedis } from '../../Shared/src/database/connection';
+import { sql } from 'drizzle-orm';
 import {
   getRepConfig,
   adjustRep,
@@ -127,8 +130,108 @@ const decayScheduler: ModuleEvent = { event: Events.ClientReady,
   },
 };
 
+/**
+ * Passive reputation gain scheduler.
+ * Awards +1 rep/week for the first month, +2 rep/week after that.
+ * Cap at 100. Skips users with active punishments (warnings or mutes).
+ * Runs once every 24 hours and checks if 7 days have passed since last grant.
+ */
+const passiveGainScheduler: ModuleEvent = { event: Events.ClientReady,
+  once: true,
+  async handler(client: Client) {
+    const PASSIVE_INTERVAL = 24 * 60 * 60 * 1000; // Check daily
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+    const runPassiveGain = async () => {
+      const db = getDb();
+      const redis = getRedis();
+
+      for (const guild of client.guilds.cache.values()) {
+        try {
+          // Get all guild members with reputation below 100 who don't have active punishments
+          const result = await db.execute(sql`
+            SELECT gm.guild_id, gm.user_id, gm.reputation, gm.joined_at, gm.warn_count, gm.is_muted
+            FROM guild_members gm
+            WHERE gm.guild_id = ${guild.id}
+              AND gm.reputation < 100
+          `);
+
+          const rows = (result as any).rows || [];
+          let awarded = 0;
+
+          for (const row of rows) {
+            // Skip users with active punishments (warnings or mutes)
+            if (row.warn_count > 0 || row.is_muted) continue;
+
+            // Check if we already gave passive rep this week
+            const passiveKey = `rep:passive:${guild.id}:${row.user_id}`;
+            const lastGrant = await redis.get(passiveKey);
+            if (lastGrant) continue; // Already granted this week
+
+            // Determine gain rate based on how long they've been in the server
+            const joinedAt = row.joined_at ? new Date(row.joined_at).getTime() : Date.now();
+            const memberDuration = Date.now() - joinedAt;
+            const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
+
+            const gain = memberDuration >= ONE_MONTH ? 2 : 1;
+            const newRep = Math.min(100, row.reputation + gain);
+            const actualGain = newRep - row.reputation;
+
+            if (actualGain <= 0) continue;
+
+            // Apply the gain to guild_members
+            await db.execute(sql`
+              UPDATE guild_members
+              SET reputation = ${newRep}
+              WHERE guild_id = ${guild.id} AND user_id = ${row.user_id}
+            `);
+
+            // Sync to reputation_users
+            await db.execute(sql`
+              INSERT INTO reputation_users (guild_id, user_id, reputation, last_active)
+              VALUES (${guild.id}, ${row.user_id}, ${newRep}, ${Date.now()})
+              ON CONFLICT (guild_id, user_id)
+              DO UPDATE SET reputation = ${newRep}, last_active = ${Date.now()}
+            `);
+
+            // Log to history
+            await db.execute(sql`
+              INSERT INTO reputation_history (guild_id, user_id, given_by, delta, reason, created_at)
+              VALUES (${guild.id}, ${row.user_id}, ${'system'}, ${actualGain}, ${'Weekly passive reputation gain'}, ${Date.now()})
+            `);
+
+            // Invalidate Redis cache
+            await redis.del(`rep:${guild.id}:${row.user_id}`);
+
+            // Set cooldown — expires in 7 days so we don't grant again this week
+            await redis.setex(passiveKey, Math.floor(WEEK_MS / 1000), '1');
+
+            // Update rep-gated roles
+            await updateRepRoles(guild, row.user_id, newRep);
+
+            awarded++;
+          }
+
+          if (awarded > 0) {
+            logger.debug('Passive rep gain', { guild: guild.id, users: awarded });
+          }
+        } catch (err: any) {
+          logger.error('Passive rep gain error', { guild: guild.id, error: err.message });
+        }
+      }
+    };
+
+    // Run once on startup (after a short delay), then daily
+    setTimeout(() => runPassiveGain().catch(e => logger.error('Initial passive gain error', { error: e.message })), 60_000);
+    setInterval(() => runPassiveGain().catch(e => logger.error('Passive gain interval error', { error: e.message })), PASSIVE_INTERVAL);
+
+    logger.info('Passive reputation gain scheduler active');
+  },
+};
+
 export const reputationEvents: ModuleEvent[] = [
   reactionRepHandler,
   crossModuleRepHandler,
   decayScheduler,
+  passiveGainScheduler,
 ];

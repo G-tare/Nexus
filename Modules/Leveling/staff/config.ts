@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getLevelingConfig, LevelingConfig } from '../helpers';
@@ -112,7 +111,7 @@ const command: BotCommand = {
 
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const guildId = interaction.guildId!;
       const subcommand = interaction.options.getSubcommand();

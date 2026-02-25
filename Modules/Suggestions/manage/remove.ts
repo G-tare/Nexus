@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, TextChannel } from 'discord.js';
+import {  ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getSuggestionConfig,
@@ -31,7 +31,6 @@ const removeCommand: BotCommand = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         await interaction.reply({
           content: 'You need `Manage Guild` permission to use this command.',
-          ephemeral: true,
         });
         return;
       }
@@ -47,7 +46,6 @@ const removeCommand: BotCommand = {
       if (!suggestion) {
         await interaction.reply({
           content: `Suggestion #${suggestionId} not found.`,
-          ephemeral: true,
         });
         return;
       }
@@ -99,13 +97,11 @@ const removeCommand: BotCommand = {
 
       await interaction.reply({
         content: `🗑️ Suggestion #${suggestionId} has been removed.`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error in suggest-remove command:', error);
       await interaction.reply({
         content: 'An error occurred while removing the suggestion.',
-        ephemeral: true,
       });
     }
   },

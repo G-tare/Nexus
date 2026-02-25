@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -78,8 +77,7 @@ export const createCommand: BotCommand = {
 
     if (!interaction.guild || !interaction.member) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -87,8 +85,7 @@ export const createCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -110,8 +107,7 @@ export const createCommand: BotCommand = {
 
       if (guildCommands.length >= (config.maxCommands || 50)) {
         await interaction.reply({
-          content: `You have reached the maximum number of custom commands (${config.maxCommands || 50}).`,
-          ephemeral: true
+          content: `You have reached the maximum number of custom commands (${config.maxCommands || 50}).`
         });
         return;
       }
@@ -120,8 +116,7 @@ export const createCommand: BotCommand = {
       const existing = await helper.getCommand(interaction.guildId!, name);
       if (existing) {
         await interaction.reply({
-          content: `A custom command named "${name}" already exists. Use \`/cedit\` to modify it.`,
-          ephemeral: true
+          content: `A custom command named "${name}" already exists. Use \`/cedit\` to modify it.`
         });
         return;
       }
@@ -160,16 +155,14 @@ export const createCommand: BotCommand = {
       }
 
       await interaction.reply({
-        embeds: [embed_response],
-        ephemeral: true
+        embeds: [embed_response]
       });
 
       logger.info(`Custom command created: ${name} by ${interaction.user.id} in ${interaction.guildId!}`);
     } catch (error) {
       logger.error('Failed to create custom command', error);
       await interaction.reply({
-        content: 'Failed to create custom command. Please try again later.',
-        ephemeral: true
+        content: 'Failed to create custom command. Please try again later.'
       });
     }
   }

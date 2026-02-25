@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors } from '../../../Shared/src/utils/embed';
 import { getDb } from '../../../Shared/src/database/connection';
@@ -63,7 +63,7 @@ export default {
 			if (page > totalPages && totalPages > 0) {
 				return await interaction.reply({
 					content: `Page ${page} does not exist. Maximum page is ${totalPages}.`,
-					ephemeral: true
+					flags: MessageFlags.Ephemeral
 				});
 			}
 
@@ -104,7 +104,7 @@ export default {
 			console.error('Error fetching richest users:', error);
 			return await interaction.reply({
 				content: 'An error occurred while fetching the leaderboard.',
-				ephemeral: true
+				flags: MessageFlags.Ephemeral
 			});
 		}
 	}

@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
@@ -6,8 +6,7 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+  ButtonStyle, MessageFlags } from 'discord.js';
 import {
   getReactionRolesConfig,
   saveReactionRolesConfig,
@@ -179,11 +178,10 @@ const BotCommand = {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const subcommand = interaction.options.getSubcommand();
     const panelId = interaction.options.getString('panel-id');

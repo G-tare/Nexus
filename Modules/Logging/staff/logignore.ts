@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   inlineCode,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -87,10 +86,8 @@ const command: BotCommand = {
   module: 'logging',
   permissionPath: 'logging.staff.logignore',
   premiumFeature: 'logging.basic',
-  ephemeral: true,
-
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const guildId = interaction.guildId!;
     const subcommand = interaction.options.getSubcommand();

@@ -8,7 +8,7 @@ import {
   ButtonStyle,
   Guild,
 } from 'discord.js';
-import { getDb } from '../../Shared/src/database/connection';
+import { getDb, getRedis } from '../../Shared/src/database/connection';
 import { modCases, guildMembers, guilds, users } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
@@ -60,6 +60,7 @@ export interface ModerationConfig {
     warn: number;
     mute: number;
     kick: number;
+    tempban: number;
     ban: number;
   };
 
@@ -90,8 +91,8 @@ export const DEFAULT_MOD_CONFIG: ModerationConfig = {
   fineEnabled: false,
   fineAmounts: { warn: 0, mute: 0, kick: 0, ban: 0 },
   reputationEnabled: true,
-  defaultReputation: 100,
-  reputationPenalties: { warn: 5, mute: 10, kick: 15, ban: 25 },
+  defaultReputation: 80,
+  reputationPenalties: { warn: 1, mute: 5, kick: 10, tempban: 15, ban: 20 },
   shadowBanEnabled: true,
   altDetectionEnabled: false,
   altDetectionLogChannelId: undefined,
@@ -302,21 +303,23 @@ export async function checkWarnThresholds(
 
 /**
  * Adjust a user's moderation reputation score.
+ * Syncs to both guild_members AND reputation_users tables.
  */
 export async function adjustReputation(
   guildId: string,
   userId: string,
-  amount: number
+  amount: number,
+  reason?: string,
 ): Promise<number> {
   const db = getDb();
 
   // Ensure guild member exists
   await ensureGuildMember(guildId, userId);
 
-  // Update reputation (clamp to 0-200 range)
+  // Update reputation (clamp to 0-100 range)
   await db.execute(sql`
     UPDATE guild_members
-    SET reputation = GREATEST(0, LEAST(200, reputation + ${amount}))
+    SET reputation = GREATEST(0, LEAST(100, reputation + ${amount}))
     WHERE guild_id = ${guildId} AND user_id = ${userId}
   `);
 
@@ -326,7 +329,33 @@ export async function adjustReputation(
     .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, userId)))
     .limit(1);
 
-  return member?.reputation ?? 100;
+  const newRep = member?.reputation ?? 80;
+
+  // Sync to reputation_users table so /rep command stays consistent
+  try {
+    await db.execute(sql`
+      INSERT INTO reputation_users (guild_id, user_id, reputation, last_active)
+      VALUES (${guildId}, ${userId}, ${newRep}, ${Date.now()})
+      ON CONFLICT (guild_id, user_id)
+      DO UPDATE SET reputation = ${newRep}, last_active = ${Date.now()}
+    `);
+
+    // Log to reputation_history for full audit trail
+    if (amount !== 0) {
+      await db.execute(sql`
+        INSERT INTO reputation_history (guild_id, user_id, given_by, delta, reason, created_at)
+        VALUES (${guildId}, ${userId}, ${'system'}, ${amount}, ${reason || 'Moderation action'}, ${Date.now()})
+      `);
+    }
+
+    // Invalidate Redis cache for the Reputation module
+    const redis = getRedis();
+    await redis.del(`rep:${guildId}:${userId}`);
+  } catch {
+    // Non-fatal — guild_members is the source of truth
+  }
+
+  return newRep;
 }
 
 // ============================================

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -64,7 +63,7 @@ const command: BotCommand = {
     if (!color) {
       await interaction.reply({
         content: `Color "${colorInput}" not found. Use \`/colorlist\` to see available colors.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

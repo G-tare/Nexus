@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   importPalette,
@@ -29,7 +28,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 

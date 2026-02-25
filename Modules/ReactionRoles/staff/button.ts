@@ -1,11 +1,10 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   TextChannel,
   Role,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import {
   createPanel,
   getReactionRolesConfig,
@@ -100,11 +99,10 @@ const BotCommand = {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const channel = interaction.options.getChannel('channel');
     const title = interaction.options.getString('title')!;

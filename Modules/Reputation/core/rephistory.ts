@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getRepHistory, formatDelta, relativeTimestamp } from '../helpers';
 
@@ -27,7 +26,7 @@ const command: BotCommand = {
     if (history.length === 0) {
       await interaction.reply({
         content: `${target.id === interaction.user.id ? 'You have' : `${target.displayName} has`} no reputation history.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

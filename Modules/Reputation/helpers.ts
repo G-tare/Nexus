@@ -51,7 +51,7 @@ export async function getRepConfig(guildId: string): Promise<ReputationConfig> {
   const _cfgResult = await moduleConfig.getModuleConfig(guildId, 'reputation');
     const config = (_cfgResult?.config ?? {}) as Record<string, any>;
   return {
-    defaultRep: config?.defaultRep ?? 0,
+    defaultRep: config?.defaultRep ?? 80,
     giveCooldown: config?.giveCooldown ?? 3600, // 1 hour
     globalCooldown: config?.globalCooldown ?? 60, // 1 minute
     dailyLimit: config?.dailyLimit ?? 5,
@@ -136,6 +136,11 @@ export async function adjustRep(
     newRep = 0;
   }
 
+  // Cap at 100
+  if (newRep > 100) {
+    newRep = 100;
+  }
+
   await db.execute(sql`
     INSERT INTO reputation_users (guild_id, user_id, reputation, last_active)
     VALUES (${guildId}, ${userId}, ${newRep}, ${Date.now()})
@@ -150,6 +155,17 @@ export async function adjustRep(
   `);
 
   await redis.setex(`rep:${guildId}:${userId}`, 600, newRep.toString());
+
+  // Sync to guild_members table so moderation rep stays consistent
+  try {
+    await db.execute(sql`
+      UPDATE guild_members
+      SET reputation = ${newRep}
+      WHERE guild_id = ${guildId} AND user_id = ${userId}
+    `);
+  } catch {
+    // Non-fatal — reputation_users is the Reputation module's source of truth
+  }
 
   // Emit event for cross-module integration
   eventBus.emit('reputationChanged', { guildId, userId, oldRep, newRep, reason: `Changed by ${givenBy}`, delta });

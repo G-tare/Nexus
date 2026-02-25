@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import {
@@ -106,7 +105,6 @@ const command: BotCommand = {
         await moduleConfig.setConfig(guild.id, 'statschannels', { ...config, updateInterval: seconds });
         await interaction.reply({
           content: `✅ Update interval set to **${seconds} seconds** (${Math.round(seconds / 60)} minutes). Takes effect on next cycle.`,
-          ephemeral: true,
         });
         break;
       }
@@ -116,7 +114,6 @@ const command: BotCommand = {
         await moduleConfig.setConfig(guild.id, 'statschannels', { ...config, numberFormat: style });
         await interaction.reply({
           content: `✅ Number format set to **${style === 'full' ? 'Full (1,234)' : 'Short (1.2K)'}**.`,
-          ephemeral: true,
         });
         break;
       }
@@ -126,7 +123,6 @@ const command: BotCommand = {
         await moduleConfig.setConfig(guild.id, 'statschannels', { ...config, categoryName: name });
         await interaction.reply({
           content: `✅ Category name set to **${name}**. New stats channels will use this name. Existing category is not renamed — delete and recreate to apply.`,
-          ephemeral: true,
         });
         break;
       }
@@ -139,7 +135,6 @@ const command: BotCommand = {
         const statName = STAT_TYPE_LABELS[stat as keyof typeof STAT_TYPE_LABELS] || stat;
         await interaction.reply({
           content: `✅ Goal set to **${target.toLocaleString()} ${statName}**.`,
-          ephemeral: true,
         });
         break;
       }

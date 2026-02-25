@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -60,8 +59,7 @@ export const configCommand: BotCommand = {
 
     if (!interaction.guild) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -69,8 +67,7 @@ export const configCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -96,8 +93,7 @@ export const configCommand: BotCommand = {
           .setFooter({ text: 'Use /cconfig set to modify these settings' });
 
         await interaction.reply({
-          embeds: [embed],
-          ephemeral: true
+          embeds: [embed]
         });
       } else if (subcommand === 'set') {
         const enabled = interaction.options.getBoolean('enabled');
@@ -114,8 +110,7 @@ export const configCommand: BotCommand = {
 
         if (Object.keys(updates).length === 0) {
           await interaction.reply({
-            content: 'No changes specified.',
-            ephemeral: true
+            content: 'No changes specified.'
           });
           return;
         }
@@ -143,8 +138,7 @@ export const configCommand: BotCommand = {
         }
 
         await interaction.reply({
-          embeds: [embed],
-          ephemeral: true
+          embeds: [embed]
         });
 
         logger.info(`Custom commands config updated in ${interaction.guildId!} by ${interaction.user.id}`);
@@ -152,8 +146,7 @@ export const configCommand: BotCommand = {
     } catch (error) {
       logger.error('Failed to configure custom commands', error);
       await interaction.reply({
-        content: 'Failed to update configuration. Please try again later.',
-        ephemeral: true
+        content: 'Failed to update configuration. Please try again later.'
       });
     }
   }

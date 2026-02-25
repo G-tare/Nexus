@@ -2,9 +2,10 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, 
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getDb } from '../../../Shared/src/database/connection';
-import { guildMembers, modCases } from '../../../Shared/src/database/models/schema';
+import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
+import { getUserRep, getRepHistory, formatDelta, relativeTimestamp } from '../../Reputation/helpers';
 
 export default {
   data: new SlashCommandBuilder()
@@ -32,27 +33,20 @@ export default {
     const targetUser = interaction.options.getUser('user', true);
 
     try {
-      // Get reputation data
-      const memberData = await db
-        .select()
-        .from(guildMembers)
-        .where(
-          and(
-            eq(guildMembers.guildId, guildId),
-            eq((guildMembers as any).memberId, targetUser.id)
-          )
-        )
-        .limit(1);
+      // Get reputation from the dedicated reputation_users table
+      const currentReputation = await getUserRep(guildId, targetUser.id);
 
-      const currentReputation = memberData[0]?.reputation || 0;
-      const maxReputation = 100;
-
-      // Create visual bar
-      const filledBars = Math.floor((currentReputation / maxReputation) * 10);
+      // Create visual bar (scale based on reputation value)
+      const maxBar = 100;
+      const clamped = Math.min(Math.max(currentReputation, 0), maxBar);
+      const filledBars = Math.floor((clamped / maxBar) * 10);
       const emptyBars = 10 - filledBars;
       const reputationBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
 
-      // Get recent mod cases affecting reputation
+      // Get rep change history from the dedicated reputation_history table
+      const repHistory = await getRepHistory(guildId, targetUser.id, 5);
+
+      // Get recent mod cases
       const recentCases = await db
         .select()
         .from(modCases)
@@ -63,36 +57,52 @@ export default {
           )
         )
         .orderBy(desc(modCases.createdAt))
-        .limit(10);
+        .limit(5);
 
       const embed = new EmbedBuilder()
         .setColor(Colors.Info)
-        .setTitle(`Reputation History - ${targetUser.username}`)
+        .setTitle(`Reputation History — ${targetUser.username}`)
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
           {
-            name: 'Current Score',
-            value: `**${currentReputation}/${maxReputation}**`,
+            name: 'Current Reputation',
+            value: `**${currentReputation}**`,
             inline: true,
           },
           {
             name: 'Progress',
-            value: `\`${reputationBar}\` ${currentReputation}/${maxReputation}`,
+            value: `\`${reputationBar}\` ${clamped}/${maxBar}`,
             inline: false,
           }
         );
 
+      // Add rep change history if any
+      if (repHistory.length > 0) {
+        let historyText = '';
+        for (const entry of repHistory) {
+          const time = relativeTimestamp(entry.createdAt);
+          historyText += `${formatDelta(entry.delta)} by <@${entry.givenBy}> ${time}`;
+          if (entry.reason) historyText += ` — ${entry.reason}`;
+          historyText += '\n';
+        }
+        embed.addFields({
+          name: 'Recent Rep Changes',
+          value: historyText.trim(),
+          inline: false,
+        });
+      }
+
       // Add recent mod actions if any
       if (recentCases.length > 0) {
         let recentActionsText = '';
-        for (const modCase of recentCases.slice(0, 5)) {
+        for (const modCase of recentCases) {
           const date = discordTimestamp(new Date(modCase.createdAt), 'f');
           recentActionsText += `**#${modCase.caseNumber}** ${modCase.action.toUpperCase()} | ${date}\n`;
         }
 
         embed.addFields({
           name: 'Recent Mod Actions',
-          value: recentActionsText || 'None',
+          value: recentActionsText.trim() || 'None',
           inline: false,
         });
       }

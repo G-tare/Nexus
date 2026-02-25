@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors } from '../../../Shared/src/utils/embed';
 
@@ -25,7 +24,7 @@ const command: BotCommand = {
     const search = interaction.options.getString('search')?.toLowerCase();
     const guild = interaction.guild!;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const bans = await guild.bans.fetch();
 

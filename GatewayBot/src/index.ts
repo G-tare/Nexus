@@ -46,7 +46,7 @@ async function start() {
   logger.info(`Environment: ${config.env}`);
 
   try {
-    await manager.spawn();
+    await manager.spawn({ timeout: 90_000 });
     logger.info(`All shards spawned successfully`);
   } catch (error: any) {
     logger.error('Failed to spawn shards', { error: error.message });

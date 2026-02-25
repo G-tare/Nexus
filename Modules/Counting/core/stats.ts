@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  User,
-} from 'discord.js';
+  User, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getUserStats, getUserCountingLives } from '../helpers';
 
@@ -86,7 +85,7 @@ const statsCommand: BotCommand = {
       console.error('[Counting] Error in /counting-stats:', error);
       return interaction.reply({
         content: 'An error occurred while fetching user statistics.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

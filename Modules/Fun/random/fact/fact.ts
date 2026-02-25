@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
 
 const facts = [
@@ -62,7 +62,7 @@ export default {
       console.error('Fact command error:', error);
       await interaction.reply({
         content: 'Failed to fetch fact. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

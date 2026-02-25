@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -78,8 +77,7 @@ export const editCommand: BotCommand = {
 
     if (!interaction.guild || !interaction.member) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -87,8 +85,7 @@ export const editCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -99,8 +96,7 @@ export const editCommand: BotCommand = {
 
       if (!command) {
         await interaction.reply({
-          content: `Custom command "${name}" not found.`,
-          ephemeral: true
+          content: `Custom command "${name}" not found.`
         });
         return;
       }
@@ -133,8 +129,7 @@ export const editCommand: BotCommand = {
 
       if (Object.keys(updates).length === 0) {
         await interaction.reply({
-          content: 'No changes specified.',
-          ephemeral: true
+          content: 'No changes specified.'
         });
         return;
       }
@@ -150,16 +145,14 @@ export const editCommand: BotCommand = {
         );
 
       await interaction.reply({
-        embeds: [embed_response],
-        ephemeral: true
+        embeds: [embed_response]
       });
 
       logger.info(`Custom command edited: ${name} by ${interaction.user.id} in ${interaction.guildId!}`);
     } catch (error) {
       logger.error('Failed to edit custom command', error);
       await interaction.reply({
-        content: 'Failed to edit custom command. Please try again later.',
-        ephemeral: true
+        content: 'Failed to edit custom command. Please try again later.'
       });
     }
   }

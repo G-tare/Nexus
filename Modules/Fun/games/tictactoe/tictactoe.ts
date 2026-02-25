@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
@@ -6,8 +6,7 @@ import {
   ButtonStyle,
   ButtonInteraction,
   User,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
 
@@ -143,7 +142,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before playing again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -153,14 +152,14 @@ export default {
     if (opponent && opponent.id === interaction.user.id) {
       return interaction.reply({
         content: '❌ You cannot play against yourself!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (opponent && opponent.bot && opponent.id !== interaction.client.user?.id) {
       return interaction.reply({
         content: '❌ You cannot play against another bot!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -232,14 +231,14 @@ export default {
       if (vsBot && currentPlayer === 2) {
         return buttonInteraction.reply({
           content: '❌ It\'s the bot\'s turn!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (!vsBot && buttonInteraction.user.id !== (currentPlayer === 1 ? interaction.user.id : opponent!.id)) {
         return buttonInteraction.reply({
           content: '❌ It\'s not your turn!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -250,7 +249,7 @@ export default {
       if (board[i][j] !== 0) {
         return buttonInteraction.reply({
           content: '❌ That cell is already taken!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

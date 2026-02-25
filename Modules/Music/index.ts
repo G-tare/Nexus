@@ -2,8 +2,8 @@ import { BotModule } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { musicEvents } from './events';
 
-// Import all 28 commands
-// Playback commands (8)
+// Import all 30 commands
+// Playback commands (10)
 import play from './playback/play';
 import pause from './playback/pause';
 import resume from './playback/resume';
@@ -12,6 +12,8 @@ import stop from './playback/stop';
 import seek from './playback/seek';
 import nowplaying from './playback/nowplaying';
 import previous from './playback/previous';
+import join from './playback/join';
+import disconnect from './playback/disconnect';
 
 // Queue commands (7)
 import queue from './queue/queue';
@@ -100,7 +102,7 @@ const musicModule: BotModule = {
   enabled: true,
 
   commands: [
-    // Playback (8)
+    // Playback (10)
     play,
     pause,
     resume,
@@ -109,6 +111,8 @@ const musicModule: BotModule = {
     seek,
     nowplaying,
     previous,
+    join,
+    disconnect,
 
     // Queue (7)
     queue,
@@ -145,7 +149,7 @@ const musicModule: BotModule = {
   defaultConfig: DEFAULT_MUSIC_CONFIG,
 
   async onLoad() {
-    logger.info('Music module loaded — 28 commands');
+    logger.info('Music module loaded — 30 commands');
   },
 };
 

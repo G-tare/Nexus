@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getStatsChannels,
@@ -29,7 +28,6 @@ const command: BotCommand = {
     if (channels.length === 0) {
       await interaction.reply({
         content: 'No stats channels set up. Use `/statscreate` to create one.',
-        ephemeral: true,
       });
       return;
     }

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, ColorResolvable } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, ColorResolvable, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -49,7 +49,7 @@ export default {
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const guild = interaction.guild!;
     await ensureGuild(guild);

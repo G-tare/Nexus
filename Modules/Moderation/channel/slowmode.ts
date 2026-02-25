@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 
@@ -36,7 +35,6 @@ const command: BotCommand = {
     if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
       await interaction.reply({
         embeds: [errorEmbed('Invalid Channel', 'Please specify a valid text channel.')],
-        ephemeral: true,
       });
       return;
     }

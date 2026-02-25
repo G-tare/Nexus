@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
-  Colors,
-} from 'discord.js';
+  Colors, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   savePersonalPlaylist,
@@ -79,7 +78,7 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -93,7 +92,7 @@ const command: BotCommand = {
           if (playlists.length >= 25) {
             await interaction.reply({
               content: 'You have reached the maximum of 25 personal playlists.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -105,7 +104,7 @@ const command: BotCommand = {
           if (queue.length === 0) {
             await interaction.reply({
               content: 'The queue is empty. Nothing to save.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -131,7 +130,7 @@ const command: BotCommand = {
           if (!playlist || (playlist as any).tracks.length === 0) {
             await interaction.reply({
               content: `Playlist **${name}** not found or is empty.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -157,7 +156,7 @@ const command: BotCommand = {
           if (!deleted) {
             await interaction.reply({
               content: `Playlist **${name}** not found.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -177,7 +176,7 @@ const command: BotCommand = {
           if (playlists.length === 0) {
             await interaction.reply({
               content: 'You have no personal playlists yet.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -205,7 +204,7 @@ const command: BotCommand = {
           if (!playlist || (playlist as any).tracks.length === 0) {
             await interaction.reply({
               content: `Playlist **${name}** not found or is empty.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -240,7 +239,7 @@ const command: BotCommand = {
       console.error('Error in playlist command:', error);
       await interaction.reply({
         content: 'An error occurred while managing playlists.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
 import { Colors, successEmbed, errorEmbed } from '../../../../Shared/src/utils/embed';
@@ -22,7 +21,7 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -33,14 +32,14 @@ const command: BotCommand = {
     ) {
       return interaction.reply({
         content: '❌ Unable to verify permissions.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (!(interaction.member as any).permissions.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         content: '❌ You need the **Manage Server** permission.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -50,7 +49,7 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -58,7 +57,7 @@ const command: BotCommand = {
     if (!config.panels || config.panels.length === 0) {
       return interaction.reply({
         content: '❌ No ticket panels have been created yet.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -97,13 +96,13 @@ const command: BotCommand = {
 
       return interaction.reply({
         embeds: [listEmbed],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error('[Tickets] Error listing panels:', error);
       return interaction.reply({
         content: '❌ An error occurred while fetching the panel list.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

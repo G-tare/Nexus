@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { cancelReminder, getReminder } from '../helpers';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -24,7 +24,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!reminder || reminder.userId !== interaction.user.id) {
     await interaction.reply({
       content: '❌ Reminder not found or does not belong to you.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -35,7 +35,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   if (!success) {
     await interaction.reply({
       content: '❌ Failed to cancel reminder.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -48,7 +48,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
 
   await interaction.reply({
     embeds: [embed],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 };
 

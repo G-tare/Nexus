@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { generateResponse, checkAICooldown, setAICooldown, getAIConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -21,7 +21,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -29,18 +29,18 @@ const command: BotCommand = {
       const config = await getAIConfig(interaction.guildId!);
 
       if (!config.enabled) {
-        await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', ephemeral: true });
+        await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       if (!config.apiKey) {
-        await interaction.reply({ content: '❌ AI API key is not configured. Please contact a server administrator.', ephemeral: true });
+        await interaction.reply({ content: '❌ AI API key is not configured. Please contact a server administrator.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       const remainingCooldown = await checkAICooldown(interaction.guildId!, interaction.user.id);
       if (remainingCooldown > 0) {
-        await interaction.reply({ content: `⏱️ Please wait ${remainingCooldown}s before asking again.`, ephemeral: true });
+        await interaction.reply({ content: `⏱️ Please wait ${remainingCooldown}s before asking again.`, flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -67,7 +67,7 @@ const command: BotCommand = {
       if (interaction.deferred) {
         await interaction.editReply({ content: '❌ An error occurred while processing your request.' });
       } else {
-        await interaction.reply({ content: '❌ An error occurred.', ephemeral: true });
+        await interaction.reply({ content: '❌ An error occurred.', flags: MessageFlags.Ephemeral });
       }
     }
   },

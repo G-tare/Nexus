@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, warningEmbed } from '../../../Shared/src/utils/embed';
 import {
@@ -37,7 +36,7 @@ const command: BotCommand = {
     if (!interaction.guildId) {
       await interaction.reply({
         content: 'This command can only be used in a guild.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -46,7 +45,7 @@ const command: BotCommand = {
     if (!interaction.member || typeof (interaction.member as any).permissions === 'string') {
       await interaction.reply({
         content: 'Unable to verify your permissions.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -54,7 +53,7 @@ const command: BotCommand = {
     if (!(interaction.member as any).permissions.has(PermissionFlagsBits.ManageMessages)) {
       await interaction.reply({
         content: 'You need the Manage Messages permission to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -226,13 +225,13 @@ const command: BotCommand = {
 
       await interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error('Error in testword command:', error);
       await interaction.reply({
         content: 'Failed to test text against automod filters.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

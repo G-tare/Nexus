@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ModalBuilder,
@@ -6,8 +6,7 @@ import {
   TextInputStyle,
   ActionRowBuilder,
   ModalActionRowComponentBuilder,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
 
@@ -103,14 +102,14 @@ export default {
       if (cooldown > 0) {
         return interaction.reply({
           content: `⏳ Wait ${cooldown}s before playing again!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (activeGames.has(interaction.user.id)) {
         return interaction.reply({
           content: '❌ You already have an active game! Use `/wordle guess` to make a guess.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -139,14 +138,14 @@ export default {
       if (!game) {
         return interaction.reply({
           content: '❌ You don\'t have an active game! Use `/wordle start` to begin.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (game.gameOver) {
         return interaction.reply({
           content: '❌ This game is already over! Use `/wordle start` for a new game.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -155,7 +154,7 @@ export default {
       if (!WORD_LIST.includes(guess)) {
         return interaction.reply({
           content: '❌ That word is not in the word list!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

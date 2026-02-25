@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  TextChannel,
-} from 'discord.js';
+  TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBirthdayConfig,
@@ -33,7 +32,7 @@ const command: BotCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const config = await getBirthdayConfig(interaction.guildId!);

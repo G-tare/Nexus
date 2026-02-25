@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase,
@@ -53,7 +52,7 @@ const command: BotCommand = {
     if (targetMember) {
       const check = canModerate(interaction.member as any, targetMember, 'ban');
       if (check) {
-        await interaction.reply({ content: check, ephemeral: true });
+        await interaction.reply({ content: check });
         return;
       }
     }
@@ -61,7 +60,7 @@ const command: BotCommand = {
     // Check if already banned
     const banList = await guild.bans.fetch({ user: target.id }).catch(() => null);
     if (banList) {
-      await interaction.reply({ content: 'That user is already banned.', ephemeral: true });
+      await interaction.reply({ content: 'That user is already banned.' });
       return;
     }
 
@@ -104,7 +103,7 @@ const command: BotCommand = {
 
     // Adjust reputation
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.ban);
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.ban, 'Ban');
     }
 
     // Reply

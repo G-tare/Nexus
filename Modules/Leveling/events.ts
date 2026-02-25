@@ -33,6 +33,19 @@ const messageXpHandler: ModuleEvent = { event: Events.MessageCreate,
       const userId = message.author.id;
       const channelId = message.channelId;
 
+      // Always increment total message count and update last_message_at for dashboard stats
+      try {
+        const db = getDb();
+        await db.update(guildMembers)
+          .set({
+            totalMessages: sql`${guildMembers.totalMessages} + 1`,
+            lastMessageAt: new Date(),
+          })
+          .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, userId)));
+      } catch {
+        // Non-critical — don't block XP flow if stats update fails
+      }
+
       // Get leveling config for guild
       const config = await getLevelingConfig(guildId);
 

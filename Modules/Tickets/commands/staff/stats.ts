@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
 import { Colors } from '../../../../Shared/src/utils/embed';
@@ -33,7 +32,6 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -42,7 +40,6 @@ const command: BotCommand = {
     if (typeof permissions === 'string' || !permissions?.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         content: '❌ You need the Manage Guild permission.',
-        ephemeral: true,
       });
     }
 
@@ -52,11 +49,10 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ Tickets module is not enabled.',
-        ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const days = interaction.options.getInteger('days') || 30;

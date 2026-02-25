@@ -1,6 +1,7 @@
 import { GuildMember, Message, EmbedBuilder, TextChannel, Guild, PermissionFlagsBits } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis } from '../../Shared/src/database/connection';
+import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { automodLogs } from '../../Shared/src/database/models/schema';
 import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import crypto from 'crypto';
@@ -543,7 +544,7 @@ export async function executeAction(action: AutomodAction, message: Message, rea
 // ============================================================================
 
 /**
- * Log an automod action to the configured log channel
+ * Log an automod action to the configured log channel AND to the database.
  */
 export async function logAutomodAction(
   guild: Guild,
@@ -551,8 +552,28 @@ export async function logAutomodAction(
   userId: string,
   action: string,
   reason: string,
-  details?: string
+  details?: string,
+  extra?: { channelId?: string; messageContent?: string; duration?: number; violationType?: string }
 ): Promise<void> {
+  // Always persist to database regardless of log channel config
+  try {
+    const db = getDb();
+    const validActions = ['delete', 'warn', 'mute', 'kick', 'ban'] as const;
+    const dbAction = validActions.includes(action as any) ? (action as typeof validActions[number]) : 'delete';
+    await db.insert(automodLogs).values({
+      guildId: guild.id,
+      targetId: userId,
+      action: dbAction,
+      violationType: extra?.violationType || 'unknown',
+      reason,
+      messageContent: extra?.messageContent?.slice(0, 2000) || null,
+      channelId: extra?.channelId || null,
+      duration: extra?.duration || null,
+    });
+  } catch (dbErr) {
+    logger.warn('Failed to persist automod log to DB:', dbErr);
+  }
+
   if (!config.logChannelId) return;
 
   try {

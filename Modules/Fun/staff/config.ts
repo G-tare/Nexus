@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 
 interface FunConfig {
@@ -150,15 +150,14 @@ export default {
             { name: 'Disabled Commands', value: config.disabledCommands.length > 0 ? config.disabledCommands.join(', ') : 'None', inline: false }
           );
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'gambling') {
         const enabled = interaction.options.getBoolean('enabled', true);
         // TODO: Update config in database
         config.gambling = enabled;
 
         await interaction.reply({
-          content: `Gambling commands have been ${enabled ? 'enabled' : 'disabled'}.`,
-          ephemeral: true
+          content: `Gambling commands have been ${enabled ? 'enabled' : 'disabled'}.`
         });
       } else if (subcommand === 'bet-limits') {
         const min = interaction.options.getInteger('min', true);
@@ -166,8 +165,7 @@ export default {
 
         if (min > max) {
           await interaction.reply({
-            content: 'Minimum bet cannot be greater than maximum bet.',
-            ephemeral: true
+            content: 'Minimum bet cannot be greater than maximum bet.'
           });
           return;
         }
@@ -177,8 +175,7 @@ export default {
         config.maxBet = max;
 
         await interaction.reply({
-          content: `Bet limits set: Min: ${min}, Max: ${max}`,
-          ephemeral: true
+          content: `Bet limits set: Min: ${min}, Max: ${max}`
         });
       } else if (subcommand === 'cooldown') {
         const seconds = interaction.options.getInteger('seconds', true);
@@ -186,8 +183,7 @@ export default {
         config.globalCooldown = seconds;
 
         await interaction.reply({
-          content: `Global cooldown set to ${seconds} seconds.`,
-          ephemeral: true
+          content: `Global cooldown set to ${seconds} seconds.`
         });
       } else if (subcommand === 'disable-command') {
         const command = interaction.options.getString('command', true);
@@ -199,8 +195,7 @@ export default {
         // TODO: Update config in database
 
         await interaction.reply({
-          content: `Command \`${command}\` has been disabled.`,
-          ephemeral: true
+          content: `Command \`${command}\` has been disabled.`
         });
       } else if (subcommand === 'enable-command') {
         const command = interaction.options.getString('command', true);
@@ -210,8 +205,7 @@ export default {
         // TODO: Update config in database
 
         await interaction.reply({
-          content: `Command \`${command}\` has been enabled.`,
-          ephemeral: true
+          content: `Command \`${command}\` has been enabled.`
         });
       } else if (subcommand === 'interactions') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -219,8 +213,7 @@ export default {
         config.interactionsEnabled = enabled;
 
         await interaction.reply({
-          content: `Interaction commands have been ${enabled ? 'enabled' : 'disabled'}.`,
-          ephemeral: true
+          content: `Interaction commands have been ${enabled ? 'enabled' : 'disabled'}.`
         });
       } else if (subcommand === 'games') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -228,8 +221,7 @@ export default {
         config.gamesEnabled = enabled;
 
         await interaction.reply({
-          content: `Game commands have been ${enabled ? 'enabled' : 'disabled'}.`,
-          ephemeral: true
+          content: `Game commands have been ${enabled ? 'enabled' : 'disabled'}.`
         });
       } else if (subcommand === 'gifs') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -237,15 +229,13 @@ export default {
         config.gifsEnabled = enabled;
 
         await interaction.reply({
-          content: `GIF animations have been ${enabled ? 'enabled' : 'disabled'}.`,
-          ephemeral: true
+          content: `GIF animations have been ${enabled ? 'enabled' : 'disabled'}.`
         });
       }
     } catch (error) {
       console.error('Fun config command error:', error);
       await interaction.reply({
-        content: 'Failed to update fun configuration. Please try again later.',
-        ephemeral: true
+        content: 'Failed to update fun configuration. Please try again later.'
       });
     }
   }

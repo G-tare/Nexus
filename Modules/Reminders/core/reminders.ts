@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getUserReminders, buildReminderListEmbed } from '../helpers';
 import { getRedis } from '../../../Shared/src/database/connection';
@@ -16,7 +16,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
 
   await interaction.reply({
     embeds: [embed],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 };
 

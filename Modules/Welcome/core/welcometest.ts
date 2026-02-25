@@ -1,10 +1,9 @@
-import {
+import { 
 	SlashCommandBuilder,
 	ChatInputCommandInteraction,
 	PermissionFlagsBits,
 	EmbedBuilder,
-	AttachmentBuilder,
-} from 'discord.js';
+	AttachmentBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
 	getWelcomeConfig,
@@ -40,7 +39,7 @@ export default {
 	premiumFeature: 'welcome.basic',
 
 	async execute(interaction: ChatInputCommandInteraction) {
-		await interaction.deferReply({ ephemeral: true });
+		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
 			const guild = interaction.guild;

@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getRepLeaderboard } from '../helpers';
 
@@ -28,7 +27,7 @@ const command: BotCommand = {
     const pageEntries = entries.slice((page - 1) * perPage, page * perPage);
 
     if (pageEntries.length === 0) {
-      await interaction.reply({ content: 'No reputation data yet.', ephemeral: true });
+      await interaction.reply({ content: 'No reputation data yet.', flags: MessageFlags.Ephemeral });
       return;
     }
 

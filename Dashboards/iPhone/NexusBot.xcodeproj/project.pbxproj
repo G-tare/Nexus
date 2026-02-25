@@ -1,0 +1,545 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		020DCB5A8638C346D714AB0A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F1D2C4F637423BEBAB34F58 /* ContentView.swift */; };
+		150E518F8A9BA344F462C7CA /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14028A0A34A1E812B0586F60 /* APIClient.swift */; };
+		201BF4B04CF4C0872640E29A /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 337644632C979ED91C3A0512 /* AnalyticsView.swift */; };
+		29E35DEAFE473087313BC21A /* ModuleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C4662060D36D8623915B4E /* ModuleListView.swift */; };
+		2D6561A5B23380799D1C3D89 /* ModLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3114A0F89941A9689AA86ED2 /* ModLogsView.swift */; };
+		2FFC98ED00664D3AA113656E /* Module.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8297F2B59F3654DE97CD98C /* Module.swift */; };
+		355A49FC2F9977373566AFED /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75B1B7F57936F781DFAF9A4 /* SettingsView.swift */; };
+		3C5903342A5BD70138F8DB57 /* APIEndpoints.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2BB2F466144425CFFF453A /* APIEndpoints.swift */; };
+		3DA316256E806C1E2F9F5810 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DCEFA2A1DE34BE770FA106E /* Assets.xcassets */; };
+		682414257EDFF8DD9FCA7073 /* NexusBotApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8812ED61CD0659CECF19B3C5 /* NexusBotApp.swift */; };
+		6F3F9B128132A389CAE77CC1 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC438B4226745E83901E4A16 /* User.swift */; };
+		764DF1505EBDFE376408D604 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F3C51B70BA529A99331DCB /* OverviewView.swift */; };
+		839B9DFC41F379C8181A1EEB /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF51371135644DF63AED287 /* AuthManager.swift */; };
+		95261B9CB1C207442C40A345 /* DashboardTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E53E4236A9C42AD0F2E4CB8 /* DashboardTabView.swift */; };
+		9B6695151156A2B9429C9473 /* LeaderboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6229693AF2197E0800FEF32 /* LeaderboardView.swift */; };
+		A3801254DA732A5C760EAB74 /* Guild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA5D631CC79EC786B263F59 /* Guild.swift */; };
+		A5576F74AE9EEBC8E9731C03 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569ADFB574E424B4C6B08AC2 /* PermissionsView.swift */; };
+		B256BF0B6FEFC9493AF74757 /* ModuleConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632AC9AE2E808D7E13CC545F /* ModuleConfigView.swift */; };
+		CDCA71E46166880184313EC195E4EC0E /* ModuleCommandsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1FD56F0FE9FA8A180D89B35B8517BE1 /* ModuleCommandsView.swift */; };
+		56E62986AE906793D9B9B65269B52DD8 /* CommandPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A01580248A9650F7CA59D06B20D0C33A /* CommandPermissionView.swift */; };
+		4FBC536CF0F23D3F5068371366A7C246 /* CommandRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99DB84F7941F77F74BC669BF6DC8E4F6 /* CommandRegistry.swift */; };
+		CD1A5B9FCA04D40D0061A6C0 /* NexusTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB81064AE7C10E7A5AF46CF /* NexusTheme.swift */; };
+		D4EF93872C9328FCE17885B1 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15D05262DCA880FFD5404A5B /* LoginView.swift */; };
+		DFFB46F47EF46E32126DD85E /* NexusComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF49AD7A9676C27DAE5F135 /* NexusComponents.swift */; };
+		ED2BC7F8A6847855211E0AEA /* OwnerDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */; };
+		ED8C2E967FD292CE43F6D53E /* ServerSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E162ADA3EDE4D9AE1AA9A2 /* ServerSelectorView.swift */; };
+		F0CB79A2A21D91C741C29DD0 /* ModCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7701D964B7A06A42ED519373 /* ModCase.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		14028A0A34A1E812B0586F60 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		15D05262DCA880FFD5404A5B /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		1BB81064AE7C10E7A5AF46CF /* NexusTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NexusTheme.swift; sourceTree = "<group>"; };
+		1F1D2C4F637423BEBAB34F58 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		24C4662060D36D8623915B4E /* ModuleListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleListView.swift; sourceTree = "<group>"; };
+		2AA5D631CC79EC786B263F59 /* Guild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Guild.swift; sourceTree = "<group>"; };
+		2E53E4236A9C42AD0F2E4CB8 /* DashboardTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardTabView.swift; sourceTree = "<group>"; };
+		2FF49AD7A9676C27DAE5F135 /* NexusComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NexusComponents.swift; sourceTree = "<group>"; };
+		3114A0F89941A9689AA86ED2 /* ModLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModLogsView.swift; sourceTree = "<group>"; };
+		337644632C979ED91C3A0512 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
+		569ADFB574E424B4C6B08AC2 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		60F3C51B70BA529A99331DCB /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		632AC9AE2E808D7E13CC545F /* ModuleConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleConfigView.swift; sourceTree = "<group>"; };
+		7701D964B7A06A42ED519373 /* ModCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModCase.swift; sourceTree = "<group>"; };
+		8812ED61CD0659CECF19B3C5 /* NexusBotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NexusBotApp.swift; sourceTree = "<group>"; };
+		8DCEFA2A1DE34BE770FA106E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A01580248A9650F7CA59D06B20D0C33A /* CommandPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPermissionView.swift; sourceTree = "<group>"; };
+		A1FD56F0FE9FA8A180D89B35B8517BE1 /* ModuleCommandsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleCommandsView.swift; sourceTree = "<group>"; };
+		A75B1B7F57936F781DFAF9A4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A7E162ADA3EDE4D9AE1AA9A2 /* ServerSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSelectorView.swift; sourceTree = "<group>"; };
+		A8297F2B59F3654DE97CD98C /* Module.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Module.swift; sourceTree = "<group>"; };
+		99DB84F7941F77F74BC669BF6DC8E4F6 /* CommandRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandRegistry.swift; sourceTree = "<group>"; };
+		AC438B4226745E83901E4A16 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		E5CFAD4AF7367747763FBEA5 /* NexusBot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NexusBot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE2BB2F466144425CFFF453A /* APIEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEndpoints.swift; sourceTree = "<group>"; };
+		F6229693AF2197E0800FEF32 /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
+		FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerDashboardView.swift; sourceTree = "<group>"; };
+		FEF51371135644DF63AED287 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C02836488851316A86035589 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		13C4608B5138EBE9B3A45A55 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				1F1D2C4F637423BEBAB34F58 /* ContentView.swift */,
+				8812ED61CD0659CECF19B3C5 /* NexusBotApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		20D83567C1ABE1FD275D4733 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				2AA5D631CC79EC786B263F59 /* Guild.swift */,
+				7701D964B7A06A42ED519373 /* ModCase.swift */,
+				A8297F2B59F3654DE97CD98C /* Module.swift */,
+				AC438B4226745E83901E4A16 /* User.swift */,
+				99DB84F7941F77F74BC669BF6DC8E4F6 /* CommandRegistry.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2208304A680A098F5A4C5243 /* Leaderboards */ = {
+			isa = PBXGroup;
+			children = (
+				F6229693AF2197E0800FEF32 /* LeaderboardView.swift */,
+			);
+			path = Leaderboards;
+			sourceTree = "<group>";
+		};
+		232AEF0D3B63415796EC264D /* ServerSelector */ = {
+			isa = PBXGroup;
+			children = (
+				A7E162ADA3EDE4D9AE1AA9A2 /* ServerSelectorView.swift */,
+			);
+			path = ServerSelector;
+			sourceTree = "<group>";
+		};
+		24F6E1690CC0A95D9EFBD026 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				14028A0A34A1E812B0586F60 /* APIClient.swift */,
+				EE2BB2F466144425CFFF453A /* APIEndpoints.swift */,
+				FEF51371135644DF63AED287 /* AuthManager.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		2BA340BF271E1A0E2D6B10FC /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				20D83567C1ABE1FD275D4733 /* Models */,
+				24F6E1690CC0A95D9EFBD026 /* Network */,
+				F499605855A29ACB3CB9F290 /* Theme */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		72D2F4173E3437CD1B3A3889 /* Owner */ = {
+			isa = PBXGroup;
+			children = (
+				FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */,
+			);
+			path = Owner;
+			sourceTree = "<group>";
+		};
+		778E701632611229BE58D6C5 /* Overview */ = {
+			isa = PBXGroup;
+			children = (
+				337644632C979ED91C3A0512 /* AnalyticsView.swift */,
+				60F3C51B70BA529A99331DCB /* OverviewView.swift */,
+			);
+			path = Overview;
+			sourceTree = "<group>";
+		};
+		8685388C59EE8240393A2DCB /* NexusBot */ = {
+			isa = PBXGroup;
+			children = (
+				13C4608B5138EBE9B3A45A55 /* App */,
+				2BA340BF271E1A0E2D6B10FC /* Core */,
+				E64DA6756D6CF253E6CA6FFA /* Features */,
+				8DCEFA2A1DE34BE770FA106E /* Assets.xcassets */,
+				906AB2D51588F09BDDF850F9 /* Products */,
+			);
+			path = NexusBot;
+			sourceTree = "<group>";
+		};
+		906AB2D51588F09BDDF850F9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E5CFAD4AF7367747763FBEA5 /* NexusBot.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D13614D723EA7F5E2DE940AE /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				569ADFB574E424B4C6B08AC2 /* PermissionsView.swift */,
+				A75B1B7F57936F781DFAF9A4 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		D2E4CB30844893CABEC94679 /* ModLogs */ = {
+			isa = PBXGroup;
+			children = (
+				3114A0F89941A9689AA86ED2 /* ModLogsView.swift */,
+			);
+			path = ModLogs;
+			sourceTree = "<group>";
+		};
+		E64DA6756D6CF253E6CA6FFA /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				EA0E37A617D0A8BE17A43C5D /* Auth */,
+				FD213EF12AB1FC2DD7865792 /* Dashboard */,
+				72D2F4173E3437CD1B3A3889 /* Owner */,
+				232AEF0D3B63415796EC264D /* ServerSelector */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		E65248BD87343DD8D881AE4F /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				632AC9AE2E808D7E13CC545F /* ModuleConfigView.swift */,
+				24C4662060D36D8623915B4E /* ModuleListView.swift */,
+				A1FD56F0FE9FA8A180D89B35B8517BE1 /* ModuleCommandsView.swift */,
+				A01580248A9650F7CA59D06B20D0C33A /* CommandPermissionView.swift */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		EA0E37A617D0A8BE17A43C5D /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				15D05262DCA880FFD5404A5B /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		F499605855A29ACB3CB9F290 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				2FF49AD7A9676C27DAE5F135 /* NexusComponents.swift */,
+				1BB81064AE7C10E7A5AF46CF /* NexusTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		FD213EF12AB1FC2DD7865792 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				2208304A680A098F5A4C5243 /* Leaderboards */,
+				D2E4CB30844893CABEC94679 /* ModLogs */,
+				E65248BD87343DD8D881AE4F /* Modules */,
+				778E701632611229BE58D6C5 /* Overview */,
+				D13614D723EA7F5E2DE940AE /* Settings */,
+				2E53E4236A9C42AD0F2E4CB8 /* DashboardTabView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F4C536FC6A490DC45272EFA0 /* NexusBot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E4C15FCE1D7203C2AFD4BB1 /* Build configuration list for PBXNativeTarget "NexusBot" */;
+			buildPhases = (
+				A000544F9580BD7FDDB0F9A8 /* Sources */,
+				C02836488851316A86035589 /* Frameworks */,
+				E305CF78CF1B21BB44C99272 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NexusBot;
+			packageProductDependencies = (
+			);
+			productName = NexusBot;
+			productReference = E5CFAD4AF7367747763FBEA5 /* NexusBot.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C1EE571C6900C9AAC9428630 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					F4C536FC6A490DC45272EFA0 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 9FEC93659031684B862273CD /* Build configuration list for PBXProject "NexusBot" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 8685388C59EE8240393A2DCB /* NexusBot */;
+			productRefGroup = 906AB2D51588F09BDDF850F9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F4C536FC6A490DC45272EFA0 /* NexusBot */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E305CF78CF1B21BB44C99272 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3DA316256E806C1E2F9F5810 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A000544F9580BD7FDDB0F9A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				020DCB5A8638C346D714AB0A /* ContentView.swift in Sources */,
+				682414257EDFF8DD9FCA7073 /* NexusBotApp.swift in Sources */,
+				A3801254DA732A5C760EAB74 /* Guild.swift in Sources */,
+				F0CB79A2A21D91C741C29DD0 /* ModCase.swift in Sources */,
+				2FFC98ED00664D3AA113656E /* Module.swift in Sources */,
+				6F3F9B128132A389CAE77CC1 /* User.swift in Sources */,
+				4FBC536CF0F23D3F5068371366A7C246 /* CommandRegistry.swift in Sources */,
+				150E518F8A9BA344F462C7CA /* APIClient.swift in Sources */,
+				3C5903342A5BD70138F8DB57 /* APIEndpoints.swift in Sources */,
+				839B9DFC41F379C8181A1EEB /* AuthManager.swift in Sources */,
+				DFFB46F47EF46E32126DD85E /* NexusComponents.swift in Sources */,
+				CD1A5B9FCA04D40D0061A6C0 /* NexusTheme.swift in Sources */,
+				D4EF93872C9328FCE17885B1 /* LoginView.swift in Sources */,
+				95261B9CB1C207442C40A345 /* DashboardTabView.swift in Sources */,
+				9B6695151156A2B9429C9473 /* LeaderboardView.swift in Sources */,
+				2D6561A5B23380799D1C3D89 /* ModLogsView.swift in Sources */,
+				B256BF0B6FEFC9493AF74757 /* ModuleConfigView.swift in Sources */,
+				CDCA71E46166880184313EC195E4EC0E /* ModuleCommandsView.swift in Sources */,
+				56E62986AE906793D9B9B65269B52DD8 /* CommandPermissionView.swift in Sources */,
+				29E35DEAFE473087313BC21A /* ModuleListView.swift in Sources */,
+				201BF4B04CF4C0872640E29A /* AnalyticsView.swift in Sources */,
+				764DF1505EBDFE376408D604 /* OverviewView.swift in Sources */,
+				A5576F74AE9EEBC8E9731C03 /* PermissionsView.swift in Sources */,
+				355A49FC2F9977373566AFED /* SettingsView.swift in Sources */,
+				ED2BC7F8A6847855211E0AEA /* OwnerDashboardView.swift in Sources */,
+				ED8C2E967FD292CE43F6D53E /* ServerSelectorView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0748817C498AEF15EF9D3241 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHES = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_DIALECT = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = fast;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		4DD11872D2A1E03489F726C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_IDENTIFIER = com.nexusbot.dashboard;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KWSDH8Z343;
+				INFOPLIST_FILE = NexusBot/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NexusBot;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLandscape";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETINGVERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nexusbot.dashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGET_NAME = NexusBot;
+				WARNING_CFLAGS = "-Wunguarded-availability";
+			};
+			name = Release;
+		};
+		A081337CEA0CA6A295FDB1C7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHES = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_DIALECT = "gnu++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEBUG_INFORMATION_FORMAT_WAS_IGNORED = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_DIALECT = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = "DEBUG=1";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		FACD48D15607B179A7F34887 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_IDENTIFIER = com.nexusbot.dashboard;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KWSDH8Z343;
+				INFOPLIST_FILE = NexusBot/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NexusBot;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLandscape";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETINGVERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nexusbot.dashboard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGET_NAME = NexusBot;
+				WARNING_CFLAGS = "-Wunguarded-availability";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E4C15FCE1D7203C2AFD4BB1 /* Build configuration list for PBXNativeTarget "NexusBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FACD48D15607B179A7F34887 /* Debug */,
+				4DD11872D2A1E03489F726C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9FEC93659031684B862273CD /* Build configuration list for PBXProject "NexusBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A081337CEA0CA6A295FDB1C7 /* Debug */,
+				0748817C498AEF15EF9D3241 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C1EE571C6900C9AAC9428630 /* Project object */;
+}

@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
   Colors,
   ChannelType,
   TextChannel,
-  VoiceChannel,
-} from 'discord.js';
+  VoiceChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -215,7 +214,6 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
       });
       return;
     }
@@ -223,7 +221,6 @@ const command: BotCommand = {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
         content: 'You need the **Manage Guild** permission to use this command.',
-        ephemeral: true,
       });
       return;
     }
@@ -252,7 +249,7 @@ const command: BotCommand = {
               { name: '24/7 Mode', value: config.twentyFourSeven ? 'Yes' : 'No', inline: true }
             );
 
-          await interaction.reply({ embeds: [embed], ephemeral: true });
+          await interaction.reply({ embeds: [embed] });
           break;
         }
 
@@ -501,7 +498,6 @@ const command: BotCommand = {
       console.error('Error in musicconfig command:', error);
       await interaction.reply({
         content: 'An error occurred while updating music configuration.',
-        ephemeral: true,
       });
     }
   },

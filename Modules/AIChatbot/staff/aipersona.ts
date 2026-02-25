@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAIConfig, getPersona, setPersona } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
@@ -34,7 +34,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
@@ -50,7 +50,7 @@ const command: BotCommand = {
           .setFooter({ text: `Character count: ${persona.length}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'set') {
         const persona = interaction.options.getString('persona', true);
 
@@ -63,7 +63,7 @@ const command: BotCommand = {
           .setFooter({ text: `Updated by ${interaction.user.username}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'reset') {
         const config = await getAIConfig(interaction.guildId!);
         await setPersona(interaction.guildId!, config.systemPrompt);
@@ -75,11 +75,11 @@ const command: BotCommand = {
           .setFooter({ text: `Reset by ${interaction.user.username}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       }
     } catch (error) {
       logger.error('Error in aipersona command execution', error);
-      await interaction.reply({ content: '❌ Failed to update persona.', ephemeral: true });
+      await interaction.reply({ content: '❌ Failed to update persona.' });
     }
   },
 };

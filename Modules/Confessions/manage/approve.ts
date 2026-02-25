@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getConfessionConfig,
@@ -11,7 +10,6 @@ import {
   storeConfession,
   buildConfessionEmbed,
 } from '../helpers';
-
 
 const command: BotCommand = {
   module: 'confessions',
@@ -38,7 +36,6 @@ const command: BotCommand = {
     if (!pendingData) {
       await interaction.reply({
         content: `Pending confession #${confessionId} not found.`,
-        ephemeral: true,
       });
       return;
     }
@@ -48,7 +45,6 @@ const command: BotCommand = {
       if (!config.channelId) {
         await interaction.reply({
           content: 'Confession channel is not configured.',
-          ephemeral: true,
         });
         return;
       }
@@ -57,7 +53,6 @@ const command: BotCommand = {
       if (!channel || !channel.isTextBased()) {
         await interaction.reply({
           content: 'Confession channel not found.',
-          ephemeral: true,
         });
         return;
       }
@@ -85,13 +80,11 @@ const command: BotCommand = {
 
       await interaction.reply({
         content: `Confession #${confessionId} approved and posted.`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error approving confession:', error);
       await interaction.reply({
         content: 'Failed to approve confession.',
-        ephemeral: true,
       });
     }
   },

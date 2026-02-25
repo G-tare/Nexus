@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { parseDuration } from '../../../Shared/src/utils/time';
 import { createGiveaway } from '../helpers';
@@ -17,7 +17,7 @@ export default {
   permissionPath: 'giveaways.staff.schedule',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guild || !interaction.channel) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guild || !interaction.channel) return interaction.reply({ content: 'Server only.' });
     const prize = interaction.options.getString('prize', true);
     const durationStr = interaction.options.getString('duration', true);
     const startInStr = interaction.options.getString('start-in', true);
@@ -25,7 +25,7 @@ export default {
     const duration = parseDuration(durationStr);
     const startIn = parseDuration(startInStr);
     if (!duration || !startIn) {
-      return interaction.reply({ embeds: [errorEmbed('Invalid duration format.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Invalid duration format.')]  });
     }
     const startsAt = new Date(Date.now() + startIn);
     const endsAt = new Date(startsAt.getTime() + duration);
@@ -39,10 +39,10 @@ export default {
         endsAt,
         isActive: false, // Will be activated when scheduled time arrives
       });
-      return interaction.reply({ embeds: [successEmbed(`Giveaway #${giveaway.id} scheduled! Starts <t:${Math.floor(startsAt.getTime() / 1000)}:R>`)] , ephemeral: true });
+      return interaction.reply({ embeds: [successEmbed(`Giveaway #${giveaway.id} scheduled! Starts <t:${Math.floor(startsAt.getTime() / 1000)}:R>`)]  });
     } catch (error) {
       console.error('Schedule error:', error);
-      return interaction.reply({ embeds: [errorEmbed('Failed to schedule giveaway.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Failed to schedule giveaway.')]  });
     }
   },
 } as BotCommand;

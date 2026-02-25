@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  TextChannel,
-} from 'discord.js';
+  TextChannel, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { buildPanelEmbed } from '../../helpers';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
@@ -59,7 +58,7 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -70,14 +69,14 @@ const command: BotCommand = {
     ) {
       return interaction.reply({
         content: '❌ Unable to verify permissions.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (!(interaction.member as any).permissions.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         content: '❌ You need the **Manage Server** permission.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -87,11 +86,11 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const type = interaction.options.getString('type', true) as 'button' | 'dropdown';
     const title = interaction.options.getString('title', true);

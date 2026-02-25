@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
-  Colors,
-} from 'discord.js';
+  Colors, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   saveServerPlaylist,
@@ -79,7 +78,7 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -90,7 +89,7 @@ const command: BotCommand = {
     if (!config.serverPlaylistsEnabled) {
       await interaction.reply({
         content: 'Server playlists are disabled for this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -101,7 +100,7 @@ const command: BotCommand = {
           if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
             await interaction.reply({
               content: 'You need the **Manage Guild** permission to save server playlists.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -112,7 +111,7 @@ const command: BotCommand = {
           if (playlists.length >= 100) {
             await interaction.reply({
               content: 'This server has reached the maximum of 100 playlists.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -123,7 +122,7 @@ const command: BotCommand = {
           if (queue.length === 0) {
             await interaction.reply({
               content: 'The queue is empty. Nothing to save.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -149,7 +148,7 @@ const command: BotCommand = {
           if (!playlist || (playlist as any).tracks.length === 0) {
             await interaction.reply({
               content: `Server playlist **${name}** not found or is empty.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -172,7 +171,7 @@ const command: BotCommand = {
           if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
             await interaction.reply({
               content: 'You need the **Manage Guild** permission to delete server playlists.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -183,7 +182,7 @@ const command: BotCommand = {
           if (!deleted) {
             await interaction.reply({
               content: `Server playlist **${name}** not found.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -203,7 +202,7 @@ const command: BotCommand = {
           if (playlists.length === 0) {
             await interaction.reply({
               content: 'This server has no playlists yet.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -231,7 +230,7 @@ const command: BotCommand = {
           if (!playlist || (playlist as any).tracks.length === 0) {
             await interaction.reply({
               content: `Server playlist **${name}** not found or is empty.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -266,7 +265,7 @@ const command: BotCommand = {
       console.error('Error in server playlist command:', error);
       await interaction.reply({
         content: 'An error occurred while managing server playlists.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

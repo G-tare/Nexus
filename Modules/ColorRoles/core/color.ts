@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -59,7 +58,7 @@ const command: BotCommand = {
     if (config.commandChannelId && interaction.channelId! !== config.commandChannelId) {
       await interaction.reply({
         content: `Color commands can only be used in <#${config.commandChannelId}>.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -68,7 +67,7 @@ const command: BotCommand = {
     if (!(await canUseColors(guild, interaction.user.id))) {
       await interaction.reply({
         content: 'You don\'t have a whitelisted role to use color commands.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -78,7 +77,7 @@ const command: BotCommand = {
     if (colors.length === 0) {
       await interaction.reply({
         content: 'This server doesn\'t have any colors set up yet.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -95,12 +94,12 @@ const command: BotCommand = {
     if (!color) {
       await interaction.reply({
         content: `Color "${colorInput}" not found. Use \`/colorlist\` to see available colors.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const assigned = await assignColor(guild, interaction.user.id, color.id);
     if (!assigned) {

@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModCase, modActionEmbed, ensureGuild } from '../helpers';
 
@@ -28,12 +27,12 @@ const command: BotCommand = {
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
     if (!targetMember) {
-      await interaction.reply({ content: 'User not found in this server.', ephemeral: true });
+      await interaction.reply({ content: 'User not found in this server.' });
       return;
     }
 
     if (!targetMember.isCommunicationDisabled()) {
-      await interaction.reply({ content: 'That user is not muted.', ephemeral: true });
+      await interaction.reply({ content: 'That user is not muted.' });
       return;
     }
 

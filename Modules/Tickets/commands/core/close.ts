@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType,
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { closeTicket, isTicketChannel } from '../../helpers';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
@@ -31,7 +30,7 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild || !interaction.channel) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -41,7 +40,7 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ The tickets module is not enabled on this server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -50,11 +49,11 @@ const command: BotCommand = {
     if (!ticketData) {
       return interaction.reply({
         content: '❌ This command can only be used in a ticket channel.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const reason = interaction.options.getString('reason') || 'No reason provided';
 

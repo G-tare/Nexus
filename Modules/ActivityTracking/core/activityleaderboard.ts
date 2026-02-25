@@ -1,8 +1,7 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActivityLeaderboard, formatDuration } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -42,7 +41,7 @@ const command: BotCommand = {
       if (!interaction.guild) {
         await interaction.reply({
           content: 'This command can only be used in a server.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -94,7 +93,7 @@ const command: BotCommand = {
       if (interaction.deferred) {
         await interaction.editReply({ content: 'An error occurred while fetching leaderboard data.' });
       } else {
-        await interaction.reply({ content: 'An error occurred while fetching leaderboard data.', ephemeral: true });
+        await interaction.reply({ content: 'An error occurred while fetching leaderboard data.', flags: MessageFlags.Ephemeral });
       }
     }
   },

@@ -1,10 +1,9 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
   ChannelType,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { getMessageTrackingConfig, setMessageTrackingConfig } from '../helpers';
@@ -60,7 +59,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
@@ -85,14 +84,13 @@ const command: BotCommand = {
           .setFooter({ text: `Viewed by ${interaction.user.username}` })
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'logchannel') {
         const channel = interaction.options.getChannel('channel', true);
         await setMessageTrackingConfig(interaction.guild.id, { logChannelId: channel.id });
 
         await interaction.reply({
           embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Log channel set to <#${channel.id}>`)],
-          ephemeral: true,
         });
       } else if (subcommand === 'snipe') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -100,7 +98,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Snipe functionality ${enabled ? '✅ enabled' : '❌ disabled'}`)],
-          ephemeral: true,
         });
       } else if (subcommand === 'ghostping') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -108,7 +105,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Ghost ping alerts ${enabled ? '✅ enabled' : '❌ disabled'}`)],
-          ephemeral: true,
         });
       } else if (subcommand === 'ignorechannel') {
         const channel = interaction.options.getChannel('channel', true);
@@ -128,12 +124,11 @@ const command: BotCommand = {
 
         await interaction.reply({
           embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`<#${channel.id}> is now ${isNowIgnored ? '❌ ignored' : '✅ tracked'} for message tracking`)],
-          ephemeral: true,
         });
       }
     } catch (error) {
       logger.error('Error executing messagetrackconfig command:', error);
-      await interaction.reply({ content: '❌ An error occurred while processing your request.', ephemeral: true });
+      await interaction.reply({ content: '❌ An error occurred while processing your request.' });
     }
   },
 };

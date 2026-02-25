@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
@@ -69,7 +68,7 @@ const command: BotCommand = {
         .setDescription('Reset punishments to default settings')
     ),
   execute: async (interaction: ChatInputCommandInteraction) => {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const guildId = interaction.guildId!;

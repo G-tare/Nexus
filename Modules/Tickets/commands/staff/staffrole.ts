@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
 import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
@@ -49,7 +48,6 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -58,7 +56,6 @@ const command: BotCommand = {
     if (typeof permissions === 'string' || !permissions?.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         content: '❌ You need the Manage Guild permission.',
-        ephemeral: true,
       });
     }
 
@@ -68,7 +65,6 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ Tickets module is not enabled.',
-        ephemeral: true,
       });
     }
 
@@ -84,7 +80,6 @@ const command: BotCommand = {
       default:
         return interaction.reply({
           content: '❌ Unknown subcommand.',
-          ephemeral: true,
         });
     }
   },
@@ -101,7 +96,6 @@ async function handleAdd(
   if (config.globalStaffRoles.includes(role.id)) {
     return interaction.reply({
       content: `❌ ${role.toString()} is already a staff role.`,
-      ephemeral: true,
     });
   }
 
@@ -115,7 +109,6 @@ async function handleAdd(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -131,7 +124,6 @@ async function handleRemove(
   if (index === -1) {
     return interaction.reply({
       content: `❌ ${role.toString()} is not a staff role.`,
-      ephemeral: true,
     });
   }
 
@@ -145,7 +137,6 @@ async function handleRemove(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -202,7 +193,6 @@ async function handleList(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 

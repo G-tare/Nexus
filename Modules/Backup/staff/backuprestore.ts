@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,8 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { restoreBackup, getBackupInfo, RestoreComponent } from '../helpers';
 
@@ -50,7 +49,7 @@ const command: BotCommand = {
     // Get backup info first
     const info = await getBackupInfo(guild.id, backupId);
     if (!info) {
-      await interaction.reply({ content: `Backup with ID \`${backupId}\` not found.`, ephemeral: true });
+      await interaction.reply({ content: `Backup with ID \`${backupId}\` not found.` });
       return;
     }
 

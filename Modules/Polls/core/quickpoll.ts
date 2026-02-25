@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ChannelType,
-  TextChannel,
-} from 'discord.js';
+  TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   PollData,
@@ -38,7 +37,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction, deps: any) => {
     const { redis, client } = deps;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // Get configuration

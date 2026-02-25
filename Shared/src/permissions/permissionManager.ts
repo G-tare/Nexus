@@ -41,7 +41,7 @@ export class PermissionManager {
   ): Promise<{ allowed: boolean; reason?: string }> {
     const member = interaction.member as GuildMember;
     const guildId = interaction.guildId!;
-    const userId = member.id;
+    const userId = member?.id ?? interaction.user.id;
     const channelId = interaction.channelId!;
 
     // Bot owners always have access
@@ -50,7 +50,7 @@ export class PermissionManager {
     }
 
     // Guild owner always has access
-    if (member.guild.ownerId === userId) {
+    if (member?.guild?.ownerId === userId) {
       return { allowed: true };
     }
 
@@ -125,11 +125,23 @@ export class PermissionManager {
       return { allowed: true };
     }
 
-    // If there are rules but none matched, deny (explicit configuration means only configured targets have access)
-    // Check if there are any ALLOW rules — if so, not matching means denied
-    const hasAllowRules = rules.some(r => r.allowed);
-    if (hasAllowRules) {
-      return { allowed: false, reason: 'You do not have permission to use this command.' };
+    // ADDITIVE MODEL: Custom rules work alongside defaults.
+    // If no deny rules matched the user, fall back to default Discord permissions.
+    // Adding a specific allow or deny rule for one target should NOT affect other users.
+    if (defaultPermissions) {
+      const memberPerms = member.permissions;
+      if (memberPerms.has(PermissionFlagsBits.Administrator)) {
+        return { allowed: true };
+      }
+      const hasPerms = memberPerms.has(defaultPermissions);
+      if (!hasPerms) {
+        const required = new PermissionsBitField(defaultPermissions);
+        const missing = required.toArray().filter(p => !memberPerms.has(PermissionFlagsBits[p as keyof typeof PermissionFlagsBits]));
+        return {
+          allowed: false,
+          reason: `You need the following permission(s): ${missing.join(', ')}`,
+        };
+      }
     }
 
     // Default: allow

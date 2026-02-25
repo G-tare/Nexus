@@ -1,11 +1,10 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+  ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   validateHex,
@@ -43,7 +42,7 @@ const command: BotCommand = {
     if (!(await canUseColors(guild, interaction.user.id))) {
       await interaction.reply({
         content: 'You don\'t have a whitelisted role to use color commands.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -56,7 +55,7 @@ const command: BotCommand = {
     if (!hex) {
       await interaction.reply({
         content: 'Invalid hex color. Please use a valid 6-digit hex code like `FF69B4` or `#FF69B4`.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -66,7 +65,7 @@ const command: BotCommand = {
     if (existing) {
       await interaction.reply({
         content: `A color named **${existing.name}** already exists.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -77,7 +76,7 @@ const command: BotCommand = {
     if (colors.length >= config.maxColors) {
       await interaction.reply({
         content: `The server has reached the maximum of ${config.maxColors} colors.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -123,7 +122,7 @@ const command: BotCommand = {
     // Post in the channel (staff will see the buttons)
     await interaction.reply({
       content: '✅ Your color suggestion has been submitted for review!',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     // Also post the suggestion embed publicly

@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
@@ -6,8 +6,7 @@ import {
   ButtonStyle,
   ButtonInteraction,
   User,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -155,7 +154,7 @@ export default {
     if (cooldown > 0) {
       return interaction.reply({
         content: `⏳ Wait ${cooldown}s before playing again!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -165,14 +164,14 @@ export default {
     if (opponent.id === interaction.user.id) {
       return interaction.reply({
         content: '❌ You cannot play against yourself!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (opponent.bot) {
       return interaction.reply({
         content: '❌ You cannot play against a bot!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -184,7 +183,7 @@ export default {
       if (!p1BetResult.success || !p2BetResult.success) {
         return interaction.reply({
           content: '❌ One or both players have insufficient currency!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
@@ -243,7 +242,7 @@ export default {
       if (buttonInteraction.user.id !== currentPlayerUser.id) {
         return buttonInteraction.reply({
           content: '❌ It\'s not your turn!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -252,7 +251,7 @@ export default {
       if (!placeDisc(board, col, currentPlayer)) {
         return buttonInteraction.reply({
           content: '❌ Column is full!',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

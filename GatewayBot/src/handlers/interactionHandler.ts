@@ -1,4 +1,4 @@
-import {
+import { 
   Client,
   Interaction,
   ChatInputCommandInteraction,
@@ -7,8 +7,7 @@ import {
   StringSelectMenuInteraction,
   ModalSubmitInteraction,
   Collection,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { permissionManager } from '../../../Shared/src/permissions/permissionManager';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { premiumManager } from '../../../Shared/src/middleware/premiumCheck';
@@ -196,7 +195,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
   if (command.guildOnly !== false && !guildId) {
     await interaction.reply({
       embeds: [errorEmbed('Server Only', t('common:guildOnly'))],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -208,7 +207,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
       if (!isEnabled) {
         await interaction.reply({
           embeds: [errorEmbed('Module Disabled', t('common:moduleDisabled'))],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -223,7 +222,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
           embeds: [errorEmbed('Premium Required',
             `This feature requires **${requiredTier}** tier. Upgrade at the dashboard to unlock it!`
           )],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -235,7 +234,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
     if (!permResult.allowed) {
       await interaction.reply({
         embeds: [errorEmbed('No Permission', permResult.reason || t('common:noPermission'))],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -259,7 +258,7 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
         const remaining = expiresAt - now;
         await interaction.reply({
           embeds: [errorEmbed('Cooldown', t('common:cooldown', { time: formatDuration(remaining) }))],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
@@ -291,15 +290,10 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
       routeKey,
     });
 
-    const errorMsg = {
-      embeds: [errorEmbed('Error', t('common:error'))],
-      ephemeral: true,
-    };
-
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMsg).catch(() => {});
+      await interaction.followUp({ embeds: [errorEmbed('Error', t('common:error'))], flags: MessageFlags.Ephemeral }).catch(() => {});
     } else {
-      await interaction.reply(errorMsg).catch(() => {});
+      await interaction.reply({ embeds: [errorEmbed('Error', t('common:error'))], flags: MessageFlags.Ephemeral }).catch(() => {});
     }
   }
 }

@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutoRoleRules, CONDITION_LABELS } from '../helpers';
 
@@ -25,7 +24,6 @@ const command: BotCommand = {
     if (rules.length === 0) {
       await interaction.reply({
         content: 'No auto-role rules configured. Use `/autoroleadd` to create one.',
-        ephemeral: true,
       });
       return;
     }

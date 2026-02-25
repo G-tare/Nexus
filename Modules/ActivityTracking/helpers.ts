@@ -184,16 +184,32 @@ export async function getUserActivityBreakdown(guildId: string, userId: string, 
 
     const score = Math.floor(voiceMinutes / 10) + messages * 2 + Math.floor(reactions * 0.5);
 
-    // Get rank
+    // Get rank — try activity leaderboard first, fall back to guild_members if no activity data
     const leaderboard = await getActivityLeaderboard(guildId, 1000, days);
-    const rankIndex = leaderboard.findIndex((entry) => entry.userId === userId);
+    let rank: number | null = null;
+
+    if (leaderboard.length > 0) {
+      const rankIndex = leaderboard.findIndex((entry) => entry.userId === userId);
+      rank = rankIndex >= 0 ? rankIndex + 1 : null;
+    }
+
+    // If no rank found (user not in leaderboard), fall back to counting guild members
+    if (rank === null) {
+      const memberCountResult = await db.execute(sql`
+        SELECT COUNT(*) as total FROM guild_members WHERE guild_id = ${guildId}
+      `);
+      const memberRow = (memberCountResult as any).rows?.[0] ?? (memberCountResult as any)[0];
+      const totalMembers = Number(memberRow?.total || 0);
+      // User exists but has no tracked activity yet — rank them last among members
+      rank = totalMembers > 0 ? totalMembers : 1;
+    }
 
     return {
       voiceMinutes,
       messages,
       reactions,
       score,
-      rank: rankIndex >= 0 ? rankIndex + 1 : null,
+      rank,
     };
   } catch (error) {
     logger.error(`Failed to get activity breakdown for ${userId}:`, error);
@@ -227,7 +243,7 @@ export async function getActivityLeaderboard(guildId: string, limit: number = 10
       const reactions = Number(row.total_reactions || 0);
       const score = Math.floor(voiceMinutes / 10) + messages * 2 + Math.floor(reactions * 0.5);
 
-      return { userId: row.userId, score, voiceMinutes, messages, reactions };
+      return { userId: row.user_id, score, voiceMinutes, messages, reactions };
     });
   } catch (error) {
     logger.error(`Failed to get leaderboard:`, error);
@@ -248,7 +264,7 @@ export async function getInactiveMembers(guildId: string, thresholdDays: number 
       WHERE guild_id = ${guildId} AND date >= ${startDateStr}
     `);
 
-    return result.rows.map((row: any) => row.userId);
+    return result.rows.map((row: any) => row.user_id);
   } catch (error) {
     logger.error(`Failed to get inactive members:`, error);
     return [];

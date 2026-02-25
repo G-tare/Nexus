@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { giveaways } from '../../../Shared/src/database/models/schema';
@@ -36,7 +36,7 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guildId) {
-      return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      return interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
     }
     const subcommand = interaction.options.getSubcommand();
     const giveawayId = interaction.options.getInteger('id', true);
@@ -44,7 +44,7 @@ const command: BotCommand = {
     const rows = await db.select().from(giveaways).where(and(eq(giveaways.id, giveawayId), eq(giveaways.guildId, interaction.guildId!)));
     const giveaway = rows[0] as any;
     if (!giveaway) {
-      return interaction.reply({ content: `No giveaway found with ID ${giveawayId}.`, ephemeral: true });
+      return interaction.reply({ content: `No giveaway found with ID ${giveawayId}.`, flags: MessageFlags.Ephemeral });
     }
     try {
       const reqs = (giveaway.requirements as any) || {};
@@ -55,30 +55,30 @@ const command: BotCommand = {
           const entries = interaction.options.getInteger('entries', true);
           bonusEntries[user.id] = (bonusEntries[user.id] || 0) + entries;
           await db.update(giveaways).set({ requirements: { ...reqs, bonusEntries } }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: `Added ${entries} bonus entries to ${user.username}. Total: ${bonusEntries[user.id]}`, ephemeral: true });
+          return interaction.reply({ content: `Added ${entries} bonus entries to ${user.username}. Total: ${bonusEntries[user.id]}`, flags: MessageFlags.Ephemeral });
         }
         case 'role': {
           const role = interaction.options.getRole('role', true);
           const entries = interaction.options.getInteger('entries', true);
           bonusEntries[role.id] = (bonusEntries[role.id] || 0) + entries;
           await db.update(giveaways).set({ requirements: { ...reqs, bonusEntries } }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: `Added ${entries} bonus entries to ${role.name}. Total: ${bonusEntries[role.id]}`, ephemeral: true });
+          return interaction.reply({ content: `Added ${entries} bonus entries to ${role.name}. Total: ${bonusEntries[role.id]}`, flags: MessageFlags.Ephemeral });
         }
         case 'view': {
           const entryList = Object.entries(bonusEntries);
-          if (entryList.length === 0) return interaction.reply({ content: 'No bonus entries set.', ephemeral: true });
+          if (entryList.length === 0) return interaction.reply({ content: 'No bonus entries set.', flags: MessageFlags.Ephemeral });
           const desc = entryList.map(([id, count]) => `${interaction.guild?.roles.cache.has(id) ? `<@&${id}>` : `<@${id}>`}: ${count}`).join('\n');
-          return interaction.reply({ embeds: [{ title: `Bonus Entries - Giveaway #${giveawayId}`, description: desc, color: 0x2f3136 }], ephemeral: true });
+          return interaction.reply({ embeds: [{ title: `Bonus Entries - Giveaway #${giveawayId}`, description: desc, color: 0x2f3136 }], flags: MessageFlags.Ephemeral });
         }
         case 'clear': {
           delete reqs.bonusEntries;
           await db.update(giveaways).set({ requirements: reqs }).where(eq(giveaways.id, giveawayId));
-          return interaction.reply({ content: 'Cleared all bonus entries.', ephemeral: true });
+          return interaction.reply({ content: 'Cleared all bonus entries.', flags: MessageFlags.Ephemeral });
         }
       }
     } catch (error) {
       console.error('Error managing bonus entries:', error);
-      return interaction.reply({ content: 'An error occurred while managing bonus entries.', ephemeral: true });
+      return interaction.reply({ content: 'An error occurred while managing bonus entries.', flags: MessageFlags.Ephemeral });
     }
   },
 };

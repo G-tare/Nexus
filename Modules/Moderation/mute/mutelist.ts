@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors } from '../../../Shared/src/utils/embed';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
@@ -22,7 +21,7 @@ const command: BotCommand = {
   async execute(interaction: ChatInputCommandInteraction) {
     const guild = interaction.guild!;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const members = await guild.members.fetch();
     const muted = members.filter(m => m.isCommunicationDisabled());

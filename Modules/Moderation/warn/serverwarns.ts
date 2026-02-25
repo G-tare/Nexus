@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
@@ -29,7 +28,7 @@ const command: BotCommand = {
     const perPage = 10;
     const guild = interaction.guild!;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const db = getDb();
 

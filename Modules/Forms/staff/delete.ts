@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
@@ -22,7 +22,7 @@ const command: BotCommand = {
     try {
       const guildId = interaction.guildId!;
       if (!guildId) {
-        await interaction.reply({ content: '❌ This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: '❌ This command can only be used in a server.' });
         return;
       }
 
@@ -30,7 +30,7 @@ const command: BotCommand = {
 
       const form = await getFormById(formId);
       if (!form || form.guildId !== guildId) {
-        await interaction.reply({ content: '❌ Form not found.', ephemeral: true });
+        await interaction.reply({ content: '❌ Form not found.' });
         return;
       }
 
@@ -58,7 +58,7 @@ const command: BotCommand = {
       });
     } catch (error) {
       logger.error('[Forms] /formdelete error:', error);
-      await interaction.reply({ content: '❌ An error occurred while deleting the form.', ephemeral: true });
+      await interaction.reply({ content: '❌ An error occurred while deleting the form.' });
     }
   },
 };

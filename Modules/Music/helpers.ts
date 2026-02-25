@@ -8,7 +8,14 @@ import {
   ButtonBuilder,
   ButtonStyle,
   EmbedField,
+  ChannelType,
 } from 'discord.js';
+import {
+  joinVoiceChannel,
+  getVoiceConnection,
+  VoiceConnectionStatus,
+  entersState,
+} from '@discordjs/voice';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { getRedis, getDb } from '../../Shared/src/database/connection';
 import { playlists } from '../../Shared/src/database/models/schema';
@@ -249,6 +256,86 @@ export function destroyQueue(guildId: string): void {
   if (queues.delete(guildId)) {
     logger.debug(`Destroyed queue for guild ${guildId}`);
   }
+}
+
+// ============================================================================
+// VOICE CONNECTION HELPERS
+// ============================================================================
+
+/**
+ * Join a voice channel and return the connection.
+ */
+export async function joinVC(
+  guild: Guild,
+  channelId: string,
+): Promise<ReturnType<typeof getVoiceConnection> | null> {
+  try {
+    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    if (!channel) {
+      logger.error('Voice channel not found', { channelId, guildId: guild.id });
+      return null;
+    }
+    if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+      logger.error('Channel is not a voice channel', { channelId, type: channel.type });
+      return null;
+    }
+
+    const connection = joinVoiceChannel({
+      channelId,
+      guildId: guild.id,
+      adapterCreator: guild.voiceAdapterCreator as any,
+      selfDeaf: true,
+    });
+
+    // Listen for state changes for debugging
+    connection.on('stateChange', (oldState, newState) => {
+      logger.debug(`Voice connection state: ${oldState.status} → ${newState.status}`, { guildId: guild.id });
+    });
+
+    connection.on('error', (err) => {
+      logger.error('Voice connection error', { error: err.message, guildId: guild.id });
+    });
+
+    // Wait for connection to be ready (up to 15 seconds)
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
+    } catch (err: any) {
+      logger.error('Voice connection failed to reach Ready state', {
+        error: err?.message || 'timeout',
+        guildId: guild.id,
+        channelId,
+        status: connection.state.status,
+      });
+      connection.destroy();
+      return null;
+    }
+
+    logger.info(`Joined voice channel ${channelId} in guild ${guild.id}`);
+    return connection;
+  } catch (error: any) {
+    logger.error('Failed to join voice channel', { error: error?.message, guildId: guild.id, channelId });
+    return null;
+  }
+}
+
+/**
+ * Leave the voice channel and clean up.
+ */
+export function leaveVC(guildId: string): boolean {
+  const connection = getVoiceConnection(guildId);
+  if (!connection) return false;
+
+  connection.destroy();
+  destroyQueue(guildId);
+  logger.info(`Left voice channel in guild ${guildId}`);
+  return true;
+}
+
+/**
+ * Get the current voice connection for a guild.
+ */
+export function getConnection(guildId: string) {
+  return getVoiceConnection(guildId);
 }
 
 // ============================================================================

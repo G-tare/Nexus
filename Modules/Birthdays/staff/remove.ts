@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { removeBirthday, getBirthday } from '../helpers';
 import { eventBus } from '../../../Shared/src/events/eventBus';
@@ -30,7 +29,7 @@ const command: BotCommand = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     try {
       const targetUser = interaction.options.getUser('user', true);

@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
@@ -7,8 +7,7 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+  ButtonStyle, MessageFlags } from 'discord.js';
 import {
   RRType,
   RRMode,
@@ -179,11 +178,11 @@ const BotCommand = {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const type = interaction.options.getString('type') as RRType;
     const mode = interaction.options.getString('mode') as RRMode;

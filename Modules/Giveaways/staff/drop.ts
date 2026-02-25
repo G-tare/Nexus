@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createGiveaway, buildDropEmbed } from '../helpers';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
@@ -14,7 +14,7 @@ export default {
   permissionPath: 'giveaways.staff.drop',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guild) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guild) return interaction.reply({ content: 'Server only.' });
     const prize = interaction.options.getString('prize', true);
     const maxWinners = interaction.options.getInteger('winners', true);
     const channel = interaction.channel as TextChannel;
@@ -32,10 +32,10 @@ export default {
         new ButtonBuilder().setCustomId(`giveaway_enter_${giveaway.id}`).setLabel('🎁 Claim').setStyle(ButtonStyle.Success)
       );
       await (channel as any).send({ embeds: [embed], components: [row] });
-      return interaction.reply({ embeds: [successEmbed('Drop created!')] , ephemeral: true });
+      return interaction.reply({ embeds: [successEmbed('Drop created!')]  });
     } catch (error) {
       console.error('Drop error:', error);
-      return interaction.reply({ embeds: [errorEmbed('Failed to create drop.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Failed to create drop.')]  });
     }
   },
 } as BotCommand;

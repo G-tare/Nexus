@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   TextChannel,
-  APIEmbed,
-} from 'discord.js';
+  APIEmbed, MessageFlags } from 'discord.js';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('StickyMessages');
 import { StickyMessagesHelper } from '../helpers';
@@ -48,7 +47,7 @@ const stickCommand: BotCommand = {
 
   async execute(interaction: any, db: any) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const channel = interaction.options.getChannel('channel', true);
       const content = interaction.options.getString('content') || '';

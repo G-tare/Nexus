@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getBackupConfig, getBackupList } from '../helpers';
@@ -79,11 +78,10 @@ const command: BotCommand = {
         await moduleConfig.setConfig(guild.id, 'backup', { ...config, autoBackupInterval: hours });
 
         if (hours === 0) {
-          await interaction.reply({ content: '✅ Auto-backup disabled.', ephemeral: true });
+          await interaction.reply({ content: '✅ Auto-backup disabled.' });
         } else {
           await interaction.reply({
             content: `✅ Auto-backup set to every **${hours} hours**. Takes effect on next bot restart.`,
-            ephemeral: true,
           });
         }
         break;
@@ -92,7 +90,7 @@ const command: BotCommand = {
       case 'maxbackups': {
         const max = interaction.options.getInteger('max', true);
         await moduleConfig.setConfig(guild.id, 'backup', { ...config, maxBackups: max });
-        await interaction.reply({ content: `✅ Max backups set to **${max}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Max backups set to **${max}**.` });
         break;
       }
 
@@ -108,10 +106,9 @@ const command: BotCommand = {
         if (enabled) {
           await interaction.reply({
             content: `✅ Change-triggered backups enabled (${cooldown}min cooldown). A backup will be created when roles or channels are added/removed.`,
-            ephemeral: true,
           });
         } else {
-          await interaction.reply({ content: '✅ Change-triggered backups disabled.', ephemeral: true });
+          await interaction.reply({ content: '✅ Change-triggered backups disabled.' });
         }
         break;
       }

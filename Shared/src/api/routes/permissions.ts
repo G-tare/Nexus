@@ -25,9 +25,14 @@ router.get('/:guildId', async (req: Request, res: Response) => {
  */
 router.post('/:guildId', async (req: Request, res: Response) => {
   try {
-    const { command, targetType, targetId, allowed } = req.body;
+    // Accept both camelCase and snake_case — iOS encoder sends snake_case
+    const command = req.body.command;
+    const targetType = req.body.targetType ?? req.body.target_type;
+    const targetId = req.body.targetId ?? req.body.target_id;
+    const allowed = req.body.allowed;
 
     if (!command || !targetType || !targetId || typeof allowed !== 'boolean') {
+      logger.warn('Set permission missing fields', { body: req.body });
       res.status(400).json({ error: 'Missing required fields: command, targetType, targetId, allowed' });
       return;
     }
@@ -58,7 +63,9 @@ router.post('/:guildId', async (req: Request, res: Response) => {
  */
 router.delete('/:guildId', async (req: Request, res: Response) => {
   try {
-    const { command, targetId } = req.body;
+    // Accept both camelCase and snake_case
+    const command = req.body.command;
+    const targetId = req.body.targetId ?? req.body.target_id;
 
     if (!command || !targetId) {
       res.status(400).json({ error: 'Missing required fields: command, targetId' });

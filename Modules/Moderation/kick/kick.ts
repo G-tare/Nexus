@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, modActionEmbed,
@@ -31,58 +30,62 @@ const command: BotCommand = {
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
     if (!targetMember) {
-      await interaction.reply({ content: 'User not found in this server.', ephemeral: true });
+      await interaction.reply({ content: 'User not found in this server.' });
       return;
     }
 
     const check = canModerate(interaction.member as any, targetMember, 'kick');
     if (check) {
-      await interaction.reply({ content: check, ephemeral: true });
+      await interaction.reply({ content: check });
       return;
     }
 
     await interaction.deferReply();
 
-    const config = await getModConfig(guild.id);
-    await ensureGuild(guild);
-    await ensureGuildMember(guild.id, target.id);
+    try {
+      const config = await getModConfig(guild.id);
+      await ensureGuild(guild);
+      await ensureGuildMember(guild.id, target.id);
 
-    const caseNumber = await createModCase({
-      guildId: guild.id,
-      action: 'kick',
-      targetId: target.id,
-      moderatorId: interaction.user.id,
-      reason,
-    });
+      const caseNumber = await createModCase({
+        guildId: guild.id,
+        action: 'kick',
+        targetId: target.id,
+        moderatorId: interaction.user.id,
+        reason,
+      });
 
-    let dmSent = false;
-    if (config.dmOnKick) {
-      dmSent = await sendModDM({
-        user: target,
-        guild,
+      let dmSent = false;
+      if (config.dmOnKick) {
+        dmSent = await sendModDM({
+          user: target,
+          guild,
+          action: 'Kick',
+          reason,
+          caseNumber,
+          appealEnabled: config.appealEnabled,
+        });
+      }
+
+      await targetMember.kick(`[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
+
+      if (config.reputationEnabled) {
+        await adjustReputation(guild.id, target.id, -config.reputationPenalties.kick, 'Kick');
+      }
+
+      const embed = modActionEmbed({
         action: 'Kick',
+        target,
+        moderator: interaction.user,
         reason,
         caseNumber,
-        appealEnabled: config.appealEnabled,
+        dmSent,
       });
+
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err: any) {
+      await interaction.editReply({ content: `❌ Failed to kick user: ${err.message}` }).catch(() => {});
     }
-
-    await targetMember.kick(`[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
-
-    if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.kick);
-    }
-
-    const embed = modActionEmbed({
-      action: 'Kick',
-      target,
-      moderator: interaction.user,
-      reason,
-      caseNumber,
-      dmSent,
-    });
-
-    await interaction.editReply({ embeds: [embed] });
   },
 };
 

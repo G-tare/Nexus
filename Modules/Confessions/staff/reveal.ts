@@ -1,13 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
-  ChatInputCommandInteraction,
-} from 'discord.js';
+  ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getConfessionConfig,
   getConfessionData,
 } from '../helpers';
-
 
 const command: BotCommand = {
   module: 'confessions',
@@ -31,7 +29,6 @@ const command: BotCommand = {
     if (interaction.user.id !== guild.ownerId) {
       await interaction.reply({
         content: 'Only the server owner can use this command.',
-        ephemeral: true,
       });
       return;
     }
@@ -43,7 +40,6 @@ const command: BotCommand = {
       if (config.fullAnonymity) {
         await interaction.reply({
           content: 'Full anonymity is enabled. No one can see who sent confessions. Disable full anonymity in `/confession-config` to use this command.',
-          ephemeral: true,
         });
         return;
       }
@@ -53,7 +49,6 @@ const command: BotCommand = {
       if (!confessionData || !confessionData.userId) {
         await interaction.reply({
           content: `Confession #${confessionId} not found or author information unavailable.`,
-          ephemeral: true,
         });
         return;
       }
@@ -64,13 +59,11 @@ const command: BotCommand = {
 
       await interaction.reply({
         content: `Confession #${confessionId} was sent by: ${userText}`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error revealing confession:', error);
       await interaction.reply({
         content: 'An error occurred.',
-        ephemeral: true,
       });
     }
   },

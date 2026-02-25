@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getCountingConfig,
@@ -195,7 +194,7 @@ const configCommand: BotCommand = {
           )
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'channel') {
@@ -210,7 +209,7 @@ const configCommand: BotCommand = {
           .setDescription(`Counting channel set to ${channel.toString()}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'math-mode') {
@@ -224,7 +223,7 @@ const configCommand: BotCommand = {
           .setDescription(`Math mode is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'double-count') {
@@ -238,7 +237,7 @@ const configCommand: BotCommand = {
           .setDescription(`Double counting is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'delete-wrong') {
@@ -252,7 +251,7 @@ const configCommand: BotCommand = {
           .setDescription(`Deleting wrong numbers is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'reset-on-wrong') {
@@ -266,7 +265,7 @@ const configCommand: BotCommand = {
           .setDescription(`Resetting on wrong count is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'react') {
@@ -280,7 +279,7 @@ const configCommand: BotCommand = {
           .setDescription(`Checkmark reactions are now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'milestones') {
@@ -303,7 +302,7 @@ const configCommand: BotCommand = {
           )
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'lives') {
@@ -317,7 +316,7 @@ const configCommand: BotCommand = {
           .setDescription(`Lives system is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'reset-count') {
@@ -333,7 +332,7 @@ const configCommand: BotCommand = {
           .setDescription('The count has been reset to **0**')
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'set-count') {
@@ -349,7 +348,7 @@ const configCommand: BotCommand = {
           .setDescription(`The count has been set to **${number}**`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'global-leaderboard') {
@@ -363,7 +362,7 @@ const configCommand: BotCommand = {
           .setDescription(`Global leaderboard is now ${enabled ? '**enabled**' : '**disabled**'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'enable') {
@@ -374,7 +373,7 @@ const configCommand: BotCommand = {
             .setDescription('Please set a counting channel first using `/counting-config channel`')
             .setTimestamp();
 
-          return interaction.reply({ embeds: [embed], ephemeral: true });
+          return interaction.reply({ embeds: [embed] });
         }
 
         config.enabled = true;
@@ -386,7 +385,7 @@ const configCommand: BotCommand = {
           .setDescription(`Counting is now active in ${config.channelId ? `<#${config.channelId}>` : 'an unknown channel'}`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
 
       if (subcommand === 'disable') {
@@ -399,13 +398,12 @@ const configCommand: BotCommand = {
           .setDescription('Counting has been disabled on this server')
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed] });
       }
     } catch (error) {
       console.error('[Counting] Error in /counting-config:', error);
       return interaction.reply({
         content: 'An error occurred while updating the configuration.',
-        ephemeral: true,
       });
     }
   },

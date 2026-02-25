@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModCase, modActionEmbed, ensureGuild } from '../helpers';
 
@@ -32,14 +31,14 @@ const command: BotCommand = {
 
     // Validate user ID format
     if (!/^\d{17,20}$/.test(userId)) {
-      await interaction.reply({ content: 'Invalid user ID format.', ephemeral: true });
+      await interaction.reply({ content: 'Invalid user ID format.' });
       return;
     }
 
     // Check if user is actually banned
     const ban = await guild.bans.fetch(userId).catch(() => null);
     if (!ban) {
-      await interaction.reply({ content: 'That user is not banned.', ephemeral: true });
+      await interaction.reply({ content: 'That user is not banned.' });
       return;
     }
 

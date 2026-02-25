@@ -97,12 +97,15 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
         'autoplay', 'filters', 'volume', 'voteskip',
         'lyrics', 'songinfo',
         'queue', 'clear', 'loop', 'move', 'remove', 'shuffle', 'skipto',
-        'djrole', 'musicconfig',
       ],
     },
     playlist: {
       description: 'Save and manage playlists',
       commands: ['favorites', 'playlist', 'serverplaylist'],
+    },
+    dj: {
+      description: 'Voice channel control, DJ settings, and music configuration',
+      commands: ['join', 'disconnect', 'djrole', 'musicconfig'],
     },
   },
   fun: {
@@ -119,7 +122,7 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
       description: 'Social interactions — hugs, pats, high-fives and more',
       commands: [
         'hug', 'pat', 'slap', 'kiss', 'highfive', 'bite', 'punch',
-        'kick', 'laugh', 'cry', 'pout', 'wave', 'dance', 'boop', 'cuddle', 'poke',
+        'kick-fun', 'laugh', 'cry', 'pout', 'wave', 'dance', 'boop', 'cuddle', 'poke',
       ],
     },
   },
@@ -284,7 +287,8 @@ function processSplitModule(
     }
 
     if (parentCommand.options.length > 25) {
-      logger.warn(`Split /${slug} from ${module.displayName} has ${parentCommand.options.length} options (max 25)`);
+      logger.error(`Split /${slug} from ${module.displayName} has ${parentCommand.options.length} options (max 25) — TRUNCATING to 25!`);
+      parentCommand.options = parentCommand.options.slice(0, 25);
     }
 
     if (parentCommand.options.length > 0) {
@@ -359,7 +363,8 @@ function processNormalModule(
   addStaffCommands(parentCommand, staffCommands, slug, module.displayName, routingMap);
 
   if (parentCommand.options.length > 25) {
-    logger.warn(`Module ${module.displayName} (/${slug}) has ${parentCommand.options.length} top-level options (max 25)`);
+    logger.error(`Module ${module.displayName} (/${slug}) has ${parentCommand.options.length} top-level options (max 25) — TRUNCATING to 25!`);
+    parentCommand.options = parentCommand.options.slice(0, 25);
   }
 
   registrationData.push(parentCommand);

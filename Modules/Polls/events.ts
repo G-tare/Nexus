@@ -1,5 +1,5 @@
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { Events } from 'discord.js';
+import {  Events, MessageFlags } from 'discord.js';
 import { getDb, getRedis } from '../../Shared/src/database/connection';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import {
@@ -30,14 +30,14 @@ export const pollsEvents: ModuleEvent[] = [
         if (!poll) {
           return await interaction.reply({
             content: '❌ Poll not found.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         if (poll.status === 'ended') {
           return await interaction.reply({
             content: '❌ This poll has ended.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -57,13 +57,13 @@ export const pollsEvents: ModuleEvent[] = [
           if (!removeResult.success) {
             return await interaction.reply({
               content: `❌ ${removeResult.reason}`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
           await interaction.reply({
             content: `✅ Your vote for **${poll.options[optionIndex]}** has been removed.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           // Add the vote
@@ -76,13 +76,13 @@ export const pollsEvents: ModuleEvent[] = [
           if (!voteResult.success) {
             return await interaction.reply({
               content: `❌ ${voteResult.reason}`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
           await interaction.reply({
             content: `✅ Your vote for **${poll.options[optionIndex]}** has been recorded.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -110,7 +110,7 @@ export const pollsEvents: ModuleEvent[] = [
         try {
           await interaction.reply({
             content: '❌ An error occurred while recording your vote.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } catch {
           // Interaction already replied

@@ -77,9 +77,11 @@ export const afkEvents: ModuleEvent[] = [
             // Restore nickname if it was changed
             if (removed.nickname && message.member) {
               try {
-                await message.member.setNickname(removed.nickname);
-              } catch (err) {
-                console.error('Error restoring nickname:', err);
+                // "__NONE__" means user had no custom nickname — restore to null (removes [AFK] prefix)
+                const restoreNick = removed.nickname === '__NONE__' ? null : removed.nickname;
+                await message.member.setNickname(restoreNick);
+              } catch {
+                // Bot may lack permission to change nickname for this user
               }
             }
 

@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   EmbedBuilder,
-  ChannelType,
-} from 'discord.js';
+  ChannelType, MessageFlags } from 'discord.js';
 import { getReactionRolesConfig } from '../helpers';
 
 const BotCommand = {
@@ -21,11 +20,10 @@ const BotCommand = {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     try {
       const config = await getReactionRolesConfig(interaction.guildId!);
@@ -85,7 +83,6 @@ const BotCommand = {
         for (let i = 1; i < embeds.length; i++) {
           await interaction.followUp({
             embeds: [embeds[i]],
-            ephemeral: true,
           });
         }
       }

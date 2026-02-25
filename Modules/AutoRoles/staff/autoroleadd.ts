@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   addAutoRoleRule,
@@ -62,18 +61,17 @@ const command: BotCommand = {
     if (botMember && role.position >= botMember.roles.highest.position) {
       await interaction.reply({
         content: `❌ I can't assign **${role.name}** — it's higher than or equal to my highest role.`,
-        ephemeral: true,
       });
       return;
     }
 
     // Can't auto-assign @everyone or managed roles
     if (role.id === guild.id) {
-      await interaction.reply({ content: '❌ Can\'t auto-assign @everyone.', ephemeral: true });
+      await interaction.reply({ content: '❌ Can\'t auto-assign @everyone.' });
       return;
     }
     if (role.managed) {
-      await interaction.reply({ content: '❌ Can\'t auto-assign managed (integration) roles.', ephemeral: true });
+      await interaction.reply({ content: '❌ Can\'t auto-assign managed (integration) roles.' });
       return;
     }
 
@@ -81,7 +79,6 @@ const command: BotCommand = {
     if (condition === 'invite_code' && !inviteCode) {
       await interaction.reply({
         content: '❌ The "Joined via invite code" condition requires the `invite_code` option.',
-        ephemeral: true,
       });
       return;
     }
@@ -89,7 +86,7 @@ const command: BotCommand = {
     // Check max rules (25)
     const existing = await getAutoRoleRules(guild.id);
     if (existing.length >= 25) {
-      await interaction.reply({ content: '❌ Maximum 25 auto-role rules per server.', ephemeral: true });
+      await interaction.reply({ content: '❌ Maximum 25 auto-role rules per server.' });
       return;
     }
 

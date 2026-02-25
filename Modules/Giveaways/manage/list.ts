@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActiveGiveaways } from '../helpers';
 import { Colors } from '../../../Shared/src/utils/embed';
@@ -11,15 +11,15 @@ export default {
   permissionPath: 'giveaways.list',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guildId) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guildId) return interaction.reply({ content: 'Server only.' });
     const active = await getActiveGiveaways(interaction.guildId!);
-    if (!active.length) return interaction.reply({ content: 'No active giveaways.', ephemeral: true });
+    if (!active.length) return interaction.reply({ content: 'No active giveaways.' });
     const embed = new EmbedBuilder()
       .setTitle('Active Giveaways')
       .setColor(Colors.Primary)
       .setDescription(active.map((g) =>
         `**#${g.id}** - ${g.prize} (${g.entryCount} entries, ends <t:${Math.floor(g.endsAt.getTime() / 1000)}:R>)`
       ).join('\n'));
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed] });
   },
 } as BotCommand;

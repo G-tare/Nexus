@@ -1,5 +1,5 @@
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { Events, MessageReaction, User, ButtonInteraction, StringSelectMenuInteraction, Message } from 'discord.js';
+import {  Events, MessageReaction, User, ButtonInteraction, StringSelectMenuInteraction, Message, MessageFlags } from 'discord.js';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import {
   getPanelByMessage,
@@ -110,7 +110,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
           if (!panel) {
             return interaction.reply({
               content: '❌ Panel not found.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
@@ -119,7 +119,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
           if (error) {
             return interaction.reply({
               content: `❌ ${error}`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
@@ -135,13 +135,13 @@ export const reactionRolesEvents: ModuleEvent[] = [
 
           interaction.reply({
             content: `✅ Updated your role!`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } catch (error) {
           console.error('Error in buttonHandler:', error);
           interaction.reply({
             content: '❌ An error occurred.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -156,7 +156,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
           if (!panel) {
             return interaction.reply({
               content: '❌ Panel not found.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
 
@@ -175,7 +175,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
             if (error) {
               return interaction.reply({
                 content: `❌ ${error}`,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
               });
             }
 
@@ -186,7 +186,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
             if (hasAnyRole) {
               return interaction.reply({
                 content: '❌ You already have a role from this panel.',
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
               });
             }
 
@@ -196,7 +196,7 @@ export const reactionRolesEvents: ModuleEvent[] = [
             if (error) {
               return interaction.reply({
                 content: `❌ ${error}`,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
               });
             }
 
@@ -232,13 +232,13 @@ export const reactionRolesEvents: ModuleEvent[] = [
 
           interaction.reply({
             content: `✅ Updated your roles!`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } catch (error) {
           console.error('Error in selectMenuHandler:', error);
           interaction.reply({
             content: '❌ An error occurred.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }

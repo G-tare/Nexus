@@ -3,15 +3,21 @@ import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { getRedis } from '../../Shared/src/database/connection';
 import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
-// Lazy-load canvas to avoid crashing module if native binary isn't built
-let createCanvas: typeof import('canvas')['createCanvas'];
-let loadImage: typeof import('canvas')['loadImage'];
+// Lazy-load canvas — try @napi-rs/canvas first (prebuilt), fall back to node-canvas
+let createCanvas: any;
+let loadImage: any;
 try {
-  const canvasModule = require('canvas');
-  createCanvas = canvasModule.createCanvas;
-  loadImage = canvasModule.loadImage;
+  const napi = require('@napi-rs/canvas');
+  createCanvas = (w: number, h: number) => napi.createCanvas(w, h);
+  loadImage = (src: string) => napi.loadImage(src);
 } catch {
-  // canvas native binary not available — image-based welcome cards will be disabled
+  try {
+    const canvasModule = require('canvas');
+    createCanvas = canvasModule.createCanvas;
+    loadImage = canvasModule.loadImage;
+  } catch {
+    // No canvas library available — image-based welcome cards will be disabled
+  }
 }
 
 const logger = createModuleLogger('Welcome');
@@ -370,7 +376,10 @@ export async function generateWelcomeImage(
     ctx.fillText(serverInfo, 220, 230);
 
     // Convert canvas to buffer and create attachment
-    const buffer = canvas.toBuffer('image/png');
+    // @napi-rs/canvas uses encode(), node-canvas uses toBuffer()
+    const buffer = typeof canvas.encode === 'function'
+      ? await canvas.encode('png')
+      : canvas.toBuffer('image/png');
     return new AttachmentBuilder(buffer, { name: 'welcome.png' });
   } catch (error) {
     logger.error('Failed to generate welcome image:', error);

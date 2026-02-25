@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getGiveaway, rerollGiveaway } from '../helpers';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
@@ -14,17 +14,17 @@ export default {
   permissionPath: 'giveaways.manage.reroll',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guild) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guild) return interaction.reply({ content: 'Server only.' });
     const id = interaction.options.getInteger('id', true);
     const count = interaction.options.getInteger('count') ?? undefined;
     const giveaway = await getGiveaway(id);
     if (!giveaway || giveaway.guildId !== interaction.guild.id) {
-      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')]  });
     }
     const newWinners = await rerollGiveaway(giveaway, interaction.guild, count);
     if (!newWinners.length) {
-      return interaction.reply({ embeds: [errorEmbed('No valid entries to reroll from.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('No valid entries to reroll from.')]  });
     }
-    return interaction.reply({ embeds: [successEmbed(`New winners: ${newWinners.map((w) => `<@${w}>`).join(', ')}`)] , ephemeral: true });
+    return interaction.reply({ embeds: [successEmbed(`New winners: ${newWinners.map((w) => `<@${w}>`).join(', ')}`)]  });
   },
 } as BotCommand;

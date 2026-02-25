@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getSuggestionConfig, getSuggestionData, updateSuggestionStatus, updateSuggestionMessage } from '../helpers';
 
@@ -27,7 +27,6 @@ const implementCommand: BotCommand = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         await interaction.reply({
           content: 'You need `Manage Guild` permission to use this command.',
-          ephemeral: true,
         });
         return;
       }
@@ -43,7 +42,6 @@ const implementCommand: BotCommand = {
       if (!suggestion) {
         await interaction.reply({
           content: `Suggestion #${suggestionId} not found.`,
-          ephemeral: true,
         });
         return;
       }
@@ -73,13 +71,11 @@ const implementCommand: BotCommand = {
 
       await interaction.reply({
         content: `🚀 Suggestion #${suggestionId} has been marked as implemented.`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error in suggest-implement command:', error);
       await interaction.reply({
         content: 'An error occurred while updating the suggestion status.',
-        ephemeral: true,
       });
     }
   },

@@ -1,4 +1,4 @@
-import {
+import { 
   Client,
   Events,
   Interaction,
@@ -7,8 +7,7 @@ import {
   ChannelType,
   TextChannel,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import type { ModuleEvent } from '../../Shared/src/types/command';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import {
@@ -46,7 +45,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       if (!interaction.member) return;
 
       const categoryId = customId.split('ticket_create_')[1];
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const result = await createTicket(
         interaction.guild,
@@ -84,11 +83,11 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       if ((typeof permissions === 'string' || !permissions?.has(PermissionFlagsBits.ManageMessages)) && ticketData.userId !== interaction.user.id) {
         return interaction.reply({
           content: '❌ You do not have permission to close this ticket.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const success = await closeTicket(
         interaction.channel.id,
@@ -120,14 +119,14 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       if (!isTicketStaff(interaction.member as any, config, ticketData.categoryId)) {
         return interaction.reply({
           content: '❌ Only staff members can claim tickets.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       if (ticketData.claimedBy === interaction.user.id) {
         return interaction.reply({
           content: '✅ You have already claimed this ticket.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -146,7 +145,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
 
       return interaction.reply({
         content: '✅ You have claimed this ticket.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -160,7 +159,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       );
       if (!ticketData || !config.transcriptEnabled) return;
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       try {
         const transcript = await generateTranscript(interaction.channel.id, interaction.guild);
@@ -185,7 +184,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       // TODO: Implement feedback rating properly when ticket context is available
       return interaction.reply({
         content: '✅ Thank you for your feedback!',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -199,7 +198,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       );
       if (!ticketData) return;
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const success = await closeTicket(
         interaction.channel.id,
@@ -217,7 +216,7 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
     if (customId === 'ticket_cancel_close') {
       return interaction.reply({
         content: '❌ Close cancelled.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
@@ -242,7 +241,7 @@ const selectMenuHandler: ModuleEvent = { event: Events.InteractionCreate,
       if (!interaction.member) return;
 
       const categoryId = (interaction as StringSelectMenuInteraction).values[0];
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const result = await createTicket(
         interaction.guild,
@@ -309,11 +308,12 @@ const autoCloseChecker: ModuleEvent = { event: Events.ClientReady,
         const db = getDb();
 
         // Get all open tickets
-        const allTickets = await (db.query as any).tickets.findMany({
-          where: eq(tickets.status, 'open'),
-        });
+        const allTickets = await db.select().from(tickets)
+          .where(eq(tickets.status, 'open'));
 
         for (const ticket of allTickets) {
+          if (!ticket.channelId) continue; // Skip tickets without a channel
+
           const guild = await client.guilds.fetch(ticket.guildId).catch(() => null);
           if (!guild) continue;
 
@@ -357,7 +357,7 @@ const autoCloseChecker: ModuleEvent = { event: Events.ClientReady,
       } catch (error) {
         logger.error('Error in auto-close checker:', error);
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 30 * 60 * 1000); // 30 minutes
   },
 };
 

@@ -1,9 +1,8 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActivityConfig, getInactiveMembers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -24,11 +23,11 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const config = await getActivityConfig(interaction.guild.id);
       const members = await interaction.guild.members.fetch();
@@ -81,14 +80,14 @@ const command: BotCommand = {
       await interaction.editReply({ embeds: [embedList[0]] });
 
       for (let i = 1; i < Math.min(embedList.length, 5); i++) {
-        await interaction.followUp({ embeds: [embedList[i]], ephemeral: true });
+        await interaction.followUp({ embeds: [embedList[i]] });
       }
     } catch (error) {
       logger.error('Error executing inactivelist command', error);
       if (interaction.deferred) {
         await interaction.editReply({ content: '❌ An error occurred while fetching the inactive members list.' });
       } else {
-        await interaction.reply({ content: '❌ An error occurred.', ephemeral: true });
+        await interaction.reply({ content: '❌ An error occurred.' });
       }
     }
   },

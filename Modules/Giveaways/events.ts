@@ -1,4 +1,4 @@
-import { Client, TextChannel, ButtonInteraction } from 'discord.js';
+import {  Client, TextChannel, ButtonInteraction, MessageFlags, Events } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { getDb } from '../../Shared/src/database/connection';
 import { giveaways } from '../../Shared/src/database/models/schema';
@@ -18,7 +18,7 @@ async function handleGiveawayButton(interaction: ButtonInteraction): Promise<voi
   const giveawayId = parseInt(interaction.customId.replace('giveaway_enter_', ''));
   if (isNaN(giveawayId)) return;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const result = await enterGiveaway(giveawayId, interaction.user.id);
   if (result.success) {
@@ -63,8 +63,8 @@ export const giveawayEvents: ModuleEvent[] = [
       }
     },
   },
-  { name: 'ready',
-    event: 'ready',
+  { name: 'clientReady',
+    event: Events.ClientReady,
     once: true,
     async handler(client: Client) {
       // Check for expired giveaways every 30 seconds

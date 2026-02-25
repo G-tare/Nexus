@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
 
 const memeFallback = {
@@ -35,7 +35,7 @@ export default {
       console.error('Meme command error:', error);
       await interaction.reply({
         content: 'Failed to fetch meme. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }

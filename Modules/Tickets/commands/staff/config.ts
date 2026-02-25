@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
 import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
@@ -222,7 +221,6 @@ const command: BotCommand = {
     if (!interaction.guildId || !interaction.guild) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -231,7 +229,6 @@ const command: BotCommand = {
     if (typeof permissions === 'string' || !permissions?.has(PermissionFlagsBits.ManageGuild)) {
       return interaction.reply({
         content: '❌ You need the Manage Guild permission.',
-        ephemeral: true,
       });
     }
 
@@ -241,7 +238,6 @@ const command: BotCommand = {
     if (!config?.enabled) {
       return interaction.reply({
         content: '❌ Tickets module is not enabled.',
-        ephemeral: true,
       });
     }
 
@@ -275,7 +271,6 @@ const command: BotCommand = {
       default:
         return interaction.reply({
           content: '❌ Unknown subcommand.',
-          ephemeral: true,
         });
     }
   },
@@ -338,7 +333,6 @@ async function handleView(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -359,7 +353,6 @@ async function handleMaxTickets(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -386,7 +379,6 @@ async function handleAutoClose(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -411,7 +403,6 @@ async function handleCloseBehavior(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -430,7 +421,6 @@ async function handleClaimToggle(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -449,7 +439,6 @@ async function handlePriorityToggle(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -468,7 +457,6 @@ async function handleTranscriptToggle(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -487,7 +475,6 @@ async function handleFeedbackToggle(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -507,7 +494,6 @@ async function handleLogChannel(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -524,7 +510,6 @@ async function handleAddCategory(
   if (config.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
     return interaction.reply({
       content: '❌ A category with that name already exists.',
-      ephemeral: true,
     });
   }
 
@@ -547,7 +532,6 @@ async function handleAddCategory(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -565,14 +549,12 @@ async function handleRemoveCategory(
   if (index === -1) {
     return interaction.reply({
       content: '❌ Category not found.',
-      ephemeral: true,
     });
   }
 
   if (config.categories.length === 1) {
     return interaction.reply({
       content: '❌ You must have at least one category.',
-      ephemeral: true,
     });
   }
 
@@ -586,7 +568,6 @@ async function handleRemoveCategory(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 
@@ -608,7 +589,6 @@ async function handleEditCategory(
   if (!category) {
     return interaction.reply({
       content: '❌ Category not found.',
-      ephemeral: true,
     });
   }
 
@@ -627,7 +607,6 @@ async function handleEditCategory(
 
   return interaction.reply({
     embeds: [embed],
-    ephemeral: true,
   });
 }
 

@@ -28,6 +28,7 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:5173', // Vite dev
     'tauri://localhost',     // Tauri desktop
+    'http://10.0.0.98:3001', // Local network (iOS dev)
   ],
   credentials: true,
 }));
@@ -76,8 +77,8 @@ async function start() {
     await connectAll();
     logger.info('Database connected');
 
-    app.listen(config.api.port, () => {
-      logger.info(`API server running on port ${config.api.port}`);
+    app.listen(config.api.port, '0.0.0.0', () => {
+      logger.info(`API server running on 0.0.0.0:${config.api.port}`);
     });
   } catch (err: any) {
     logger.error('Failed to start API server', { error: err.message });

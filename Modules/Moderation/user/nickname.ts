@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 import { ensureGuild, ensureGuildMember } from '../helpers';
@@ -25,7 +25,7 @@ export default {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({});
 
     const guild = interaction.guild!;
     await ensureGuild(guild);

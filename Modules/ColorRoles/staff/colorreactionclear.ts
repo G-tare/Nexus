@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType,
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   clearReactionLists,
@@ -29,13 +28,13 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
     const lists = await getReactionLists(guild.id);
     if (lists.length === 0) {
-      await interaction.reply({ content: 'No reaction color messages to clear.', ephemeral: true });
+      await interaction.reply({ content: 'No reaction color messages to clear.' });
       return;
     }
 

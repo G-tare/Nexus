@@ -1,9 +1,8 @@
-import {
+import { 
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { triggerLockdown, isInLockdown, logRaidAction } from '../helpers';
@@ -27,7 +26,7 @@ const command: BotCommand = {
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
       if (!interaction.guild) {
-        await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: 'This command can only be used in a server.' });
         return;
       }
 
@@ -44,7 +43,6 @@ const command: BotCommand = {
               .addFields({ name: 'Tip', value: 'Use `/unlockdown` to end the current lockdown' })
               .setTimestamp(),
           ],
-          ephemeral: true,
         });
         return;
       }
@@ -80,7 +78,7 @@ const command: BotCommand = {
       if (interaction.deferred) {
         await interaction.editReply({ content: '❌ An error occurred while triggering lockdown.' });
       } else {
-        await interaction.reply({ content: '❌ An error occurred while triggering lockdown.', ephemeral: true });
+        await interaction.reply({ content: '❌ An error occurred while triggering lockdown.' });
       }
     }
   },

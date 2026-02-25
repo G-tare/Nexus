@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, TextChannel } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, TextChannel, MessageFlags } from 'discord.js';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('StickyMessages');
 import { StickyMessagesHelper } from '../helpers';
@@ -50,7 +50,7 @@ const stickyeditCommand: BotCommand = {
 
   async execute(interaction: any, db: any) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const channel = interaction.options.getChannel('channel', true);
       const index = (interaction.options.getInteger('index') || 1) - 1;

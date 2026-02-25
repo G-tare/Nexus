@@ -1,13 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getConfessionConfig, setConfessionConfig } from '../helpers';
-
 
 const command: BotCommand = {
   module: 'confessions',
@@ -152,7 +150,7 @@ const command: BotCommand = {
           )
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
       } else if (subcommand === 'channel') {
         const channel = interaction.options.getChannel('channel', true);
         config.channelId = channel.id;
@@ -161,7 +159,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Confession channel set to ${channel}.`,
-          ephemeral: true,
         });
       } else if (subcommand === 'moderation') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -170,7 +167,6 @@ const command: BotCommand = {
         if (enabled && !modChannel) {
           await interaction.reply({
             content: 'Moderation channel is required when enabling moderation.',
-            ephemeral: true,
           });
           return;
         }
@@ -183,7 +179,6 @@ const command: BotCommand = {
         const status = enabled ? `enabled (${modChannel})` : 'disabled';
         await interaction.reply({
           content: `Moderation queue ${status}.`,
-          ephemeral: true,
         });
       } else if (subcommand === 'anonymity') {
         const fullAnonymity = interaction.options.getBoolean('enabled', true);
@@ -195,7 +190,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: message,
-          ephemeral: true,
         });
       } else if (subcommand === 'cooldown') {
         const seconds = interaction.options.getInteger('seconds', true);
@@ -203,7 +197,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Confession cooldown set to ${seconds} seconds.`,
-          ephemeral: true,
         });
       } else if (subcommand === 'blacklist-add') {
         const word = interaction.options.getString('word', true);
@@ -211,7 +204,6 @@ const command: BotCommand = {
         if (config.blacklistedWords.includes(word.toLowerCase())) {
           await interaction.reply({
             content: 'This word is already blacklisted.',
-            ephemeral: true,
           });
           return;
         }
@@ -221,7 +213,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Blacklisted word added: ${word}`,
-          ephemeral: true,
         });
       } else if (subcommand === 'blacklist-remove') {
         const word = interaction.options.getString('word', true);
@@ -230,7 +221,6 @@ const command: BotCommand = {
         if (index === -1) {
           await interaction.reply({
             content: 'This word is not blacklisted.',
-            ephemeral: true,
           });
           return;
         }
@@ -240,13 +230,11 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Blacklisted word removed: ${word}`,
-          ephemeral: true,
         });
       } else if (subcommand === 'blacklist-list') {
         if (config.blacklistedWords.length === 0) {
           await interaction.reply({
             content: 'No words are currently blacklisted.',
-            ephemeral: true,
           });
           return;
         }
@@ -254,7 +242,6 @@ const command: BotCommand = {
         const wordList = config.blacklistedWords.map((w, i) => `${i + 1}. ${w}`).join('\n');
         await interaction.reply({
           content: `**Blacklisted Words:**\n${wordList}`,
-          ephemeral: true,
         });
       } else if (subcommand === 'images') {
         const enabled = interaction.options.getBoolean('enabled', true);
@@ -262,7 +249,6 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Image attachments are now ${enabled ? 'allowed' : 'disabled'}.`,
-          ephemeral: true,
         });
       } else if (subcommand === 'color') {
         const color = interaction.options.getString('color', true);
@@ -271,7 +257,6 @@ const command: BotCommand = {
         if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
           await interaction.reply({
             content: 'Invalid hex color. Use format: #RRGGBB',
-            ephemeral: true,
           });
           return;
         }
@@ -280,14 +265,12 @@ const command: BotCommand = {
 
         await interaction.reply({
           content: `Embed color set to ${color}.`,
-          ephemeral: true,
         });
       }
     } catch (error) {
       console.error('Error in confession config command:', error);
       await interaction.reply({
         content: 'An error occurred.',
-        ephemeral: true,
       });
     }
   },

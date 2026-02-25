@@ -1,11 +1,10 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
   PermissionFlagsBits,
   TextChannel,
-  Role,
-} from 'discord.js';
+  Role, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBoardConfig,
@@ -191,7 +190,6 @@ export default {
     if (!interaction.guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
       });
       return;
     }
@@ -233,14 +231,13 @@ export default {
       console.error('Error in board-config command:', error);
       await interaction.reply({
         content: 'An error occurred while processing your request.',
-        ephemeral: true,
       });
     }
   },
 } as BotCommand;
 
 async function handleView(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   if (config.boards.length === 0) {
     await interaction.editReply('No boards configured yet.');
@@ -287,7 +284,7 @@ async function handleView(interaction: ChatInputCommandInteraction, config: Boar
 }
 
 async function handleCreate(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   if (config.boards.length >= 5) {
     await interaction.editReply('Maximum of 5 boards per server reached.');
@@ -340,7 +337,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction, config: Bo
 }
 
 async function handleDelete(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('name')!;
   const boardIndex = config.boards.findIndex(
@@ -362,7 +359,7 @@ async function handleThreshold(
   interaction: ChatInputCommandInteraction,
   config: BoardConfig
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const threshold = interaction.options.getInteger('threshold')!;
@@ -385,7 +382,7 @@ async function handleSelfReact(
   interaction: ChatInputCommandInteraction,
   config: BoardConfig
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const enabled = interaction.options.getBoolean('enabled')!;
@@ -408,7 +405,7 @@ async function handleNsfw(
   interaction: ChatInputCommandInteraction,
   config: BoardConfig
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const enabled = interaction.options.getBoolean('enabled')!;
@@ -431,7 +428,7 @@ async function handleIgnoreChannel(
   interaction: ChatInputCommandInteraction,
   config: BoardConfig
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const channel = interaction.options.getChannel('channel')!;
@@ -469,7 +466,7 @@ async function handleIgnoreRole(
   interaction: ChatInputCommandInteraction,
   config: BoardConfig
 ): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const role = interaction.options.getRole('role')!;
@@ -502,7 +499,7 @@ async function handleIgnoreRole(
 }
 
 async function handleColor(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   const boardName = interaction.options.getString('board')!;
   const color = interaction.options.getString('color')!;

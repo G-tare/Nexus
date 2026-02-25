@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, errorEmbed, successEmbed } from '../../../Shared/src/utils/embed';
 import { getQueue, buildQueueEmbed } from '../helpers';
@@ -21,7 +21,7 @@ const command: BotCommand = {
     if (!interaction.guild) {
       return interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -29,7 +29,7 @@ const command: BotCommand = {
     if (!member || !member.voice.channel) {
       return interaction.reply({
         embeds: [errorEmbed('You must be in a voice channel')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -37,14 +37,14 @@ const command: BotCommand = {
     if (!botVoiceChannel) {
       return interaction.reply({
         embeds: [errorEmbed('The bot must be in a voice channel')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (member.voice.channel.id !== botVoiceChannel.id) {
       return interaction.reply({
         embeds: [errorEmbed('You must be in the same voice channel as the bot')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -52,7 +52,7 @@ const command: BotCommand = {
     if (!queue || queue.tracks.length === 0) {
       return interaction.reply({
         embeds: [errorEmbed('The queue is empty')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 

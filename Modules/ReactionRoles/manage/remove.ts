@@ -1,12 +1,11 @@
-import {
+import { 
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
+  ButtonStyle, MessageFlags } from 'discord.js';
 import {
   getReactionRolesConfig,
   saveReactionRolesConfig,
@@ -34,7 +33,6 @@ const BotCommand = {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
         content: '❌ This command can only be used in a server.',
-        ephemeral: true,
       });
     }
 
@@ -45,7 +43,6 @@ const BotCommand = {
     if (!panel) {
       return interaction.reply({
         content: '❌ Panel not found.',
-        ephemeral: true,
       });
     }
 
@@ -69,7 +66,6 @@ const BotCommand = {
     const reply = await interaction.reply({
       embeds: [embed],
       components: [row],
-      ephemeral: true,
     });
 
     try {

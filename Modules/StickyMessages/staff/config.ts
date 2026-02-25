@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('StickyMessages');
 import { StickyMessagesHelper } from '../helpers';
@@ -71,7 +71,7 @@ const stickyConfigCommand: BotCommand = {
 
   async execute(interaction: any, db: any) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       const helper = new StickyMessagesHelper(db);
       const subcommand = interaction.options.getSubcommand();

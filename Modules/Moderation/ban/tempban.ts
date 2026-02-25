@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+  PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase,
@@ -55,7 +54,7 @@ const command: BotCommand = {
     // Parse duration
     const durationMs = parseDuration(durationStr);
     if (!durationMs || durationMs < 60000) { // Minimum 1 minute
-      await interaction.reply({ content: 'Invalid duration. Use formats like: 1h, 2d, 1w', ephemeral: true });
+      await interaction.reply({ content: 'Invalid duration. Use formats like: 1h, 2d, 1w' });
       return;
     }
 
@@ -66,7 +65,7 @@ const command: BotCommand = {
     if (targetMember) {
       const check = canModerate(interaction.member as any, targetMember, 'tempban');
       if (check) {
-        await interaction.reply({ content: check, ephemeral: true });
+        await interaction.reply({ content: check });
         return;
       }
     }
@@ -117,7 +116,7 @@ const command: BotCommand = {
 
     // Adjust reputation
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.ban);
+      await adjustReputation(guild.id, target.id, -(config.reputationPenalties.tempban ?? config.reputationPenalties.ban), 'Temporary ban');
     }
 
     const embed = modActionEmbed({

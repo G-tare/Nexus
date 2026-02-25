@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {  ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getSuggestionConfig, getSuggestionData, updateSuggestionStatus, updateSuggestionMessage } from '../helpers';
 
@@ -27,7 +27,6 @@ const approveCommand: BotCommand = {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
         await interaction.reply({
           content: 'You need `Manage Guild` permission to use this command.',
-          ephemeral: true,
         });
         return;
       }
@@ -42,7 +41,6 @@ const approveCommand: BotCommand = {
       if (config.requireReason && !reason) {
         await interaction.reply({
           content: 'This server requires a reason for approving suggestions.',
-          ephemeral: true,
         });
         return;
       }
@@ -52,7 +50,6 @@ const approveCommand: BotCommand = {
       if (!suggestion) {
         await interaction.reply({
           content: `Suggestion #${suggestionId} not found.`,
-          ephemeral: true,
         });
         return;
       }
@@ -82,13 +79,11 @@ const approveCommand: BotCommand = {
 
       await interaction.reply({
         content: `✅ Suggestion #${suggestionId} has been approved.`,
-        ephemeral: true,
       });
     } catch (error) {
       console.error('Error in suggest-approve command:', error);
       await interaction.reply({
         content: 'An error occurred while approving the suggestion.',
-        ephemeral: true,
       });
     }
   },

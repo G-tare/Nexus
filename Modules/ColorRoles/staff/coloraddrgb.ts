@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   rgbToHex,
@@ -54,7 +53,7 @@ const command: BotCommand = {
     const guild = interaction.guild!;
 
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -65,14 +64,14 @@ const command: BotCommand = {
 
     const hex = rgbToHex(r, g, b);
     if (!hex) {
-      await interaction.reply({ content: 'Invalid RGB values.', ephemeral: true });
+      await interaction.reply({ content: 'Invalid RGB values.' });
       return;
     }
 
     // Check if name exists
     const existing = await getColorByName(guild.id, name);
     if (existing) {
-      await interaction.reply({ content: `A color named **${existing.name}** already exists.`, ephemeral: true });
+      await interaction.reply({ content: `A color named **${existing.name}** already exists.` });
       return;
     }
 
@@ -82,7 +81,6 @@ const command: BotCommand = {
     if (colors.length >= config.maxColors) {
       await interaction.reply({
         content: `The palette is full (${config.maxColors} colors max).`,
-        ephemeral: true,
       });
       return;
     }

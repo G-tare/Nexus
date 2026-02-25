@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
-} from 'discord.js';
+  AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   deleteStatsChannel,
@@ -34,14 +33,12 @@ const command: BotCommand = {
     if (!deleted) {
       await interaction.reply({
         content: `Stats channel with ID \`${entryId}\` not found. Use \`/statslist\` to see active channels.`,
-        ephemeral: true,
       });
       return;
     }
 
     await interaction.reply({
       content: `✅ Stats channel \`${entryId}\` deleted.`,
-      ephemeral: true,
     });
   },
 };

@@ -4,7 +4,14 @@ import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
 import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getLevelingConfig, levelFromTotalXp, getRankPosition, rankEmbed } from '../helpers';
+import {
+  levelFromTotalXp,
+  getRankPosition,
+  rankEmbed,
+  generateRankCard,
+  getUserCardStyle,
+  getUserCardBg,
+} from '../helpers';
 
 const command: BotCommand = {
   module: 'leveling',
@@ -23,7 +30,7 @@ const command: BotCommand = {
 
   execute: async (interaction: ChatInputCommandInteraction) => {
     try {
-      await interaction.deferReply({ ephemeral: false });
+      await interaction.deferReply();
 
       const targetUser = interaction.options.getUser('user') || interaction.user;
       const guildId = interaction.guildId!;
@@ -77,7 +84,30 @@ const command: BotCommand = {
       // Get rank position
       const rankPosition = await getRankPosition(guildId, targetUser.id);
 
-      // Build rank embed
+      // Get user card preferences from Redis
+      const cardStyle = await getUserCardStyle(guildId, targetUser.id);
+      const customBg = await getUserCardBg(guildId, targetUser.id);
+
+      // Try to generate canvas-based rank card image
+      const cardImage = await generateRankCard({
+        username: targetUser.username,
+        avatarUrl: targetUser.displayAvatarURL({ size: 256 }),
+        level: levelInfo.level,
+        currentXp: levelInfo.currentXp,
+        xpNeeded: levelInfo.xpNeeded,
+        totalXp,
+        rank: rankPosition,
+        prestige,
+        style: cardStyle,
+        customBgUrl: customBg || undefined,
+      });
+
+      if (cardImage) {
+        // Send the image-based card
+        return interaction.editReply({ files: [cardImage] });
+      }
+
+      // Fall back to text embed if canvas is unavailable
       const embed = rankEmbed({
         username: targetUser.username,
         avatarUrl: targetUser.displayAvatarURL(),

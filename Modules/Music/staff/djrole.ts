@@ -1,10 +1,9 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
   Colors,
-  Role,
-} from 'discord.js';
+  Role, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -92,7 +91,6 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
       });
       return;
     }
@@ -100,7 +98,6 @@ const command: BotCommand = {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
         content: 'You need the **Manage Guild** permission to use this command.',
-        ephemeral: true,
       });
       return;
     }
@@ -151,7 +148,6 @@ const command: BotCommand = {
             await interaction.reply({
               content:
                 'You must set a DJ role before enabling the DJ system. Use `/djrole set` first.',
-              ephemeral: true,
             });
             return;
           }
@@ -210,7 +206,6 @@ const command: BotCommand = {
       console.error('Error in djrole command:', error);
       await interaction.reply({
         content: 'An error occurred while managing DJ settings.',
-        ephemeral: true,
       });
     }
   },

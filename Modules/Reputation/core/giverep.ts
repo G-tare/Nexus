@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getRepConfig,
@@ -38,13 +37,13 @@ const command: BotCommand = {
 
     // No self-rep
     if (!config.allowSelfRep && target.id === interaction.user.id) {
-      await interaction.reply({ content: '❌ You can\'t give reputation to yourself.', ephemeral: true });
+      await interaction.reply({ content: '❌ You can\'t give reputation to yourself.', flags: MessageFlags.Ephemeral });
       return;
     }
 
     // No bot rep
     if (target.bot) {
-      await interaction.reply({ content: '❌ You can\'t give reputation to bots.', ephemeral: true });
+      await interaction.reply({ content: '❌ You can\'t give reputation to bots.', flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -54,7 +53,7 @@ const command: BotCommand = {
       const mins = Math.ceil((remaining || 0) / 60);
       await interaction.reply({
         content: `⏳ You need to wait **${mins > 0 ? `${mins} minute${mins > 1 ? 's' : ''}` : 'a moment'}** before giving rep again.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }

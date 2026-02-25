@@ -6,6 +6,8 @@ import { createModuleLogger } from '../../Shared/src/utils/logger';
 import userphone from './core/userphone';
 import hangup from './core/hangup';
 import phonebook from './core/phonebook';
+import contacts from './core/contacts';
+import directcall from './core/directcall';
 
 // Staff commands
 import userphoneconfig from './staff/userphoneconfig';
@@ -19,10 +21,12 @@ const userphoneModule: BotModule = {
   category: 'fun',
 
   commands: [
-    // Core (3)
+    // Core (5)
     userphone,
     hangup,
     phonebook,
+    contacts,
+    directcall,
 
     // Staff (1)
     userphoneconfig,
@@ -31,7 +35,7 @@ const userphoneModule: BotModule = {
   events: userphoneEvents,
 
   async onLoad() {
-    logger.info('Userphone module loaded — 4 commands');
+    logger.info('Userphone module loaded — 6 commands');
   },
 
   defaultConfig: {
@@ -41,6 +45,13 @@ const userphoneModule: BotModule = {
     allowAttachments: true,
     showServerName: true,
     callCooldown: 30,
+    reportChannelId: null,
+    contentFilter: {
+      blockNSFW: false,
+      blockProfanity: false,
+      blockLinks: false,
+      customBlockedWords: [],
+    },
   },
 };
 

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getGiveaway } from '../helpers';
 import { getDb } from '../../../Shared/src/database/connection';
@@ -20,11 +20,11 @@ export default {
   permissionPath: 'giveaways.manage.edit',
   premiumFeature: 'giveaways.basic',
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guildId) return interaction.reply({ content: 'Server only.', ephemeral: true });
+    if (!interaction.guildId) return interaction.reply({ content: 'Server only.' });
     const id = interaction.options.getInteger('id', true);
     const giveaway = await getGiveaway(id);
     if (!giveaway || giveaway.guildId !== interaction.guildId!) {
-      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Giveaway not found.')]  });
     }
     const updates: any = {};
     const prize = interaction.options.getString('prize');
@@ -37,10 +37,10 @@ export default {
       if (ms) updates.endsAt = new Date(Date.now() + ms);
     }
     if (Object.keys(updates).length === 0) {
-      return interaction.reply({ embeds: [errorEmbed('No changes specified.')] , ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('No changes specified.')]  });
     }
     const db = getDb();
     await db.update(giveaways).set(updates).where(eq(giveaways.id, id));
-    return interaction.reply({ embeds: [successEmbed(`Giveaway #${id} updated.`)] , ephemeral: true });
+    return interaction.reply({ embeds: [successEmbed(`Giveaway #${id} updated.`)]  });
   },
 } as BotCommand;

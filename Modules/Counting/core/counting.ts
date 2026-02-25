@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getCountingConfig, getUserCountingLives } from '../helpers';
 
@@ -28,7 +27,7 @@ const countingCommand: BotCommand = {
           .setTitle('Counting Disabled')
           .setDescription('Counting is not enabled on this server.');
 
-        return interaction.reply({ embeds: [disabledEmbed], ephemeral: true });
+        return interaction.reply({ embeds: [disabledEmbed], flags: MessageFlags.Ephemeral });
       }
 
       const channel = interaction.guild!.channels.cache.get(config.channelId);
@@ -61,7 +60,7 @@ const countingCommand: BotCommand = {
       console.error('[Counting] Error in /counting:', error);
       return interaction.reply({
         content: 'An error occurred while fetching counting information.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

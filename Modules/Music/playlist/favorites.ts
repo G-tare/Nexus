@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   EmbedBuilder,
-  Colors,
-} from 'discord.js';
+  Colors, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   saveFavorite,
@@ -50,7 +49,7 @@ const command: BotCommand = {
     if (!guildId) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -65,7 +64,7 @@ const command: BotCommand = {
           if (!currentTrack) {
             await interaction.reply({
               content: 'No track is currently playing.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -74,7 +73,7 @@ const command: BotCommand = {
           if (favorites.length >= 500) {
             await interaction.reply({
               content: 'You have reached the maximum of 500 favorite tracks.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -83,7 +82,7 @@ const command: BotCommand = {
           if (favorites.some((f) => (f as any).identifier === (currentTrack as any).identifier)) {
             await interaction.reply({
               content: `**${(currentTrack as any).title}** is already in your favorites.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -107,7 +106,7 @@ const command: BotCommand = {
           if (favorites.length === 0) {
             await interaction.reply({
               content: 'You have no favorite tracks.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -123,7 +122,7 @@ const command: BotCommand = {
             if (isNaN(idx) || idx < 0 || idx >= favorites.length) {
               await interaction.reply({
                 content: `Invalid position. Please enter a number between 1 and ${favorites.length}.`,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
               });
               return;
             }
@@ -133,7 +132,7 @@ const command: BotCommand = {
           if (!trackToRemove) {
             await interaction.reply({
               content: 'Could not find the track to remove.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -155,7 +154,7 @@ const command: BotCommand = {
           if (favorites.length === 0) {
             await interaction.reply({
               content: 'You have no favorite tracks yet.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -191,7 +190,7 @@ const command: BotCommand = {
           if (favorites.length === 0) {
             await interaction.reply({
               content: 'You have no favorite tracks to play.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
             return;
           }
@@ -214,7 +213,7 @@ const command: BotCommand = {
       console.error('Error in favorites command:', error);
       await interaction.reply({
         content: 'An error occurred while managing your favorites.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

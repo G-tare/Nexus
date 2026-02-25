@@ -1,8 +1,7 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { SUPPORTED_LANGUAGES } from '../helpers';
 
@@ -30,7 +29,7 @@ const command: BotCommand = {
     }
 
     if (filtered.length === 0) {
-      await interaction.reply({ content: `No languages matching \`${search}\`.`, ephemeral: true });
+      await interaction.reply({ content: `No languages matching \`${search}\`.`, flags: MessageFlags.Ephemeral });
       return;
     }
 

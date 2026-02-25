@@ -1,9 +1,8 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-} from 'discord.js';
+  EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   validateHex,
@@ -41,7 +40,7 @@ const command: BotCommand = {
 
     // Permission check
     if (!(await canManageColors(guild, interaction.user.id))) {
-      await interaction.reply({ content: 'You don\'t have permission to manage colors.', ephemeral: true });
+      await interaction.reply({ content: 'You don\'t have permission to manage colors.' });
       return;
     }
 
@@ -53,7 +52,6 @@ const command: BotCommand = {
     if (!hex) {
       await interaction.reply({
         content: 'Invalid hex color. Use a 6-digit hex code like `FF69B4` or `#FF69B4`.',
-        ephemeral: true,
       });
       return;
     }
@@ -63,7 +61,6 @@ const command: BotCommand = {
     if (existing) {
       await interaction.reply({
         content: `A color named **${existing.name}** already exists.`,
-        ephemeral: true,
       });
       return;
     }
@@ -74,7 +71,6 @@ const command: BotCommand = {
     if (colors.length >= config.maxColors) {
       await interaction.reply({
         content: `The palette is full (${config.maxColors} colors max). Remove some colors first.`,
-        ephemeral: true,
       });
       return;
     }

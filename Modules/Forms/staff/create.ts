@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
@@ -55,7 +55,7 @@ const command: BotCommand = {
     try {
       const guildId = interaction.guildId!;
       if (!guildId) {
-        await interaction.reply({ content: '❌ This command can only be used in a server.', ephemeral: true });
+        await interaction.reply({ content: '❌ This command can only be used in a server.' });
         return;
       }
 
@@ -67,7 +67,7 @@ const command: BotCommand = {
       const maxResponses = interaction.options.getInteger('maxresponses');
 
       if (!(responseChannel as any).isTextBased()) {
-        await interaction.reply({ content: '❌ Response channel must be a text channel.', ephemeral: true });
+        await interaction.reply({ content: '❌ Response channel must be a text channel.' });
         return;
       }
 
@@ -112,7 +112,7 @@ const command: BotCommand = {
       logger.info(`[Forms] Form created - ID: ${form.id}, Guild: ${guildId}, Name: ${name}`);
     } catch (error) {
       logger.error('[Forms] /formcreate error:', error);
-      await interaction.reply({ content: '❌ An error occurred while creating the form.', ephemeral: true });
+      await interaction.reply({ content: '❌ An error occurred while creating the form.' });
     }
   },
 };

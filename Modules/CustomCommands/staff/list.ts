@@ -1,4 +1,4 @@
-import {
+import { 
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,8 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  ComponentType
-} from 'discord.js';
+  ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -33,8 +32,7 @@ export const listCommand: BotCommand = {
 
     if (!interaction.guild) {
       await interaction.reply({
-        content: 'This command can only be used in a server.',
-        ephemeral: true
+        content: 'This command can only be used in a server.'
       });
       return;
     }
@@ -42,8 +40,7 @@ export const listCommand: BotCommand = {
     // Check permission
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        content: 'You need the "Manage Guild" permission to use this command.',
-        ephemeral: true
+        content: 'You need the "Manage Guild" permission to use this command.'
       });
       return;
     }
@@ -54,8 +51,7 @@ export const listCommand: BotCommand = {
 
       if (commands.length === 0) {
         await interaction.reply({
-          content: 'There are no custom commands in this server yet.',
-          ephemeral: true
+          content: 'There are no custom commands in this server yet.'
         });
         return;
       }
@@ -70,8 +66,7 @@ export const listCommand: BotCommand = {
 
         if (filtered.length === 0) {
           await interaction.reply({
-            content: `No custom commands found matching "${search}".`,
-            ephemeral: true
+            content: `No custom commands found matching "${search}".`
           });
           return;
         }
@@ -108,8 +103,7 @@ export const listCommand: BotCommand = {
 
       if (pages.length === 1) {
         await interaction.reply({
-          embeds: pages,
-          ephemeral: true
+          embeds: pages
         });
         return;
       }
@@ -136,8 +130,7 @@ export const listCommand: BotCommand = {
 
       const response = await interaction.reply({
         embeds: [pages[currentPage]],
-        components: [generateRow(currentPage)],
-        ephemeral: true
+        components: [generateRow(currentPage)]
       });
 
       const collector = response.createMessageComponentCollector({
@@ -148,8 +141,7 @@ export const listCommand: BotCommand = {
       collector.on('collect', async (buttonInteraction) => {
         if (buttonInteraction.user.id !== interaction.user.id) {
           await buttonInteraction.reply({
-            content: 'You cannot interact with this pagination.',
-            ephemeral: true
+            content: 'You cannot interact with this pagination.'
           });
           return;
         }
@@ -176,8 +168,7 @@ export const listCommand: BotCommand = {
     } catch (error) {
       logger.error('Failed to list custom commands', error);
       await interaction.reply({
-        content: 'Failed to list custom commands. Please try again later.',
-        ephemeral: true
+        content: 'Failed to list custom commands. Please try again later.'
       });
     }
   }

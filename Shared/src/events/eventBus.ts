@@ -136,6 +136,10 @@ export interface BotEvents {
   userphoneCallStarted: { guildId1: string; guildId2: string; channelId1: string; channelId2: string; callId?: string; side1?: string; side2?: string; userId1?: string; userId2?: string };
   userphoneCallEnded: { guildId1: string; guildId2: string; reason: string; callId?: string; duration?: number; channelId1?: string; channelId2?: string };
 
+  // VoicePhone
+  voicephoneCallStarted: { guildId1: string; guildId2: string; voiceChannelId1: string; voiceChannelId2: string; callId: string };
+  voicephoneCallEnded: { guildId1: string; guildId2: string; callId: string; duration: number; reason: string };
+
   // XP Boost
   xpBoostExpired: { guildId: string; userId: string; boostType: string };
 }

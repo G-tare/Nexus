@@ -23,6 +23,7 @@ export const MODULES: Module[] = [
   { name: "Music", description: "Play, queue, filters, playlists, lyrics, DJ controls", icon: "\u{1F3B5}", category: "fun", commandCount: 27 },
   { name: "Polls", description: "Create polls with reactions, timed polls, poll results", icon: "\u{1F4CA}", category: "fun", commandCount: 5 },
   { name: "Userphone", description: "Anonymous cross-server calling and messaging", icon: "\u{1F4DE}", category: "fun", commandCount: 4 },
+  { name: "Voice Phone", description: "Cross-server voice calling with real-time audio relay", icon: "\u{1F4F1}", category: "social", commandCount: 2 },
   { name: "Currency", description: "Economy system, daily/work rewards, gambling, transfers", icon: "\u{1F4B0}", category: "economy", commandCount: 12 },
   { name: "Shop", description: "Create custom shops, buy/sell items, inventory management", icon: "\u{1F6D2}", category: "economy", commandCount: 8 },
   { name: "Giveaways", description: "Timed giveaways, requirements, rerolls, multiple winners", icon: "\u{1F381}", category: "utility", commandCount: 13 },
@@ -52,18 +53,18 @@ export const MODULES: Module[] = [
 ];
 
 export const CATEGORIES = [
-  { id: "all", label: "All Modules", count: 38 },
+  { id: "all", label: "All Modules", count: 39 },
   { id: "moderation", label: "Moderation", count: 4 },
   { id: "engagement", label: "Engagement", count: 4 },
   { id: "fun", label: "Fun & Games", count: 4 },
   { id: "economy", label: "Economy", count: 2 },
   { id: "utility", label: "Utility", count: 16 },
-  { id: "social", label: "Social", count: 4 },
+  { id: "social", label: "Social", count: 5 },
 ];
 
 export const STATS = [
-  { label: "Modules", value: 38, suffix: "" },
-  { label: "Commands", value: 360, suffix: "+" },
+  { label: "Modules", value: 39, suffix: "" },
+  { label: "Commands", value: 370, suffix: "+" },
   { label: "Features", value: 150, suffix: "+" },
   { label: "Uptime", value: 99.9, suffix: "%" },
 ];

@@ -91,6 +91,7 @@ enum ModuleRegistry {
         // Social
         ("confessions", "Confessions", "eye.slash.fill", .social),
         ("userphone", "Userphone", "phone.fill", .social),
+        ("voicephone", "Voice Phone", "phone.arrow.up.right.fill", .social),
         ("afk", "AFK", "moon.fill", .social),
 
         // Music

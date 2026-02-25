@@ -870,6 +870,36 @@ async function migrate() {
       UPDATE reputation_users SET reputation = 80 WHERE reputation = 0;
     `);
 
+    // ============================================
+    // Voice Phone History
+    // ============================================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS voicephone_history (
+        id SERIAL PRIMARY KEY,
+        call_id VARCHAR(50) NOT NULL UNIQUE,
+        guild1_id VARCHAR(20) NOT NULL,
+        voice_channel1_id VARCHAR(20) NOT NULL,
+        guild2_id VARCHAR(20) NOT NULL,
+        voice_channel2_id VARCHAR(20) NOT NULL,
+        started_at BIGINT NOT NULL,
+        duration INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS voicephone_guild1_idx ON voicephone_history(guild1_id);
+      CREATE INDEX IF NOT EXISTS voicephone_guild2_idx ON voicephone_history(guild2_id);
+    `);
+
+    // ============================================
+    // Voice Phone Permanent Bans
+    // ============================================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS voicephone_permanent_bans (
+        user_id VARCHAR(20) PRIMARY KEY,
+        reason TEXT NOT NULL,
+        banned_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `);
+
     logger.info('All migrations completed successfully');
   } catch (err: any) {
     logger.error('Migration failed', { error: err.message });

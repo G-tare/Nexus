@@ -4,11 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Nexus Bot — The Ultimate Discord Bot",
   description:
-    "38 powerful modules, 700+ commands. Moderation, leveling, music, economy, fun, and more. The only Discord bot you'll ever need.",
+    "39 powerful modules, 700+ commands. Moderation, leveling, music, economy, fun, and more. The only Discord bot you'll ever need.",
   keywords: ["discord bot", "nexus bot", "moderation", "leveling", "music", "economy"],
   openGraph: {
     title: "Nexus Bot — The Ultimate Discord Bot",
-    description: "38 powerful modules, 700+ commands. The only Discord bot you'll ever need.",
+    description: "39 powerful modules, 700+ commands. The only Discord bot you'll ever need.",
     type: "website",
   },
 };

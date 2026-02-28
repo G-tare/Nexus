@@ -38,12 +38,17 @@ const command: BotCommand = {
     await interaction.deferReply({});
 
     try {
-      // Fetch messages and filter out those older than 14 days
-      const messages = await channel.messages.fetch({ limit: count });
+      // Get the bot's deferred reply so we can exclude it
+      const reply = await interaction.fetchReply();
+
+      // Fetch messages and filter out those older than 14 days + exclude the bot's reply
+      const messages = await channel.messages.fetch({ limit: count + 1 });
       const now = Date.now();
       const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
 
-      const deletableMessages = messages.filter(msg => now - msg.createdTimestamp < twoWeeksMs);
+      const deletableMessages = messages.filter(
+        msg => msg.id !== reply.id && now - msg.createdTimestamp < twoWeeksMs,
+      );
 
       if (deletableMessages.size === 0) {
         await interaction.editReply({

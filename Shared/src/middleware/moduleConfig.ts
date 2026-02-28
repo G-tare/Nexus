@@ -8,6 +8,14 @@ const logger = createModuleLogger('ModuleConfig');
 const CACHE_TTL = 60; // 1 minute — short TTL to prevent stale enable/disable state
 
 /**
+ * Modules that should be DISABLED by default (opt-in rather than opt-out).
+ * All other modules default to enabled.
+ */
+const DISABLED_BY_DEFAULT = new Set([
+  'automod',
+]);
+
+/**
  * Manage per-guild module configurations.
  * Each module stores its config as JSONB, making it flexible for different modules.
  */
@@ -17,9 +25,11 @@ export class ModuleConfigManager {
    * Normalises the module name to lowercase to avoid case-sensitive mismatches.
    */
   async isEnabled(guildId: string, moduleName: string): Promise<boolean> {
-    const config = await this.getModuleConfig(guildId, moduleName.toLowerCase());
-    // Default to enabled when no config row exists (module hasn't been explicitly disabled)
-    return config?.enabled ?? true;
+    const normalName = moduleName.toLowerCase();
+    const config = await this.getModuleConfig(guildId, normalName);
+    // If no config row exists, check DISABLED_BY_DEFAULT
+    if (!config) return !DISABLED_BY_DEFAULT.has(normalName);
+    return config.enabled;
   }
 
   /**

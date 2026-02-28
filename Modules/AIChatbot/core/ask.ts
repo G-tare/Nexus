@@ -1,6 +1,8 @@
-import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags, GuildMember } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { generateResponse, checkAICooldown, setAICooldown, getAIConfig } from '../helpers';
+import { config as globalConfig } from '../../../Shared/src/config';
+import { checkAICooldown, setAICooldown, getAIConfig, isAIAuthorized } from '../helpers';
+import { runAgentFromInteraction } from '../agent';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('AIChatbot');
@@ -28,12 +30,19 @@ const command: BotCommand = {
       const question = interaction.options.getString('question', true);
       const config = await getAIConfig(interaction.guildId!);
 
+      // Restricted to bot owners + authorized users
+      if (!isAIAuthorized(interaction.user.id, config)) {
+        await interaction.reply({ content: '❌ You are not authorized to use the AI system.', flags: MessageFlags.Ephemeral });
+        return;
+      }
+
       if (!config.enabled) {
         await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', flags: MessageFlags.Ephemeral });
         return;
       }
 
-      if (!config.apiKey) {
+      // Check for API key (per-server or global)
+      if (!config.apiKey && !globalConfig.ai.defaultApiKey) {
         await interaction.reply({ content: '❌ AI API key is not configured. Please contact a server administrator.', flags: MessageFlags.Ephemeral });
         return;
       }
@@ -47,13 +56,15 @@ const command: BotCommand = {
       await interaction.deferReply();
 
       try {
-        const response = await generateResponse(interaction.guildId!, interaction.channelId!, question, interaction.user.username);
+        const result = await runAgentFromInteraction(interaction, question);
 
         const embed = new EmbedBuilder()
           .setTitle('🤖 AI Response')
-          .setDescription(response)
+          .setDescription(result.response.slice(0, 4000))
           .setColor('#7289DA')
-          .setFooter({ text: `Requested by ${interaction.user.username}` })
+          .setFooter({
+            text: `Requested by ${interaction.user.username}${result.toolsUsed.length > 0 ? ` • ${result.toolsUsed.length} actions taken` : ''}`,
+          })
           .setTimestamp();
 
         await interaction.editReply({ embeds: [embed] });

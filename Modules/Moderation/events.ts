@@ -1,4 +1,4 @@
-import { Client, Events, Message } from 'discord.js';
+import { Client, Events, Message, GuildMember } from 'discord.js';
 import { getRedis } from '../../Shared/src/database/connection';
 import { getModConfig } from './helpers';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
@@ -166,10 +166,39 @@ function setupWarnThresholdListener(client: Client) {
   });
 }
 
+/**
+ * Auto-Kick Handler
+ * Kicks users on the auto-kick list every time they rejoin.
+ */
+const autoKickHandler: ModuleEvent = { event: Events.GuildMemberAdd,
+  async handler(member: GuildMember) {
+    if (member.user.bot) return;
+
+    const redis = getRedis();
+    const isAutoKicked = await redis.sismember(
+      `autokick:${member.guild.id}`,
+      member.id
+    );
+
+    if (isAutoKicked) {
+      try {
+        await member.kick('[AUTO] User is on auto-kick list');
+        logger.info('Auto-kick: kicked rejoining user', {
+          guild: member.guild.id,
+          user: member.id,
+        });
+      } catch (err: any) {
+        logger.error('Auto-kick: failed to kick user', { error: err.message });
+      }
+    }
+  },
+};
+
 export const moderationEvents: ModuleEvent[] = [
   shadowBanHandler,
   altDetectionHandler,
   tempBanChecker,
+  autoKickHandler,
 ];
 
 export { setupWarnThresholdListener };

@@ -7,6 +7,7 @@ export interface CountingConfig {
   currentCount: number;
   lastCounterId: string | null;
   mathMode: boolean;
+  strictMode: boolean;
   allowDoubleCount: boolean;
   deleteWrongNumbers: boolean;
   resetOnWrong: boolean;
@@ -47,6 +48,7 @@ const DEFAULT_CONFIG: CountingConfig = {
   currentCount: 0,
   lastCounterId: null,
   mathMode: false,
+  strictMode: false,
   allowDoubleCount: false,
   deleteWrongNumbers: true,
   resetOnWrong: true,

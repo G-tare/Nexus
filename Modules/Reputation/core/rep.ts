@@ -27,7 +27,10 @@ const command: BotCommand = {
     const history = await getRepHistory(guild.id, target.id, 5);
 
     const recentChanges = history.length > 0
-      ? history.map(h => `${formatDelta(h.delta)} by <@${h.givenBy}> ${relativeTimestamp(h.createdAt)}${h.reason ? ` — ${h.reason}` : ''}`).join('\n')
+      ? history.map(h => {
+          const who = h.givenBy === 'system' ? '🤖 System' : `<@${h.givenBy}>`;
+          return `${formatDelta(h.delta)} by ${who} ${relativeTimestamp(h.createdAt)}${h.reason ? ` — ${h.reason}` : ''}`;
+        }).join('\n')
       : 'No recent changes';
 
     const embed = new EmbedBuilder()

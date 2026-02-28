@@ -34,6 +34,17 @@ const command = new SlashCommandBuilder()
   )
   .addSubcommand((sub) =>
     sub
+      .setName('strict-mode')
+      .setDescription('Toggle strict mode — when OFF, users can chat freely alongside counting')
+      .addBooleanOption((opt) =>
+        opt
+          .setName('enabled')
+          .setDescription('ON = numbers only, OFF = talking allowed (default OFF)')
+          .setRequired(true)
+      )
+  )
+  .addSubcommand((sub) =>
+    sub
       .setName('math-mode')
       .setDescription('Toggle math expression support (e.g., 2+3)')
       .addBooleanOption((opt) =>
@@ -146,6 +157,17 @@ const command = new SlashCommandBuilder()
   )
   .addSubcommand((sub) =>
     sub
+      .setName('unban-counter')
+      .setDescription('Remove a counting ban from a user (resets their delete strikes)')
+      .addUserOption((opt) =>
+        opt
+          .setName('user')
+          .setDescription('The user to unban from counting')
+          .setRequired(true)
+      )
+  )
+  .addSubcommand((sub) =>
+    sub
       .setName('enable')
       .setDescription('Enable the counting module')
   )
@@ -180,6 +202,7 @@ const configCommand: BotCommand = {
             { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
             { name: 'Channel', value: channel, inline: true },
             { name: 'Current Count', value: String(config.currentCount), inline: true },
+            { name: 'Strict Mode', value: config.strictMode ? '✅ Numbers Only' : '❌ Talking Allowed', inline: true },
             { name: 'Math Mode', value: config.mathMode ? '✅ Yes' : '❌ No', inline: true },
             { name: 'Allow Double Count', value: config.allowDoubleCount ? '✅ Yes' : '❌ No', inline: true },
             { name: 'Delete Wrong Numbers', value: config.deleteWrongNumbers ? '✅ Yes' : '❌ No', inline: true },
@@ -207,6 +230,24 @@ const configCommand: BotCommand = {
           .setColor(0x00aa00)
           .setTitle('✅ Counting Channel Set')
           .setDescription(`Counting channel set to ${channel.toString()}`)
+          .setTimestamp();
+
+        return interaction.reply({ embeds: [embed] });
+      }
+
+      if (subcommand === 'strict-mode') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        config.strictMode = enabled;
+        await saveCountingConfig(guildId, config);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x00aa00)
+          .setTitle('✅ Strict Mode Updated')
+          .setDescription(
+            enabled
+              ? 'Strict mode is now **enabled** — only numbers are allowed in the counting channel. Any other text will break the streak.'
+              : 'Strict mode is now **disabled** — users can chat freely in the counting channel. Only messages that are numbers (or math expressions) will be counted.'
+          )
           .setTimestamp();
 
         return interaction.reply({ embeds: [embed] });
@@ -360,6 +401,23 @@ const configCommand: BotCommand = {
           .setColor(0x00aa00)
           .setTitle('✅ Global Leaderboard Updated')
           .setDescription(`Global leaderboard is now ${enabled ? '**enabled**' : '**disabled**'}`)
+          .setTimestamp();
+
+        return interaction.reply({ embeds: [embed] });
+      }
+
+      if (subcommand === 'unban-counter') {
+        const user = interaction.options.getUser('user', true);
+        const redis = (await import('../../../Shared/src/database/connection')).getRedis();
+
+        // Remove ban and reset strikes
+        await redis.del(`counting:ban:${guildId}:${user.id}`);
+        await redis.del(`counting:strikes:${guildId}:${user.id}`);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x00aa00)
+          .setTitle('✅ Counting Ban Removed')
+          .setDescription(`${user.tag} has been unbanned from counting and their strike count has been reset.`)
           .setTimestamp();
 
         return interaction.reply({ embeds: [embed] });

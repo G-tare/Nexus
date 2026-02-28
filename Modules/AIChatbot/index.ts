@@ -1,5 +1,7 @@
 import { BotModule } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { loadAllTools, toolRegistry } from './tools/registry';
+import { DEFAULT_AICHATBOT_CONFIG } from './helpers';
 
 // Core commands
 import ask from './core/ask';
@@ -16,12 +18,13 @@ import { aiChatbotEvents } from './events';
 const logger = createModuleLogger('AIChatbot');
 
 /**
- * AI Chatbot Module - AI-powered chatbot channels and conversations
+ * AI Chatbot Module - AI-powered assistant with agent capabilities.
+ * Can manage Discord servers through natural language via tool-use.
  */
 export const aiChatbotModule: BotModule = {
   name: 'aichatbot',
   displayName: 'AI Chatbot',
-  description: 'AI-powered chatbot with conversation history and customizable personas',
+  description: 'AI-powered assistant with agent capabilities — manage your server through natural language',
   category: 'fun',
 
   commands: [
@@ -38,24 +41,12 @@ export const aiChatbotModule: BotModule = {
   events: aiChatbotEvents,
 
   async onLoad() {
-    logger.info('AI Chatbot module loaded with 5 commands');
+    // Load all Discord tools into the registry
+    await loadAllTools();
+    logger.info(`AI Chatbot module loaded with 5 commands and ${toolRegistry.size} agent tools`);
   },
 
-  defaultConfig: {
-    enabled: true,
-    provider: 'openai',
-    apiKey: '',
-    model: 'gpt-3.5-turbo',
-    systemPrompt: 'You are a helpful Discord bot assistant. Keep responses concise and friendly, under 2000 characters.',
-    maxTokens: 500,
-    temperature: 0.7,
-    maxHistory: 10,
-    allowedChannels: [],
-    autoReply: false,
-    mentionReply: true,
-    cooldown: 2,
-    maxMessageLength: 2000,
-  },
+  defaultConfig: { ...DEFAULT_AICHATBOT_CONFIG },
 };
 
 export default aiChatbotModule;

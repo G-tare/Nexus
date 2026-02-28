@@ -1,4 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
+import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { sql } from 'drizzle-orm';
+import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 
 export type LeaderboardType = 'xp' | 'level' | 'currency' | 'messages' | 'invites' | 'voice' | 'reputation' | 'counting';
 
@@ -31,17 +34,12 @@ const DEFAULT_CONFIG: LeaderboardConfig = {
   enabledTypes: ['xp', 'level', 'currency', 'messages', 'invites', 'voice', 'reputation', 'counting']
 };
 
-// Mock database function - replace with actual database calls
-async function getGuildModuleConfig(guildId: string, module: string): Promise<any> {
-  // This would query your config database
-  return {};
-}
-
 export async function getLeaderboardConfig(guildId: string): Promise<LeaderboardConfig> {
   try {
-    const stored = await getGuildModuleConfig(guildId, 'leaderboards');
+    const cfgResult = await moduleConfig.getModuleConfig(guildId, 'leaderboards');
+    const stored = (cfgResult?.config ?? {}) as Record<string, any>;
     return { ...DEFAULT_CONFIG, ...stored };
-  } catch (error) {
+  } catch {
     return DEFAULT_CONFIG;
   }
 }
@@ -103,12 +101,35 @@ async function queryGuildMembers(
   field: string,
   limit: number,
   offset: number,
-  cutoffDate: Date | null,
-  module: string
+  _cutoffDate: Date | null,
+  _module: string
 ): Promise<any[]> {
-  // Mock query - replace with actual database implementation
-  // This would query the appropriate module's data
-  return [];
+  const db = getDb();
+
+  // Map leaderboard field names to actual column names
+  const columnMap: Record<string, string> = {
+    totalXp: 'total_xp',
+    primaryCurrency: 'coins',
+    messageCount: 'total_messages',
+    voiceMinutes: 'total_voice_minutes',
+    reputation: 'reputation',
+  };
+
+  const column = columnMap[field];
+  if (!column) return [];
+
+  const result = await db.execute(sql.raw(`
+    SELECT user_id, ${column} as value
+    FROM guild_members
+    WHERE guild_id = '${guildId}' AND ${column} > 0
+    ORDER BY ${column} DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `));
+
+  return ((result as any).rows || []).map((row: any) => ({
+    userId: row.user_id,
+    value: parseInt(row.value, 10) || 0,
+  }));
 }
 
 async function queryInviteData(
@@ -117,19 +138,64 @@ async function queryInviteData(
   offset: number,
   cutoffDate: Date | null
 ): Promise<any[]> {
-  // Query invite tracker data
-  // Support days filter via created_at or similar timestamp
-  return [];
+  const db = getDb();
+
+  // Count valid (non-fake, non-left) invites per inviter
+  const dateFilter = cutoffDate
+    ? sql` AND joined_at >= ${cutoffDate.toISOString()}`
+    : sql``;
+
+  const result = await db.execute(sql`
+    SELECT inviter_id as user_id, COUNT(*) as value
+    FROM invite_records
+    WHERE guild_id = ${guildId}
+      AND left_at IS NULL
+      AND is_fake = false
+      ${dateFilter}
+    GROUP BY inviter_id
+    ORDER BY value DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+
+  return ((result as any).rows || []).map((row: any) => ({
+    userId: row.user_id,
+    value: parseInt(row.value, 10) || 0,
+  }));
 }
 
 async function queryCountingStats(
   guildId: string,
   limit: number,
   offset: number,
-  cutoffDate: Date | null
+  _cutoffDate: Date | null
 ): Promise<any[]> {
-  // Query counting game stats
-  return [];
+  // Counting stats are stored in Redis with pattern counting:stats:{guildId}:{userId}
+  const redis = getRedis();
+
+  // Scan for all counting stat keys for this guild
+  const pattern = `counting:stats:${guildId}:*`;
+  const entries: { userId: string; value: number }[] = [];
+
+  let cursor = '0';
+  do {
+    const [newCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
+    cursor = newCursor;
+
+    for (const key of keys) {
+      const data = await redis.hgetall(key);
+      if (data && data.correctCounts) {
+        const userId = key.split(':').pop()!;
+        entries.push({
+          userId,
+          value: parseInt(data.correctCounts, 10) || 0,
+        });
+      }
+    }
+  } while (cursor !== '0');
+
+  // Sort descending by value, then paginate
+  entries.sort((a, b) => b.value - a.value);
+  return entries.slice(offset, offset + limit);
 }
 
 export async function getUserRank(

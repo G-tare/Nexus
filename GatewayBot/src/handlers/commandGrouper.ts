@@ -83,7 +83,7 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
       commands: [
         'case', 'modstats', 'history', 'note', 'notes',
         'massban', 'massmute', 'mutelist', 'banlist', 'serverwarns', 'bulkdelete',
-        'quarantine', 'unquarantine', 'shadowban', 'unshadowban',
+        'quarantine', 'unquarantine', 'shadowban', 'unshadowban', 'autokick', 'unautokick',
         'altdetect', 'watchlist',
         'addreputation', 'removereputation', 'setreputation', 'reputationhistory',
       ],

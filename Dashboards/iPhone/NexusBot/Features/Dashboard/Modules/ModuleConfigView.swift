@@ -591,19 +591,42 @@ struct ModuleConfigView: View {
 
     @ViewBuilder
     private var aichatbotConfig: some View {
-        ConfigSection(title: "AI Model", icon: "brain.fill") {
+        ConfigSection(title: "AI Provider", icon: "brain.fill") {
             ConfigPicker(label: "Provider", key: "provider", config: $config, options: [
+                ("groq", "Groq (Free Tier, Llama)"),
+                ("gemini", "Gemini (Google)"),
+                ("grok", "Grok (xAI)"),
                 ("openai", "OpenAI"),
                 ("anthropic", "Anthropic"),
             ])
-            ConfigTextField(label: "Model", key: "model", config: $config, placeholder: "gpt-4o")
+            ConfigTextField(label: "Model", key: "model", config: $config, placeholder: "llama-3.3-70b-versatile")
+            ConfigTextField(label: "Server API Key", key: "apiKey", config: $config, placeholder: "Encrypted on save")
             ConfigNumberField(label: "Max Tokens", key: "maxTokens", config: $config)
+            ConfigPicker(label: "Temperature", key: "temperature", config: $config, options: [
+                ("0", "0.0 — Precise"),
+                ("0.3", "0.3 — Focused"),
+                ("0.5", "0.5 — Balanced"),
+                ("0.7", "0.7 — Creative (Default)"),
+                ("1.0", "1.0 — Very Creative"),
+                ("1.5", "1.5 — Wild"),
+            ])
         }
 
-        ConfigSection(title: "Behavior", icon: "bubble.left.and.bubble.right.fill") {
-            ConfigToggle(label: "Auto Reply", key: "autoReply", config: $config)
-            ConfigToggle(label: "Reply on Mention", key: "mentionReply", config: $config)
+        ConfigSection(title: "Agent System", icon: "cpu.fill") {
+            ConfigToggle(label: "Agent Mode (Tool Use)", key: "agentEnabled", config: $config)
+            ConfigToggle(label: "Confirm Destructive Actions", key: "confirmDestructive", config: $config)
+            ConfigNumberField(label: "Max Tool Calls Per Message", key: "maxToolCalls", config: $config)
+        }
+
+        ConfigSection(title: "Activation", icon: "bubble.left.and.bubble.right.fill") {
+            ConfigTextField(label: "Trigger Phrase", key: "triggerPhrase", config: $config, placeholder: "hey nexus")
+            ConfigToggle(label: "Auto Reply in AI Channels", key: "autoReply", config: $config)
+            ConfigToggle(label: "Reply on @Mention", key: "mentionReply", config: $config)
+        }
+
+        ConfigSection(title: "Usage Limits", icon: "gauge.with.needle.fill") {
             ConfigNumberField(label: "Cooldown (sec)", key: "cooldown", config: $config)
+            ConfigNumberField(label: "Max History Messages", key: "maxHistory", config: $config)
         }
     }
 

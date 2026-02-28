@@ -190,10 +190,17 @@ struct AnalyticsView: View {
     }
 
     private func loadAll() async {
-        isLoading = true
+        // Only show skeleton on first load, not on refresh
+        let isFirstLoad = stats == nil
+        if isFirstLoad { isLoading = true }
+
         async let statsTask = APIClient.shared.fetchGuildStats(guildId)
         async let activityTask: () = loadActivity()
-        stats = try? await statsTask
+
+        // Only replace stats if we got new data (don't nil out on refresh failure)
+        if let newStats = try? await statsTask {
+            stats = newStats
+        }
         await activityTask
         isLoading = false
     }
@@ -204,7 +211,7 @@ struct AnalyticsView: View {
                 guildId,
                 period: selectedPeriod.apiValue
             )
-            activityPoints = response.points.enumerated().map { index, point in
+            let newPoints = response.points.enumerated().map { index, point in
                 ActivityPoint(
                     index: index,
                     label: point.label,
@@ -213,9 +220,16 @@ struct AnalyticsView: View {
                     reactions: point.reactions
                 )
             }
+            // Only update if we got data; keep old data on empty response during refresh
+            if !newPoints.isEmpty || stats == nil {
+                activityPoints = newPoints
+            }
         } catch {
             print("[Analytics] Failed to load activity: \(error)")
-            activityPoints = []
+            // Don't clear existing data on refresh failure
+            if stats == nil {
+                activityPoints = []
+            }
         }
     }
 

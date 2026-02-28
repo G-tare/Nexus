@@ -50,6 +50,8 @@ import shadowban from './advanced/shadowban';
 import unshadowban from './advanced/unshadowban';
 import quarantine from './advanced/quarantine';
 import unquarantine from './advanced/unquarantine';
+import autokick from './advanced/autokick';
+import unautokick from './advanced/unautokick';
 
 // Investigation commands
 import altdetect from './investigation/altdetect';
@@ -123,11 +125,13 @@ const moderationModule: BotModule = {
     role,
     softban,
 
-    // Advanced (4)
+    // Advanced (6)
     shadowban,
     unshadowban,
     quarantine,
     unquarantine,
+    autokick,
+    unautokick,
 
     // Investigation (2)
     altdetect,
@@ -153,7 +157,7 @@ const moderationModule: BotModule = {
   events: moderationEvents,
 
   async onLoad() {
-    logger.info('Moderation module loaded — 45 commands across 10 subdirectories');
+    logger.info('Moderation module loaded — 47 commands across 10 subdirectories');
     // Setup warn threshold listener needs client reference,
     // handled via event bus in events.ts
   },

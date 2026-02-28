@@ -1,6 +1,6 @@
 import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { clearHistory, getAIConfig } from '../helpers';
+import { clearHistory, getAIConfig, isAIAuthorized } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('AIChatbot');
@@ -23,6 +23,12 @@ const command: BotCommand = {
       }
 
       const config = await getAIConfig(interaction.guildId!);
+
+      // Restricted to bot owners + authorized users
+      if (!isAIAuthorized(interaction.user.id, config)) {
+        await interaction.reply({ content: '❌ You are not authorized to use the AI system.', flags: MessageFlags.Ephemeral });
+        return;
+      }
 
       if (!config.enabled) {
         await interaction.reply({ content: '❌ AI Chatbot is disabled on this server.', flags: MessageFlags.Ephemeral });

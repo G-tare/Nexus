@@ -134,7 +134,25 @@ const MODULE_DEFAULTS: Record<string, Record<string, any>> = {
     logChannelId: null, ignoredChannels: [],
     retentionDays: 30,
   },
+  aichatbot: {
+    provider: 'groq', model: '', apiKey: '',
+    temperature: 0.7, maxTokens: 1500,
+    systemPrompt: 'You are a helpful Discord bot assistant.',
+    cooldown: 3, maxHistory: 20,
+    autoReply: false, mentionReply: true,
+    allowedChannels: [],
+    agentEnabled: true, triggerPhrase: 'hey nexus',
+    confirmDestructive: true, maxToolCalls: 15,
+    disabledTools: [], authorizedUsers: [],
+  },
 };
+
+/**
+ * Modules that should be DISABLED by default — must match moduleConfig.ts
+ */
+const DISABLED_BY_DEFAULT = new Set([
+  'automod',
+]);
 
 /**
  * GET /api/modules/:guildId
@@ -147,7 +165,7 @@ router.get('/:guildId', async (req: Request, res: Response) => {
     // Merge defaults for any modules that don't have a DB row yet
     for (const [mod, defaults] of Object.entries(MODULE_DEFAULTS)) {
       if (!configs[mod]) {
-        configs[mod] = { enabled: true, config: defaults };
+        configs[mod] = { enabled: !DISABLED_BY_DEFAULT.has(mod), config: defaults };
       }
     }
 
@@ -169,7 +187,7 @@ router.get('/:guildId/:moduleName', async (req: Request, res: Response) => {
     if (!config) {
       // Return default config so the dashboard can display all fields
       const defaults = MODULE_DEFAULTS[moduleName] ?? {};
-      res.json({ enabled: true, config: defaults });
+      res.json({ enabled: !DISABLED_BY_DEFAULT.has(moduleName), config: defaults });
       return;
     }
     res.json(config);

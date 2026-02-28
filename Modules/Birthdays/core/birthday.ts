@@ -41,7 +41,7 @@ const command: BotCommand = {
         .setDescription('Birth year (optional, for age display)')
         .setRequired(false)
         .setMinValue(1900)
-        .setMaxValue(2025)
+        .setMaxValue(new Date().getFullYear())
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -68,10 +68,22 @@ const command: BotCommand = {
 
       // Validate year if provided
       if (year !== undefined) {
-        const currentYear = new Date().getFullYear();
+        const now = new Date();
+        const currentYear = now.getFullYear();
+
         if (year > currentYear - 5) {
           return await interaction.editReply({
             content: '❌ Please provide a valid birth year.',
+          });
+        }
+
+        // Discord TOS: users must be at least 13 years old
+        const birthDate = new Date(year, month - 1, day);
+        const ageMs = now.getTime() - birthDate.getTime();
+        const ageYears = ageMs / (365.25 * 24 * 60 * 60 * 1000);
+        if (ageYears < 13) {
+          return await interaction.editReply({
+            content: '❌ You must be at least 13 years old to use Discord per the Terms of Service.',
           });
         }
 

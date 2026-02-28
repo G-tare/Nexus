@@ -259,11 +259,11 @@ export async function getRepHistory(guildId: string, userId: string, limit: numb
   `);
 
   return ((result as any).rows || []).map((row: any) => ({
-    userId: row.userId,
+    userId: row.user_id,
     givenBy: row.given_by,
     delta: row.delta,
     reason: row.reason,
-    createdAt: row.createdAt,
+    createdAt: parseInt(row.created_at, 10),
   }));
 }
 

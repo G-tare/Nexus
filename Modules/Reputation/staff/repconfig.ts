@@ -8,6 +8,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getRepConfig } from '../helpers';
+import { getModConfig } from '../../Moderation/helpers';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -78,6 +79,29 @@ const command: BotCommand = {
           opt.setName('channel')
             .setDescription('Log channel (leave empty to disable)')
             .addChannelTypes(ChannelType.GuildText)))
+    .addSubcommand(sub =>
+      sub.setName('penalties')
+        .setDescription('Configure rep penalty per punishment type')
+        .addStringOption(opt =>
+          opt.setName('type')
+            .setDescription('Punishment type')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Warn', value: 'warn' },
+              { name: 'Mute', value: 'mute' },
+              { name: 'Kick', value: 'kick' },
+              { name: 'Temp Ban', value: 'tempban' },
+              { name: 'Ban', value: 'ban' },
+            ))
+        .addIntegerOption(opt =>
+          opt.setName('amount')
+            .setDescription('Rep to deduct (0-50)')
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(50)))
+    .addSubcommand(sub =>
+      sub.setName('viewpenalties')
+        .setDescription('View current rep penalties for each punishment'))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'reputation',
@@ -91,6 +115,8 @@ const command: BotCommand = {
 
     if (sub === 'view') {
       const config = await getRepConfig(guild.id);
+      const modConfig = await getModConfig(guild.id);
+      const p = modConfig.reputationPenalties;
 
       const embed = new EmbedBuilder()
         .setColor(0xF1C40F)
@@ -103,6 +129,7 @@ const command: BotCommand = {
           { name: 'Reaction Rep', value: config.reactionRepEnabled ? `✅ ${config.upvoteEmoji} / ${config.downvoteEmoji}` : '❌ Disabled', inline: true },
           { name: 'Allow Negative', value: config.allowNegative ? '✅' : '❌', inline: true },
           { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set', inline: true },
+          { name: 'Penalties', value: `Warn: -${p.warn} · Mute: -${p.mute} · Kick: -${p.kick} · Temp Ban: -${p.tempban} · Ban: -${p.ban}`, inline: false },
         );
 
       await interaction.reply({ embeds: [embed] });
@@ -158,6 +185,39 @@ const command: BotCommand = {
       const channel = interaction.options.getChannel('channel');
       await moduleConfig.updateConfig(guild.id, 'reputation', { logChannelId: channel?.id || null });
       await interaction.reply({ content: channel ? `✅ Rep log channel set to <#${channel.id}>.` : '✅ Rep logging disabled.' });
+      return;
+    }
+
+    if (sub === 'penalties') {
+      const type = interaction.options.getString('type', true) as 'warn' | 'mute' | 'kick' | 'tempban' | 'ban';
+      const amount = interaction.options.getInteger('amount', true);
+
+      const modConfig = await getModConfig(guild.id);
+      const penalties = { ...modConfig.reputationPenalties, [type]: amount };
+      await moduleConfig.updateConfig(guild.id, 'moderation', { reputationPenalties: penalties });
+
+      const typeNames: Record<string, string> = { warn: 'Warn', mute: 'Mute', kick: 'Kick', tempban: 'Temp Ban', ban: 'Ban' };
+      await interaction.reply({ content: `✅ **${typeNames[type]}** penalty set to **-${amount}** rep.` });
+      return;
+    }
+
+    if (sub === 'viewpenalties') {
+      const modConfig = await getModConfig(guild.id);
+      const p = modConfig.reputationPenalties;
+
+      const embed = new EmbedBuilder()
+        .setColor(0xE74C3C)
+        .setTitle('⚖️ Reputation Penalties')
+        .setDescription('Points deducted from reputation per punishment type:')
+        .addFields(
+          { name: '⚠️ Warn', value: `-${p.warn}`, inline: true },
+          { name: '🔇 Mute', value: `-${p.mute}`, inline: true },
+          { name: '👢 Kick', value: `-${p.kick}`, inline: true },
+          { name: '⏳ Temp Ban', value: `-${p.tempban}`, inline: true },
+          { name: '🔨 Ban', value: `-${p.ban}`, inline: true },
+        );
+
+      await interaction.reply({ embeds: [embed] });
       return;
     }
   },

@@ -114,6 +114,13 @@ const command: BotCommand = {
     const confessionNumber = await getNextConfessionNumber(guildId);
     const userHash = hashUserId(userId, guildId);
 
+    // Detect if running inside a confession "Respond" thread
+    const currentChannel = interaction.channel;
+    const isInConfessionThread =
+      currentChannel?.isThread() &&
+      currentChannel.parentId === config.channelId &&
+      currentChannel.name.startsWith('Confession #');
+
     // Get the confession channel
     const channel = await interaction.client.channels.fetch(config.channelId).catch(() => null);
     if (!channel || !channel.isTextBased()) {
@@ -129,6 +136,26 @@ const command: BotCommand = {
       let imageUrl: string | undefined;
       if (imageAttachment && config.allowImages) {
         imageUrl = imageAttachment.url;
+      }
+
+      // If inside a Respond thread, post the confession directly in that thread
+      if (isInConfessionThread && currentChannel?.isThread()) {
+        await storeConfession(guildId, confessionNumber, userHash, message, userId, imageUrl);
+
+        const embed = buildConfessionEmbed(confessionNumber, message, config);
+        if (imageUrl) {
+          embed.setImage(imageUrl);
+        }
+
+        await currentChannel.send({ embeds: [embed] });
+
+        await interaction.reply({
+          content: `Confession #${confessionNumber} posted in this thread!`,
+          flags: MessageFlags.Ephemeral,
+        });
+
+        await setCooldown(guildId, userId, config.cooldownSeconds);
+        return;
       }
 
       if (config.moderationEnabled && config.moderationChannelId) {

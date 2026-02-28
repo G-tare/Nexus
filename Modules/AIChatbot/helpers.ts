@@ -1,36 +1,62 @@
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
-import { eventBus } from '../../Shared/src/events/eventBus';
+import { getRedis } from '../../Shared/src/database/connection';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { config as globalConfig } from '../../Shared/src/config';
+import { decryptOrPassthrough } from '../../Shared/src/utils/encryption';
 
 const logger = createModuleLogger('AIChatbot');
 
-/**
- * AI Chatbot module configuration
- */
+// ============================================
+// Config Interface
+// ============================================
+
 export interface AIChatbotConfig {
   enabled: boolean;
-  provider: 'openai' | 'anthropic';
+  /** AI provider: groq (default free), gemini, grok, openai, anthropic */
+  provider: 'gemini' | 'grok' | 'groq' | 'openai' | 'anthropic';
+  /** Provider API key (overrides global DEFAULT_AI_API_KEY) */
   apiKey: string;
+  /** Model name (empty = provider default) */
   model: string;
+  /** Base persona / system prompt */
   systemPrompt: string;
   maxTokens: number;
   temperature: number;
+  /** Max conversation history messages to include */
   maxHistory: number;
+  /** Channels where the bot auto-replies to all messages */
   allowedChannels: string[];
+  /** Auto-reply in allowed channels without trigger */
   autoReply: boolean;
+  /** Reply when @mentioned */
   mentionReply: boolean;
+  /** Per-user cooldown in seconds */
   cooldown: number;
+  /** Max response length */
   maxMessageLength: number;
+  /** Enable agent mode (tool-use for Discord actions) */
+  agentEnabled: boolean;
+  /** Trigger phrase for agent activation (e.g. "hey nexus") */
+  triggerPhrase: string;
+  /** Ask for confirmation before destructive actions */
+  confirmDestructive: boolean;
+  /** Max tool calls per message */
+  maxToolCalls: number;
+  /** Tool IDs to disable (e.g. ["channels.delete", "roles.delete"]) */
+  disabledTools: string[];
+  /** User IDs authorized to use the AI system (in addition to bot owners) */
+  authorizedUsers: string[];
+  /** Minutes of inactivity before conversation session expires (requires trigger phrase again) */
+  conversationTimeout: number;
 }
 
-const DEFAULT_AICHATBOT_CONFIG: AIChatbotConfig = {
+export const DEFAULT_AICHATBOT_CONFIG: AIChatbotConfig = {
   enabled: true,
-  provider: 'openai',
+  provider: 'groq',
   apiKey: '',
-  model: 'gpt-3.5-turbo',
-  systemPrompt: 'You are a helpful Discord bot assistant. Keep responses concise and friendly, under 2000 characters.',
-  maxTokens: 500,
+  model: '',
+  systemPrompt: 'You are a helpful Discord bot assistant. Keep responses concise and friendly, under 2000 characters. Be conversational and match the user\'s energy.',
+  maxTokens: 1024,
   temperature: 0.7,
   maxHistory: 10,
   allowedChannels: [],
@@ -38,29 +64,60 @@ const DEFAULT_AICHATBOT_CONFIG: AIChatbotConfig = {
   mentionReply: true,
   cooldown: 2,
   maxMessageLength: 2000,
+  agentEnabled: true,
+  triggerPhrase: 'hey nexus',
+  confirmDestructive: true,
+  maxToolCalls: 25,
+  disabledTools: [],
+  authorizedUsers: [],
+  conversationTimeout: 5,
 };
 
 /**
- * Get AI Chatbot config for a guild with defaults
+ * Check if a user is authorized to use the AI system.
+ * Returns true if the user is a bot owner OR is in the guild's authorizedUsers list.
+ */
+export function isAIAuthorized(userId: string, config: AIChatbotConfig): boolean {
+  if (globalConfig.discord.ownerIds.includes(userId)) return true;
+  return config.authorizedUsers.includes(userId);
+}
+
+// ============================================
+// Config Access
+// ============================================
+
+/**
+ * Get AI Chatbot config for a guild with defaults.
  */
 export async function getAIConfig(guildId: string): Promise<AIChatbotConfig> {
   try {
-    const _cfgResult = await moduleConfig.getModuleConfig(guildId, 'aichatbot');
-    const config = (_cfgResult?.config ?? {}) as Record<string, any>;
-    return { ...DEFAULT_AICHATBOT_CONFIG, ...config };
+    const cfgResult = await moduleConfig.getModuleConfig(guildId, 'aichatbot');
+    const config = (cfgResult?.config ?? {}) as Record<string, any>;
+    const merged = { ...DEFAULT_AICHATBOT_CONFIG, ...config };
+
+    // Transparently decrypt the API key if it was stored encrypted
+    if (merged.apiKey) {
+      merged.apiKey = decryptOrPassthrough(merged.apiKey);
+    }
+
+    return merged;
   } catch (error) {
     logger.warn(`Failed to get AI config for guild ${guildId}, using defaults`, error);
     return DEFAULT_AICHATBOT_CONFIG;
   }
 }
 
+// ============================================
+// Conversation History
+// ============================================
+
 /**
- * Get conversation history for a channel
+ * Get conversation history for a channel.
  */
 export async function getConversationHistory(
   guildId: string,
   channelId: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   try {
     const redis = getRedis();
@@ -74,26 +131,21 @@ export async function getConversationHistory(
 }
 
 /**
- * Add message to conversation history
+ * Add message to conversation history.
  */
 export async function addToHistory(
   guildId: string,
   channelId: string,
   role: 'user' | 'assistant',
-  content: string
+  content: string,
 ): Promise<void> {
   try {
     const redis = getRedis();
     const historyKey = `aichat:history:${guildId}:${channelId}`;
     const maxHistory = (await getAIConfig(guildId)).maxHistory;
 
-    // Add new message
     await redis.rpush(historyKey, JSON.stringify({ role, content }));
-
-    // Trim to max history
     await redis.ltrim(historyKey, -maxHistory, -1);
-
-    // Set expiry to 24 hours
     await redis.expire(historyKey, 86400);
   } catch (error) {
     logger.error(`Error adding to history for ${guildId}/${channelId}`, error);
@@ -101,7 +153,7 @@ export async function addToHistory(
 }
 
 /**
- * Clear conversation history for a channel
+ * Clear conversation history for a channel.
  */
 export async function clearHistory(guildId: string, channelId: string): Promise<void> {
   try {
@@ -113,137 +165,12 @@ export async function clearHistory(guildId: string, channelId: string): Promise<
   }
 }
 
-/**
- * Call OpenAI API
- */
-export async function callOpenAI(
-  config: AIChatbotConfig,
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<string> {
-  if (!config.apiKey) {
-    throw new Error('OpenAI API key not configured');
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: config.systemPrompt },
-          ...messages,
-        ],
-        max_tokens: config.maxTokens,
-        temperature: config.temperature,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json() as any;
-      throw new Error(`OpenAI API (error as any): ${error.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return (data as any).choices[0]?.message?.content || 'No response generated';
-  } catch (error) {
-    logger.error('Error calling OpenAI API', error);
-    throw error;
-  }
-}
+// ============================================
+// Persona
+// ============================================
 
 /**
- * Call Anthropic Claude API
- */
-export async function callAnthropic(
-  config: AIChatbotConfig,
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<string> {
-  if (!config.apiKey) {
-    throw new Error('Anthropic API key not configured');
-  }
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': config.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        max_tokens: config.maxTokens,
-        system: config.systemPrompt,
-        messages: messages,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json() as any;
-      throw new Error(`Anthropic API (error as any): ${error.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return (data as any).content[0]?.text || 'No response generated';
-  } catch (error) {
-    logger.error('Error calling Anthropic API', error);
-    throw error;
-  }
-}
-
-/**
- * Generate AI response with conversation context
- */
-export async function generateResponse(
-  guildId: string,
-  channelId: string,
-  userMessage: string,
-  userName: string
-): Promise<string> {
-  try {
-    const config = await getAIConfig(guildId);
-
-    // Get conversation history
-    const history = await getConversationHistory(guildId, channelId, config.maxHistory - 1);
-
-    // Build message array with user's new message
-    const messages = [
-      ...history,
-      { role: 'user' as const, content: `${userName}: ${userMessage}` },
-    ];
-
-    // Call API
-    let response: string;
-    if (config.provider === 'openai') {
-      response = await callOpenAI(config, messages);
-    } else if (config.provider === 'anthropic') {
-      response = await callAnthropic(config, messages);
-    } else {
-      throw new Error(`Unknown provider: ${config.provider}`);
-    }
-
-    // Trim to max length
-    if (response.length > config.maxMessageLength) {
-      response = response.substring(0, config.maxMessageLength - 3) + '...';
-    }
-
-    // Add to history
-    await addToHistory(guildId, channelId, 'user', userMessage);
-    await addToHistory(guildId, channelId, 'assistant', response);
-
-    return response;
-  } catch (error) {
-    logger.error(`Error generating response for ${guildId}/${channelId}`, error);
-    throw error;
-  }
-}
-
-/**
- * Get persona/system prompt for a guild
+ * Get persona/system prompt for a guild.
  */
 export async function getPersona(guildId: string): Promise<string> {
   try {
@@ -258,7 +185,7 @@ export async function getPersona(guildId: string): Promise<string> {
 }
 
 /**
- * Set persona/system prompt for a guild
+ * Set persona/system prompt for a guild.
  */
 export async function setPersona(guildId: string, persona: string): Promise<void> {
   try {
@@ -271,8 +198,12 @@ export async function setPersona(guildId: string, persona: string): Promise<void
   }
 }
 
+// ============================================
+// Cooldown
+// ============================================
+
 /**
- * Check if user is on cooldown for AI commands
+ * Check if user is on cooldown. Returns remaining seconds (0 = no cooldown).
  */
 export async function checkAICooldown(guildId: string, userId: string): Promise<number> {
   try {
@@ -287,12 +218,12 @@ export async function checkAICooldown(guildId: string, userId: string): Promise<
 }
 
 /**
- * Set cooldown for user on AI commands
+ * Set cooldown for user.
  */
 export async function setAICooldown(
   guildId: string,
   userId: string,
-  seconds: number
+  seconds: number,
 ): Promise<void> {
   try {
     const redis = getRedis();
@@ -303,25 +234,21 @@ export async function setAICooldown(
   }
 }
 
-/**
- * Approximate token count for a message (rough estimate)
- * Assumes 1 token per ~4 characters on average
- */
+// ============================================
+// Token Estimation (kept for backwards compat)
+// ============================================
+
 export function estimateTokenCount(content: string): number {
-  // More accurate for English text
   return Math.ceil(content.split(/\s+/).length * 1.3);
 }
 
-/**
- * Get token usage estimate for messages
- */
 export function getTokenUsage(
   messages: Array<{ role: string; content: string }>,
-  systemPrompt: string
+  systemPrompt: string,
 ): number {
   let total = estimateTokenCount(systemPrompt);
   for (const msg of messages) {
-    total += estimateTokenCount(msg.content) + 4; // 4 tokens for role/metadata per message
+    total += estimateTokenCount(msg.content) + 4;
   }
   return total;
 }

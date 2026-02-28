@@ -1,5 +1,6 @@
 import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { config as globalConfig } from '../../../Shared/src/config';
 import { getAIConfig, getPersona, setPersona } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -35,6 +36,12 @@ const command: BotCommand = {
     try {
       if (!interaction.guild) {
         await interaction.reply({ content: 'This command can only be used in a server.' });
+        return;
+      }
+
+      // Bot owner only
+      if (!globalConfig.discord.ownerIds.includes(interaction.user.id)) {
+        await interaction.reply({ content: '❌ This command is restricted to the bot owner.' });
         return;
       }
 

@@ -1,5 +1,7 @@
 import { Client, Events, Message, GuildMember } from 'discord.js';
-import { getRedis } from '../../Shared/src/database/connection';
+import { getPool } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { timers } from '../../Shared/src/cache/timerManager';
 import { getModConfig } from './helpers';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { eventBus } from '../../Shared/src/events/eventBus';
@@ -10,13 +12,13 @@ const logger = createModuleLogger('Moderation:Events');
 /**
  * Shadow Ban Handler
  * Deletes messages from shadowbanned users immediately.
+ * Uses in-memory Set instead of Redis sismember.
  */
 const shadowBanHandler: ModuleEvent = { event: Events.MessageCreate,
   async handler(message: Message) {
     if (!message.guild || message.author.bot) return;
 
-    const redis = getRedis();
-    const isShadowBanned = await redis.sismember(
+    const isShadowBanned = cache.sismember(
       `shadowban:${message.guild.id}`,
       message.author.id
     );
@@ -58,22 +60,23 @@ const altDetectionHandler: ModuleEvent = { event: Events.MessageCreate,
     try {
       const logChannel = await message.guild.channels.fetch(config.altDetectionLogChannelId);
       if (logChannel?.isTextBased()) {
-        const { EmbedBuilder } = await import('discord.js');
-        const { Colors } = require('../../Shared/src/utils/embed');
+        const { MessageFlags, ContainerBuilder, TextDisplayBuilder } = await import('discord.js');
+        const { addSectionWithThumbnail, addFields, V2Colors } = await import('../../Shared/src/utils/componentsV2');
 
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Warning)
-          .setTitle('🔍 Alt Detection — Keyword Match')
-          .addFields(
-            { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
-            { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
-            { name: 'Keyword Matched', value: `"${matched}"` },
-            { name: 'Message Content', value: message.content.slice(0, 1024) },
-          )
-          .setThumbnail(message.author.displayAvatarURL())
-          .setTimestamp();
+        const container = new ContainerBuilder().setAccentColor(V2Colors.Warning);
+        addSectionWithThumbnail(
+          container,
+          '### 🔍 Alt Detection — Keyword Match',
+          message.author.displayAvatarURL()
+        );
+        addFields(container, [
+          { name: 'User', value: `${message.author.tag} (${message.author.id})`, inline: true },
+          { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
+          { name: 'Keyword Matched', value: `"${matched}"` },
+          { name: 'Message Content', value: message.content.slice(0, 1024) },
+        ]);
 
-        await (logChannel as any).send({ embeds: [embed] });
+        await (logChannel as any).send({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
     } catch (err: any) {
       logger.error('Alt detection log failed', { error: err.message });
@@ -82,44 +85,55 @@ const altDetectionHandler: ModuleEvent = { event: Events.MessageCreate,
 };
 
 /**
- * Temp Ban Expiry Checker
- * Polls Redis for expired temp bans and unbans them.
- * This runs as a periodic check since Redis key expiry events aren't reliable.
+ * Temp Ban Expiry — TimerManager-based.
+ *
+ * On startup, loads all active tempbans from Postgres and schedules
+ * a setTimeout for each. No polling, no Redis KEYS scan.
+ * New tempbans are scheduled at creation time (see helpers.ts).
  */
-const tempBanChecker: ModuleEvent = { event: Events.ClientReady,
+const tempBanLoader: ModuleEvent = { event: Events.ClientReady,
   once: true,
   async handler(client: Client) {
-    // Check every 30 seconds for expired temp bans
-    setInterval(async () => {
-      const redis = getRedis();
-      try {
-        const keys = await redis.keys('tempban:*:*');
-        for (const key of keys) {
-          const ttl = await redis.ttl(key);
-          if (ttl <= 0) {
-            // Key expired, unban the user
-            const parts = key.split(':');
-            const guildId = parts[1];
-            const userId = parts[2];
+    const pool = getPool();
 
-            const guild = client.guilds.cache.get(guildId);
-            if (guild) {
-              try {
-                await guild.members.unban(userId, '[AUTO] Temporary ban expired');
-                logger.info('Temp ban expired, user unbanned', { guildId, userId });
-              } catch {
-                // User might already be unbanned
-              }
+    await timers.loadFromSource(
+      'tempban',
+      async () => {
+        // Query all active tempbans from Postgres
+        const result = await pool.query(
+          `SELECT guild_id, user_id, expires_at FROM temp_bans
+           WHERE expires_at > NOW()`,
+        );
+        return result.rows.map((row: { guild_id: string; user_id: string; expires_at: string }) => ({
+          id: `tempban:${row.guild_id}:${row.user_id}`,
+          executeAt: new Date(row.expires_at),
+        }));
+      },
+      (id: string) => {
+        const parts = id.split(':');
+        const guildId = parts[1];
+        const userId = parts[2];
+
+        return async () => {
+          const guild = client.guilds.cache.get(guildId);
+          if (guild) {
+            try {
+              await guild.members.unban(userId, '[AUTO] Temporary ban expired');
+              logger.info('Temp ban expired, user unbanned', { guildId, userId });
+            } catch {
+              // User might already be unbanned
             }
-            await redis.del(key);
           }
-        }
-      } catch (err: any) {
-        logger.error('Temp ban check error', { error: err.message });
-      }
-    }, 30000);
+          // Clean up the DB record
+          await pool.query(
+            'DELETE FROM temp_bans WHERE guild_id = $1 AND user_id = $2',
+            [guildId, userId],
+          ).catch(() => null);
+        };
+      },
+    );
 
-    logger.info('Temp ban expiry checker started');
+    logger.info('Temp ban expiry system ready (timer-based, no polling)');
   },
 };
 
@@ -169,13 +183,13 @@ function setupWarnThresholdListener(client: Client) {
 /**
  * Auto-Kick Handler
  * Kicks users on the auto-kick list every time they rejoin.
+ * Uses in-memory Set instead of Redis sismember.
  */
 const autoKickHandler: ModuleEvent = { event: Events.GuildMemberAdd,
   async handler(member: GuildMember) {
     if (member.user.bot) return;
 
-    const redis = getRedis();
-    const isAutoKicked = await redis.sismember(
+    const isAutoKicked = cache.sismember(
       `autokick:${member.guild.id}`,
       member.id
     );
@@ -197,7 +211,7 @@ const autoKickHandler: ModuleEvent = { event: Events.GuildMemberAdd,
 export const moderationEvents: ModuleEvent[] = [
   shadowBanHandler,
   altDetectionHandler,
-  tempBanChecker,
+  tempBanLoader,
   autoKickHandler,
 ];
 

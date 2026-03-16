@@ -1,7 +1,8 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Colors, AutocompleteInteraction, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, v2Payload, successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -89,9 +90,7 @@ const command: BotCommand = {
       // Special handling for giveaway entries
       if (item.itemType === 'giveaway_entry') {
         if (!targetGiveaway) {
-          return await interaction.editReply({
-            content: '❌ You must provide a giveaway ID to use a giveaway entry.',
-          });
+          return await interaction.editReply(v2Payload([errorContainer('Error', 'You must provide a giveaway ID to use a giveaway entry.')]));
         }
 
         const alreadyUsed = await shopHelpers.checkGiveawayEntryLimit(
@@ -101,57 +100,45 @@ const command: BotCommand = {
         );
 
         if (alreadyUsed) {
-          return await interaction.editReply({
-            content:
-              '❌ You have already used a bonus entry on this giveaway. You can only use one per giveaway.',
-          });
+          return await interaction.editReply(v2Payload([errorContainer('Error', 'You have already used a bonus entry on this giveaway. You can only use one per giveaway.')]));
         }
 
         await shopHelpers.addGiveawayEntry(guildId, userId, targetGiveaway);
         await shopHelpers.removeFromInventory(guildId, userId, invItem.itemId, 1);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ Bonus Entry Applied')
-          .setColor(Colors.Green)
-          .addFields(
-            { name: 'Item', value: item.name, inline: true },
-            { name: 'Giveaway', value: targetGiveaway, inline: true }
-          );
+        const container = successContainer('Bonus Entry Applied');
+        addFields(container, [
+          { name: 'Item', value: item.name, inline: true },
+          { name: 'Giveaway', value: targetGiveaway, inline: true }
+        ]);
 
-        return await interaction.editReply({
-          embeds: [embed],
-        });
+        return await interaction.editReply(v2Payload([container]));
       }
 
       const useResult = await shopHelpers.useItem(guildId, userId, member, invItem.itemId);
 
       if (!useResult.success) {
-        return await interaction.editReply({
-          content: `❌ ${useResult.reason}`,
-        });
+        return await interaction.editReply(v2Payload([errorContainer('Error', useResult.reason)]));
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Item Used')
-        .setColor(Colors.Green)
-        .addFields({ name: 'Item', value: item.name, inline: true });
+      const container = successContainer('Item Used');
+      const fields = [{ name: 'Item', value: item.name, inline: true }];
 
       if (item.itemType === 'xp_boost') {
-        embed.addFields({
+        fields.push({
           name: 'Duration',
           value: item.itemData.duration || 'Unknown',
           inline: true,
         });
-        embed.addFields({
+        fields.push({
           name: 'Multiplier',
           value: `${item.itemData.multiplier}x`,
           inline: true,
         });
       }
 
-      await interaction.editReply({
-        embeds: [embed],
-      });
+      addFields(container, fields);
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[Shop] /use command error:', error);
       await interaction.editReply({

@@ -1,10 +1,11 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getUserActivityBreakdown, formatDuration } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, addSectionWithThumbnail, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('ActivityTracking');
 
@@ -50,46 +51,39 @@ const command: BotCommand = {
 
       const breakdown = await getUserActivityBreakdown(interaction.guild.id, targetUser.id, 30);
 
-      const embed = new EmbedBuilder()
-        .setColor('#5865F2')
-        .setTitle(`Activity Statistics for ${targetUser.username}`)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-          {
-            name: '📊 Overall Score',
-            value: `\`${breakdown.score}\``,
-            inline: true,
-          },
-          {
-            name: '🏆 Leaderboard Rank',
-            value: breakdown.rank ? `\`#${breakdown.rank}\`` : '`Not ranked`',
-            inline: true,
-          },
-          {
-            name: '\u200B',
-            value: '\u200B',
-            inline: true,
-          },
-          {
-            name: '🎤 Voice Time',
-            value: `\`${formatDuration(breakdown.voiceMinutes)}\``,
-            inline: true,
-          },
-          {
-            name: '💬 Messages',
-            value: `\`${breakdown.messages}\``,
-            inline: true,
-          },
-          {
-            name: '👍 Reactions',
-            value: `\`${breakdown.reactions}\``,
-            inline: true,
-          }
-        )
-        .setFooter({ text: 'Data from the last 30 days' })
-        .setTimestamp();
+      const container = moduleContainer('activity_tracking');
+      addText(container, `### Activity Statistics for ${targetUser.username}`);
+      addFields(container, [
+        {
+          name: '📊 Overall Score',
+          value: `\`${breakdown.score}\``,
+          inline: true,
+        },
+        {
+          name: '🏆 Leaderboard Rank',
+          value: breakdown.rank ? `\`#${breakdown.rank}\`` : '`Not ranked`',
+          inline: true,
+        },
+        {
+          name: '🎤 Voice Time',
+          value: `\`${formatDuration(breakdown.voiceMinutes)}\``,
+          inline: true,
+        },
+        {
+          name: '💬 Messages',
+          value: `\`${breakdown.messages}\``,
+          inline: true,
+        },
+        {
+          name: '👍 Reactions',
+          value: `\`${breakdown.reactions}\``,
+          inline: true,
+        }
+      ]);
+      addFooter(container, 'Data from the last 30 days');
 
-      await interaction.editReply({ embeds: [embed] });
+      const payload = v2Payload([container]);
+      await interaction.editReply(payload);
     } catch (error) {
       logger.error('Error executing activity command', error);
       if (interaction.deferred) {

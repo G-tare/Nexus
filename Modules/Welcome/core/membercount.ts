@@ -1,6 +1,14 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PresenceStatus, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PresenceStatus, TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import {
+	moduleContainer,
+	addFields,
+	addSeparator,
+	addFooter,
+	addSectionWithThumbnail,
+	addText,
+	v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 
 export default {
 	data: new SlashCommandBuilder()
@@ -73,62 +81,70 @@ export default {
 				}
 			});
 
-			// Build the embed
-			const embed = new EmbedBuilder()
-				.setColor((Colors as any).Welcome || '#5865F2')
-				.setTitle(`${guild.name} Member Statistics`)
-				.setThumbnail(guild.iconURL({ size: 256 }))
-				.addFields(
-					{
-						name: '📊 Total Members',
-						value: `${members.size}`,
-						inline: true,
-					},
-					{
-						name: '👤 Humans',
-						value: `${humans}`,
-						inline: true,
-					},
-					{
-						name: '🤖 Bots',
-						value: `${bots}`,
-						inline: true,
-					},
-					{
-						name: '🟢 Online',
-						value: `${online}`,
-						inline: true,
-					},
-					{
-						name: '⚫ Offline',
-						value: `${offline}`,
-						inline: true,
-					},
-					{
-						name: '🟡 Idle',
-						value: `${idle}`,
-						inline: true,
-					},
-					{
-						name: '🔴 Do Not Disturb',
-						value: `${dnd}`,
-						inline: true,
-					},
-					{
-						name: `📈 Joined Last ${days} Day${days === 1 ? '' : 's'}`,
-						value: `${recentJoins}`,
-						inline: true,
-					},
-					{
-						name: '📉 Left (tracking unavailable)',
-						value: 'Member leave tracking not available',
-						inline: true,
-					}
-				)
-				.setTimestamp()
-				.setFooter({ text: 'Member statistics updated' });
+			// Build the container
+			const container = moduleContainer('welcome');
+			const iconUrl = guild.iconURL({ size: 256 });
 
-			await interaction.editReply({ embeds: [embed] });
+			// Add title with guild icon
+			if (iconUrl) {
+				addSectionWithThumbnail(container, `### ${guild.name} Member Statistics`, iconUrl);
+			} else {
+				addText(container, `### ${guild.name} Member Statistics`);
+			}
+
+			addSeparator(container, 'small');
+
+			addFields(container, [
+				{
+					name: '📊 Total Members',
+					value: `${members.size}`,
+					inline: true,
+				},
+				{
+					name: '👤 Humans',
+					value: `${humans}`,
+					inline: true,
+				},
+				{
+					name: '🤖 Bots',
+					value: `${bots}`,
+					inline: true,
+				},
+				{
+					name: '🟢 Online',
+					value: `${online}`,
+					inline: true,
+				},
+				{
+					name: '⚫ Offline',
+					value: `${offline}`,
+					inline: true,
+				},
+				{
+					name: '🟡 Idle',
+					value: `${idle}`,
+					inline: true,
+				},
+				{
+					name: '🔴 Do Not Disturb',
+					value: `${dnd}`,
+					inline: true,
+				},
+				{
+					name: `📈 Joined Last ${days} Day${days === 1 ? '' : 's'}`,
+					value: `${recentJoins}`,
+					inline: true,
+				},
+				{
+					name: '📉 Left (tracking unavailable)',
+					value: 'Member leave tracking not available',
+					inline: true,
+				}
+			]);
+
+			addFooter(container, 'Member statistics updated');
+
+			await interaction.editReply(v2Payload([container]));
 		} catch (error) {
 			console.error('Error in membercount command:', error);
 			await interaction.editReply(

@@ -195,11 +195,11 @@ async function sendStickyMessage(
   helper: StickyMessagesHelper
 ): Promise<void> {
   try {
-    const embed = helper.buildEmbed(sticky.embedData);
+    const embedData = helper.buildEmbedData(sticky.embedData);
 
     const sentMessage = await (channel as any).send({
       content: sticky.content || undefined,
-      embeds: embed ? [embed] : [],
+      embeds: embedData ? [embedData] : [],
     });
 
     // Update the current message ID and reset counter

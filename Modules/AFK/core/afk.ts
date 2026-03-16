@@ -1,7 +1,6 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
@@ -10,6 +9,7 @@ import {
   isAFKBanned,
   getAFK,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'afk',
@@ -73,18 +73,17 @@ const command: BotCommand = {
       // Set AFK in database — use sentinel "__NONE__" when no nickname, so we know to restore to null
       await setAFK(interaction.guildId!, interaction.user.id, message, originalNickname ?? '__NONE__');
 
-      const embed = new EmbedBuilder()
-        .setColor('#FFA500')
-        .setTitle('✅ AFK Status Set')
-        .setDescription(message)
-        .addFields({
+      const container = moduleContainer('afk');
+      addText(container, `### ✅ AFK Status Set\n${message}`);
+      addFields(container, [
+        {
           name: 'Status',
           value: 'You are now AFK. You will be notified when you return.',
           inline: false,
-        })
-        .setTimestamp();
+        },
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in /afk command:', error);
       await interaction.editReply({

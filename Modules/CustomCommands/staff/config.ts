@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('CustomCommands');
 
 export const configCommand: BotCommand = {
@@ -79,22 +80,17 @@ export const configCommand: BotCommand = {
         const config = await helper.getGuildConfig(interaction.guildId!);
         const commandCount = (await helper.getGuildCommands(interaction.guildId!)).length;
 
-        const embed = new EmbedBuilder()
-          .setTitle('Custom Commands Configuration')
-          .setColor('#2f3136')
-          .addFields(
-            { name: 'Status', value: config.enabled ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Prefix', value: `\`${config.prefix}\``, inline: true },
-            { name: 'Max Commands', value: String(config.maxCommands), inline: true },
-            { name: 'Slash Commands', value: config.allowSlash ? 'Allowed' : 'Disabled', inline: true },
-            { name: 'Commands Created', value: String(commandCount), inline: true },
-            { name: 'Slots Available', value: String(Math.max(0, config.maxCommands - commandCount)), inline: true }
-          )
-          .setFooter({ text: 'Use /cconfig set to modify these settings' });
+        const container = moduleContainer('custom_commands');
+        addFields(container, [
+          { name: 'Status', value: config.enabled ? 'Enabled' : 'Disabled', inline: true },
+          { name: 'Prefix', value: `\`${config.prefix}\``, inline: true },
+          { name: 'Max Commands', value: String(config.maxCommands), inline: true },
+          { name: 'Slash Commands', value: config.allowSlash ? 'Allowed' : 'Disabled', inline: true },
+          { name: 'Commands Created', value: String(commandCount), inline: true },
+          { name: 'Slots Available', value: String(Math.max(0, config.maxCommands - commandCount)), inline: true }
+        ]);
 
-        await interaction.reply({
-          embeds: [embed]
-        });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'set') {
         const enabled = interaction.options.getBoolean('enabled');
         const prefix = interaction.options.getString('prefix');
@@ -117,29 +113,27 @@ export const configCommand: BotCommand = {
 
         const updated = await helper.updateGuildConfig(interaction.guildId!, updates);
 
-        const embed = new EmbedBuilder()
-          .setTitle('Configuration Updated')
-          .setColor('#2f3136')
-          .addFields(
-            { name: 'Changes Made', value: Object.keys(updates).join(', '), inline: false }
-          );
+        const container = moduleContainer('custom_commands');
+        const fields = [
+          { name: 'Changes Made', value: Object.keys(updates).join(', '), inline: false }
+        ];
 
         if (updates.enabled !== undefined) {
-          embed.addFields({ name: 'Status', value: updates.enabled ? 'Enabled' : 'Disabled', inline: true });
+          fields.push({ name: 'Status', value: updates.enabled ? 'Enabled' : 'Disabled', inline: true });
         }
         if (updates.prefix) {
-          embed.addFields({ name: 'New Prefix', value: `\`${updates.prefix}\``, inline: true });
+          fields.push({ name: 'New Prefix', value: `\`${updates.prefix}\``, inline: true });
         }
         if (updates.maxCommands) {
-          embed.addFields({ name: 'Max Commands', value: String(updates.maxCommands), inline: true });
+          fields.push({ name: 'Max Commands', value: String(updates.maxCommands), inline: true });
         }
         if (updates.allowSlash !== undefined) {
-          embed.addFields({ name: 'Slash Commands', value: updates.allowSlash ? 'Allowed' : 'Disabled', inline: true });
+          fields.push({ name: 'Slash Commands', value: updates.allowSlash ? 'Allowed' : 'Disabled', inline: true });
         }
 
-        await interaction.reply({
-          embeds: [embed]
-        });
+        addFields(container, fields);
+
+        await interaction.reply(v2Payload([container]));
 
         logger.info(`Custom commands config updated in ${interaction.guildId!} by ${interaction.user.id}`);
       }

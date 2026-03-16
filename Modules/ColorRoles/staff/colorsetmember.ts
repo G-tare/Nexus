@@ -1,9 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   AutocompleteInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -11,6 +14,7 @@ import {
   canManageColors,
   hexToInt,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -84,11 +88,10 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(color.hex))
-      .setDescription(`✅ Set **${target.tag}**'s color to **${color.name}** (\`#${color.hex}\`)`);
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(color.hex));
+    addText(container, `✅ Set **${target.tag}**'s color to **${color.name}** (\`#${color.hex}\`)`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

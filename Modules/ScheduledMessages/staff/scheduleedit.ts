@@ -1,13 +1,14 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
 import { isValidCron, buildEmbed, parseSimpleInterval } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -176,16 +177,14 @@ const command: BotCommand = {
         updateParams
       );
 
-      const responseEmbed = new EmbedBuilder()
-        .setColor('#00aa00')
-        .setTitle('Scheduled Message Updated')
-        .addFields(
-          { name: 'Message ID', value: `\`${id}\``, inline: true },
-          { name: 'Updates', value: updates.length.toString(), inline: true }
-        )
-        .setFooter({ text: 'Use /schedulelist to view all scheduled messages' });
+      const container = moduleContainer('scheduled_messages');
+      container.setAccentColor(0x00aa00);
+      addText(container, '### Scheduled Message Updated');
+      addText(container, `**Message ID**\n\`${id}\``);
+      addText(container, `**Updates**\n${updates.length.toString()}`);
+      addFooter(container, 'Use /schedulelist to view all scheduled messages');
 
-      await interaction.editReply({ embeds: [responseEmbed] });
+      await interaction.editReply(v2Payload([container]));
 
       logger.info(`[ScheduledMessages] Edited scheduled message ${id} in guild ${guildId}`);
     } catch (error) {

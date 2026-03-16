@@ -1,7 +1,6 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
@@ -10,6 +9,12 @@ import {
   getStreakLeaderboard,
   LeaderboardEntry,
 } from '../helpers';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('counting-leaderboard')
@@ -69,12 +74,11 @@ const leaderboardCommand: BotCommand = {
       }
 
       if (entries.length === 0) {
-        const emptyEmbed = new EmbedBuilder()
-          .setColor(0x808080)
-          .setTitle(title)
-          .setDescription('No data available yet.');
+        const container = moduleContainer('counting');
+        addText(container, `### ${title}`);
+        addText(container, 'No data available yet.');
 
-        return interaction.reply({ embeds: [emptyEmbed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       // Format leaderboard entries
@@ -99,14 +103,11 @@ const leaderboardCommand: BotCommand = {
         formattedEntries.push(`${medal} **${displayName}** - ${entry.value}`);
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setTitle(title)
-        .setDescription(description)
-        .addFields({ name: 'Ranking', value: formattedEntries.join('\n'), inline: false })
-        .setTimestamp();
+      const container = moduleContainer('counting');
+      addText(container, `### ${title}\n${description}`);
+      addFields(container, [{ name: 'Ranking', value: formattedEntries.join('\n'), inline: false }]);
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('[Counting] Error in /counting-leaderboard:', error);
       return interaction.reply({

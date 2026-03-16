@@ -1,9 +1,9 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, desc, and, gt, sql } from 'drizzle-orm';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorReply, moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { levelFromTotalXp } from '../helpers';
 
 const command: BotCommand = {
@@ -33,12 +33,7 @@ const command: BotCommand = {
       const offset = (page - 1) * pageSize;
 
       if (!guildId) {
-        return interaction.editReply({
-          embeds: [
-            errorEmbed('Error', 'This command can only be used in a server.')
-              .setColor(Colors.Error)
-          ]
-        });
+        return interaction.editReply(errorReply('Error', 'This command can only be used in a server.'));
       }
 
       const db = getDb();
@@ -55,26 +50,15 @@ const command: BotCommand = {
       const totalMembers = countResult?.count || 0;
 
       if (totalMembers === 0) {
-        return interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Info)
-              .setTitle('XP Leaderboard')
-              .setDescription('No members have earned XP yet.')
-              .setTimestamp()
-          ]
-        });
+        const container = moduleContainer('leveling');
+        addText(container, '### XP Leaderboard\nNo members have earned XP yet.');
+        return interaction.editReply(v2Payload([container]));
       }
 
       const totalPages = Math.ceil(totalMembers / pageSize);
 
       if (page > totalPages) {
-        return interaction.editReply({
-          embeds: [
-            errorEmbed('Error', `Page ${page} does not exist. Maximum page is ${totalPages}.`)
-              .setColor(Colors.Error)
-          ]
-        });
+        return interaction.editReply(errorReply('Error', `Page ${page} does not exist. Maximum page is ${totalPages}.`));
       }
 
       // Fetch leaderboard data
@@ -94,18 +78,12 @@ const command: BotCommand = {
         .offset(offset);
 
       if (members.length === 0) {
-        return interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Info)
-              .setTitle('XP Leaderboard')
-              .setDescription('No members on this page.')
-              .setTimestamp()
-          ]
-        });
+        const container = moduleContainer('leveling');
+        addText(container, '### XP Leaderboard\nNo members on this page.');
+        return interaction.editReply(v2Payload([container]));
       }
 
-      // Build leaderboard embed
+      // Build leaderboard container
       const guild = interaction.guild!;
       let description = '';
 
@@ -129,25 +107,14 @@ const command: BotCommand = {
         description += `**#${rankNumber}** ${userDisplay} — Level ${levelInfo.level} • ${totalXp.toLocaleString()} XP\n`;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Leveling)
-        .setTitle(`XP Leaderboard — ${guild.name}`)
-        .setDescription(description)
-        .setFooter({
-          text: `Page ${page}/${totalPages} • ${totalMembers} total ranked members`,
-          iconURL: guild.iconURL() || undefined
-        })
-        .setTimestamp();
+      const container = moduleContainer('leveling');
+      addText(container, `### XP Leaderboard — ${guild.name}\n${description}`);
+      addFooter(container, `Page ${page}/${totalPages} • ${totalMembers} total ranked members`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Levels Command Error]', error);
-      return interaction.editReply({
-        embeds: [
-          errorEmbed('Error', 'An error occurred while fetching the leaderboard.')
-            .setColor(Colors.Error)
-        ]
-      });
+      return interaction.editReply(errorReply('Error', 'An error occurred while fetching the leaderboard.'));
     }
   }
 };

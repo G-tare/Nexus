@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutoRoleRules, CONDITION_LABELS } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -44,16 +45,14 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('🏷️ Your Auto-Assigned Roles')
-      .setDescription(
-        autoRoles.map(r => `• **${r.roleName}** — ${r.condition}`).join('\n'),
-      )
-      .setFooter({ text: `${autoRoles.length} auto-role${autoRoles.length > 1 ? 's' : ''}` })
-      .setTimestamp();
+    const container = moduleContainer('auto_roles');
+    addText(container, '### 🏷️ Your Auto-Assigned Roles');
+    addText(container, autoRoles.map(r => `• **${r.roleName}** — ${r.condition}`).join('\n'));
+    addFooter(container, `${autoRoles.length} auto-role${autoRoles.length > 1 ? 's' : ''}`);
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    const payload = v2Payload([container]);
+    payload.flags = MessageFlags.Ephemeral as any;
+    await interaction.reply(payload);
   },
 };
 

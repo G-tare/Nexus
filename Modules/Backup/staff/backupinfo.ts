@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBackupInfo, formatSize } from '../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -36,34 +37,33 @@ const command: BotCommand = {
     const { backup, summary } = info;
     const createdBy = backup.createdBy === 'auto' ? 'Automatic' : `<@${backup.createdBy}>`;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle(`💾 Backup: ${backup.name}`)
-      .addFields(
-        { name: 'ID', value: `\`${backup.id}\``, inline: true },
-        { name: 'Created By', value: createdBy, inline: true },
-        { name: 'Size', value: formatSize(backup.size), inline: true },
-        { name: 'Roles', value: `${summary.roles}`, inline: true },
-        { name: 'Categories', value: `${summary.categories}`, inline: true },
-        { name: 'Channels', value: `${summary.channels}`, inline: true },
-        { name: 'Emojis', value: `${summary.emojis}`, inline: true },
-        { name: 'Stickers', value: `${summary.stickers ?? 0}`, inline: true },
-        { name: 'Module Configs', value: `${summary.moduleConfigs}`, inline: true },
-      )
-      .setTimestamp(new Date(backup.createdAt))
-      .setFooter({ text: 'Use /backuprestore to restore this backup' });
+    const container = moduleContainer('backup');
+    const fields = [
+      { name: 'ID', value: `\`${backup.id}\``, inline: true },
+      { name: 'Created By', value: createdBy, inline: true },
+      { name: 'Size', value: formatSize(backup.size), inline: true },
+      { name: 'Roles', value: `${summary.roles}`, inline: true },
+      { name: 'Categories', value: `${summary.categories}`, inline: true },
+      { name: 'Channels', value: `${summary.channels}`, inline: true },
+      { name: 'Emojis', value: `${summary.emojis}`, inline: true },
+      { name: 'Stickers', value: `${summary.stickers ?? 0}`, inline: true },
+      { name: 'Module Configs', value: `${summary.moduleConfigs}`, inline: true },
+    ];
 
     // Show bot invite links if any
     if (info.bots && info.bots.length > 0) {
       const botLines = info.bots.map(b => `• **${b.name}** — [Invite](${b.inviteURL})`).slice(0, 20);
-      embed.addFields({
+      fields.push({
         name: `🤖 Bots (${info.bots.length})`,
         value: botLines.join('\n') +
           (info.bots.length > 20 ? `\n...and ${info.bots.length - 20} more` : ''),
+        inline: false
       });
     }
 
-    await interaction.reply({ embeds: [embed] });
+    addFields(container, fields);
+
+    await interaction.reply(v2Payload([container]));
   },
 };
 

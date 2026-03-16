@@ -1,8 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
-  EmbedBuilder,
   PermissionFlagsBits,
-  Colors, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   saveServerPlaylist,
@@ -11,6 +10,7 @@ import {
   deleteServerPlaylist,
 } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, errorContainer, moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   name: 'serverplaylist',
@@ -129,15 +129,10 @@ const command: BotCommand = {
 
           await saveServerPlaylist(guildId, name, queue, interaction.user.id);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Server Playlist Saved')
-            .setDescription(
-              `Saved **${name}** with **${queue.length}** track(s).`
-            )
-            .setFooter({ text: `${playlists.length + 1}/100 playlists` });
+          const container = successContainer('Server Playlist Saved', `Saved **${name}** with **${queue.length}** track(s).`);
+          addFooter(container, `${playlists.length + 1}/100 playlists`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -156,14 +151,9 @@ const command: BotCommand = {
           // TODO: Add tracks to queue
           // await player.queue.add(...playlist.tracks);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Server Playlist Loaded')
-            .setDescription(
-              `Added **${(playlist as any).tracks.length}** track(s) from **${name}** to the queue.`
-            );
+          const container = successContainer('Server Playlist Loaded', `Added **${(playlist as any).tracks.length}** track(s) from **${name}** to the queue.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -187,12 +177,9 @@ const command: BotCommand = {
             return;
           }
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Red)
-            .setTitle('Server Playlist Deleted')
-            .setDescription(`Deleted server playlist **${name}**.`);
+          const container = errorContainer('Server Playlist Deleted', `Deleted server playlist **${name}**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -211,15 +198,11 @@ const command: BotCommand = {
             .map((p, i) => `**${i + 1}.** ${(p as any).name} (${(p as any).tracks.length} tracks)`)
             .join('\n');
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Blue)
-            .setTitle('Server Playlists')
-            .setDescription(list)
-            .setFooter({
-              text: `${playlists.length}/100 playlists`,
-            });
+          const container = moduleContainer('music');
+          addText(container, `### Server Playlists\n${list}`);
+          addFooter(container, `${playlists.length}/100 playlists`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -243,21 +226,11 @@ const command: BotCommand = {
             )
             .join('\n');
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Blue)
-            .setTitle(`${name}`)
-            .setDescription(
-              tracks ||
-                'No tracks in this playlist.' +
-                  ((playlist as any).tracks.length > 20
-                    ? `\n\n+${(playlist as any).tracks.length - 20} more tracks`
-                    : '')
-            )
-            .setFooter({
-              text: `${(playlist as any).tracks.length} total track(s)`,
-            });
+          const container = moduleContainer('music');
+          addText(container, `### ${name}\n${tracks || 'No tracks in this playlist.'}${(playlist as any).tracks.length > 20 ? `\n\n+${(playlist as any).tracks.length - 20} more tracks` : ''}`);
+          addFooter(container, `${(playlist as any).tracks.length} total track(s)`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
       }

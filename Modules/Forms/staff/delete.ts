@@ -1,8 +1,9 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormById, deleteForm } from '../helpers';
+import { errorContainer, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -34,28 +35,21 @@ const command: BotCommand = {
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('⚠️ Confirm Form Deletion')
-        .setColor('#FF0000')
-        .setDescription(`Are you sure you want to delete the form **${form.name}**?\n\nThis action will delete the form and all ${form.responseChannelId ? '(unknown number of)' : '0'} associated responses and cannot be undone.`)
-        .setTimestamp();
+      const container = errorContainer('Confirm Form Deletion', `Are you sure you want to delete the form **${form.name}**?\n\nThis action will delete the form and all ${form.responseChannelId ? '(unknown number of)' : '0'} associated responses and cannot be undone.`);
 
-      const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`confirm_delete_form_${formId}`)
-          .setLabel('Confirm Delete')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId('cancel_form_delete')
-          .setLabel('Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
+      const confirmButton = new ButtonBuilder()
+        .setCustomId(`confirm_delete_form_${formId}`)
+        .setLabel('Confirm Delete')
+        .setStyle(ButtonStyle.Danger);
 
-      await interaction.reply({
-        embeds: [embed],
-        components: [buttons],
-        ephemeral: false,
-      });
+      const cancelButton = new ButtonBuilder()
+        .setCustomId('cancel_form_delete')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary);
+
+      addButtons(container, [confirmButton, cancelButton]);
+
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('[Forms] /formdelete error:', error);
       await interaction.reply({ content: '❌ An error occurred while deleting the form.' });

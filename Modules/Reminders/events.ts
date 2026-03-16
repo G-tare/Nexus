@@ -1,58 +1,73 @@
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { Events } from 'discord.js';
-import { getReminder, fireReminder } from './helpers';
-import { getRedis } from '../../Shared/src/database/connection';
+import { scheduleReminder, ReminderData, convertDbIdToString } from './helpers';
+import { getDb } from '../../Shared/src/database/connection';
+import { reminders } from '../../Shared/src/database/models/schema';
+import { timers } from '../../Shared/src/cache/timerManager';
 
 export const reminderEvents: ModuleEvent[] = [
   { event: Events.ClientReady,
     once: true,
     handler: async (client) => {
-      console.log('[Reminders] Reminder checker started');
+      console.log('[Reminders] Loading pending reminders from Postgres...');
 
-      const redis = getRedis();
+      // Load all pending reminders from Postgres and schedule them with TimerManager
+      await timers.loadFromSource(
+        'reminder',
+        async () => {
+          const db = getDb();
+          const rows = await db.select().from(reminders);
+          return rows.map(row => ({
+            id: convertDbIdToString(row.id),
+            executeAt: row.remindAt,
+          }));
+        },
+        (displayId: string) => {
+          // Build a callback that loads the full reminder and fires it
+          return async () => {
+            const db = getDb();
+            const { eq } = await import('drizzle-orm');
+            const dbId = parseInt(displayId, 10);
 
-      // Check for due reminders every 10 seconds
-      setInterval(async () => {
-        try {
-          const now = Date.now();
+            const [row] = await db.select()
+              .from(reminders)
+              .where(eq(reminders.id, dbId))
+              .limit(1);
 
-          // Get all reminders that are due
-          const dueReminderIds = await redis.zrangebyscore('reminders:pending', 0, now);
+            if (!row) return; // Reminder was cancelled
 
-          for (const reminderId of dueReminderIds) {
-            try {
-              const reminder = await getReminder(redis, reminderId);
-              if (!reminder) {
-                // Reminder was deleted
-                await redis.zrem('reminders:pending', reminderId);
-                continue;
-              }
+            const reminder: ReminderData = {
+              id: convertDbIdToString(row.id),
+              userId: row.userId,
+              guildId: row.guildId || undefined,
+              channelId: row.channelId || undefined,
+              message: row.message,
+              triggerAt: row.remindAt,
+              createdAt: row.createdAt,
+              recurring: row.isRecurring,
+              interval: row.recurringInterval ? row.recurringInterval * 1000 : undefined,
+              dmFallback: row.isDm,
+            };
 
-              // Fire the reminder
-              await fireReminder(client, redis, reminder);
+            const { fireReminder } = await import('./helpers');
+            await fireReminder(client, reminder);
 
-              // If not recurring, remove from pending
-              if (!reminder.recurring) {
-                await redis.zrem('reminders:pending', reminderId);
-                const userId = reminder.userId;
-                await redis.srem(`user:${userId}:reminders`, reminderId);
-                await redis.del(`reminder:${reminderId}`);
-              } else {
-                // Reschedule recurring reminder
-                const nextTrigger = new Date(reminder.triggerAt.getTime() + reminder.interval!);
-                await redis.zadd('reminders:pending', nextTrigger.getTime(), reminderId);
+            if (!reminder.recurring) {
+              await db.delete(reminders).where(eq(reminders.id, dbId));
+            } else if (reminder.interval) {
+              const nextTrigger = new Date(reminder.triggerAt.getTime() + reminder.interval);
+              await db.update(reminders)
+                .set({ remindAt: nextTrigger })
+                .where(eq(reminders.id, dbId));
 
-                // Update the reminder's triggerAt in Redis
-                await redis.hset(`reminder:${reminderId}`, 'triggerAt', nextTrigger.toISOString());
-              }
-            } catch (error) {
-              console.error(`[Reminders] Error firing reminder ${reminderId}:`, error);
+              const updatedReminder = { ...reminder, triggerAt: nextTrigger };
+              scheduleReminder(client, updatedReminder);
             }
-          }
-        } catch (error) {
-          console.error('[Reminders] Error in reminder checker:', error);
+          };
         }
-      }, 10000); // 10 second interval
+      );
+
+      console.log(`[Reminders] Loaded ${timers.activeCount()} timers`);
     }
   }
 ];

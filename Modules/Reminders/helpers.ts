@@ -1,25 +1,30 @@
-import { EmbedBuilder, APIEmbedField, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { ButtonBuilder, ButtonStyle } from 'discord.js';
+import { moduleContainer, addText, addFields, addButtons, v2Payload } from '../../Shared/src/utils/componentsV2';
+import { getDb } from '../../Shared/src/database/connection';
+import { reminders } from '../../Shared/src/database/models/schema';
+import { timers } from '../../Shared/src/cache/timerManager';
+import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 
 export interface ReminderData {
-  id: string;
+  id: string; // User-facing ID (converted from DB serial number)
   userId: string;
   guildId?: string;
   channelId?: string;
   message: string;
-  triggerAt: Date;
+  triggerAt: Date; // Maps to DB remindAt column
   createdAt: Date;
-  recurring: boolean;
-  interval?: number;
-  snoozedFrom?: string;
-  dmFallback: boolean;
+  recurring: boolean; // Maps to DB isRecurring column
+  interval?: number; // In milliseconds; maps to DB recurringInterval (in seconds)
+  dmFallback: boolean; // Maps to DB isDm column
 }
 
 /**
- * Generate a short random ID (6 chars)
+ * Convert numeric DB ID to string for user-facing display.
+ * This is a no-op but makes the intent clear.
  */
-export function generateReminderId(): string {
-  return crypto.randomBytes(3).toString('hex');
+export function convertDbIdToString(id: number): string {
+  return String(id);
 }
 
 /**
@@ -71,119 +76,171 @@ export function formatDuration(ms: number): string {
 }
 
 /**
- * Create a reminder and store in Redis
+ * Create a reminder and store in Postgres + schedule with TimerManager.
+ * The `client` parameter is needed to schedule the fire callback.
+ * Note: The `data.id` field is ignored; the DB generates the ID automatically.
  */
-export async function createReminder(redis: any, data: ReminderData): Promise<ReminderData> {
-  const reminderId = data.id || generateReminderId();
-  const reminderKey = `reminder:${reminderId}`;
+export async function createReminder(client: any, data: ReminderData): Promise<ReminderData> {
+  const db = getDb();
+  const intervalSeconds = data.interval ? Math.floor(data.interval / 1000) : null;
 
-  // Store reminder details in hash
-  await redis.hset(reminderKey, {
-    id: reminderId,
+  // Store in Postgres (id is auto-generated serial)
+  const result = await db.insert(reminders).values({
     userId: data.userId,
-    guildId: data.guildId || '',
-    channelId: data.channelId || '',
+    guildId: data.guildId || null,
+    channelId: data.channelId || null,
     message: data.message,
-    triggerAt: data.triggerAt.toISOString(),
-    createdAt: data.createdAt.toISOString(),
-    recurring: data.recurring ? '1' : '0',
-    interval: data.interval?.toString() || '',
-    snoozedFrom: data.snoozedFrom || '',
-    dmFallback: data.dmFallback ? '1' : '0',
-  });
+    remindAt: data.triggerAt,
+    createdAt: data.createdAt,
+    isRecurring: data.recurring,
+    recurringInterval: intervalSeconds,
+    isDm: data.dmFallback,
+    isSent: false,
+  }).returning({ id: reminders.id });
 
-  // Add to sorted set for easy retrieval of due reminders
-  await redis.zadd('reminders:pending', data.triggerAt.getTime(), reminderId);
+  // The DB returns the generated ID
+  const dbId = result[0]?.id;
+  if (!dbId) throw new Error('Failed to create reminder: no ID returned');
 
-  // Track user's reminders
-  await redis.sadd(`user:${data.userId}:reminders`, reminderId);
+  const displayId = convertDbIdToString(dbId);
+  const reminder = { ...data, id: displayId };
 
-  // Set TTL on reminder key (30 days)
-  await redis.expire(reminderKey, 30 * 24 * 60 * 60);
+  // Schedule with TimerManager
+  scheduleReminder(client, reminder);
 
-  return { ...data, id: reminderId };
+  return reminder;
 }
 
 /**
- * Get a single reminder from Redis
+ * Schedule a reminder to fire at its triggerAt time.
+ * The reminder.id is a string representation of the numeric DB ID.
  */
-export async function getReminder(redis: any, reminderId: string): Promise<ReminderData | null> {
-  const data = await redis.hgetall(`reminder:${reminderId}`);
+export function scheduleReminder(client: any, reminder: ReminderData): void {
+  const timerId = `reminder:${reminder.id}`;
+  const dbId = parseInt(reminder.id, 10);
 
-  if (!data || !data.id) return null;
+  timers.schedule(timerId, reminder.triggerAt, async () => {
+    try {
+      await fireReminder(client, reminder);
+
+      const db = getDb();
+
+      if (!reminder.recurring) {
+        // Non-recurring: delete from Postgres
+        await db.delete(reminders).where(eq(reminders.id, dbId));
+      } else if (reminder.interval) {
+        // Recurring: reschedule
+        const nextTrigger = new Date(reminder.triggerAt.getTime() + reminder.interval);
+        const intervalSeconds = Math.floor(reminder.interval / 1000);
+
+        await db.update(reminders)
+          .set({ remindAt: nextTrigger })
+          .where(eq(reminders.id, dbId));
+
+        // Schedule next occurrence
+        const updatedReminder = { ...reminder, triggerAt: nextTrigger };
+        scheduleReminder(client, updatedReminder);
+      }
+    } catch (error) {
+      console.error(`[Reminders] Error firing reminder ${reminder.id}:`, error);
+    }
+  });
+}
+
+/**
+ * Get a single reminder from Postgres by display ID.
+ * The display ID is the string representation of the numeric DB ID.
+ */
+export async function getReminder(displayId: string): Promise<ReminderData | null> {
+  const db = getDb();
+  const dbId = parseInt(displayId, 10);
+
+  if (isNaN(dbId)) return null;
+
+  const [row] = await db.select()
+    .from(reminders)
+    .where(eq(reminders.id, dbId))
+    .limit(1);
+
+  if (!row) return null;
 
   return {
-    id: data.id,
-    userId: data.userId,
-    guildId: data.guildId || undefined,
-    channelId: data.channelId || undefined,
-    message: data.message,
-    triggerAt: new Date(data.triggerAt),
-    createdAt: new Date(data.createdAt),
-    recurring: data.recurring === '1',
-    interval: data.interval ? parseInt(data.interval, 10) : undefined,
-    snoozedFrom: data.snoozedFrom || undefined,
-    dmFallback: data.dmFallback === '1',
+    id: convertDbIdToString(row.id),
+    userId: row.userId,
+    guildId: row.guildId || undefined,
+    channelId: row.channelId || undefined,
+    message: row.message,
+    triggerAt: row.remindAt,
+    createdAt: row.createdAt,
+    recurring: row.isRecurring,
+    interval: row.recurringInterval ? row.recurringInterval * 1000 : undefined,
+    dmFallback: row.isDm,
   };
 }
 
 /**
- * Get all reminders for a user
+ * Get all reminders for a user.
  */
-export async function getUserReminders(redis: any, userId: string): Promise<ReminderData[]> {
-  const reminderIds = await redis.smembers(`user:${userId}:reminders`);
-  const reminders: ReminderData[] = [];
+export async function getUserReminders(userId: string): Promise<ReminderData[]> {
+  const db = getDb();
+  const rows = await db.select()
+    .from(reminders)
+    .where(eq(reminders.userId, userId));
 
-  for (const id of reminderIds) {
-    const reminder = await getReminder(redis, id);
-    if (reminder) {
-      reminders.push(reminder);
-    }
-  }
-
-  return reminders.sort((a, b) => a.triggerAt.getTime() - b.triggerAt.getTime());
+  return rows.map(row => ({
+    id: convertDbIdToString(row.id),
+    userId: row.userId,
+    guildId: row.guildId || undefined,
+    channelId: row.channelId || undefined,
+    message: row.message,
+    triggerAt: row.remindAt,
+    createdAt: row.createdAt,
+    recurring: row.isRecurring,
+    interval: row.recurringInterval ? row.recurringInterval * 1000 : undefined,
+    dmFallback: row.isDm,
+  })).sort((a, b) => a.triggerAt.getTime() - b.triggerAt.getTime());
 }
 
 /**
- * Cancel a reminder
+ * Cancel a reminder.
  */
-export async function cancelReminder(redis: any, reminderId: string, userId: string): Promise<boolean> {
-  const reminder = await getReminder(redis, reminderId);
-
+export async function cancelReminder(reminderId: string, userId: string): Promise<boolean> {
+  const reminder = await getReminder(reminderId);
   if (!reminder) return false;
   if (reminder.userId !== userId) return false;
 
-  // Remove from pending sorted set
-  await redis.zrem('reminders:pending', reminderId);
+  const db = getDb();
+  const dbId = parseInt(reminderId, 10);
 
-  // Remove from user's reminders
-  await redis.srem(`user:${userId}:reminders`, reminderId);
+  if (isNaN(dbId)) return false;
 
-  // Delete reminder hash
-  await redis.del(`reminder:${reminderId}`);
+  // Remove from Postgres
+  await db.delete(reminders).where(eq(reminders.id, dbId));
+
+  // Cancel scheduled timer
+  timers.cancel(`reminder:${reminderId}`);
 
   return true;
 }
 
 /**
- * Snooze a reminder by creating a new one with updated triggerAt
+ * Snooze a reminder by creating a new one with updated triggerAt.
  */
 export async function snoozeReminder(
-  redis: any,
+  client: any,
   reminderId: string,
   userId: string,
   duration: number
 ): Promise<ReminderData | null> {
-  const original = await getReminder(redis, reminderId);
-
+  const original = await getReminder(reminderId);
   if (!original || original.userId !== userId) return null;
 
   // Cancel the original
-  await cancelReminder(redis, reminderId, userId);
+  await cancelReminder(reminderId, userId);
 
-  // Create new reminder
+  // Create new reminder (note: id field is ignored by createReminder)
   const newReminder: ReminderData = {
-    id: generateReminderId(),
+    id: '', // Will be ignored; DB generates the ID
     userId: original.userId,
     guildId: original.guildId,
     channelId: original.channelId,
@@ -192,80 +249,76 @@ export async function snoozeReminder(
     createdAt: new Date(),
     recurring: original.recurring,
     interval: original.interval,
-    snoozedFrom: reminderId,
     dmFallback: original.dmFallback,
   };
 
-  return createReminder(redis, newReminder);
+  return createReminder(client, newReminder);
 }
 
 /**
- * Build a reminder embed
+ * Build a reminder container
  */
-export function buildReminderEmbed(reminder: ReminderData, userId?: string): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle('⏰ Reminder')
-    .setDescription(reminder.message || '*(no message)*')
-    .addFields(
-      {
-        name: 'When',
-        value: `<t:${Math.floor(reminder.triggerAt.getTime() / 1000)}:R>`,
-        inline: true,
-      },
-      {
-        name: 'ID',
-        value: `\`${reminder.id}\``,
-        inline: true,
-      }
-    )
-    .setTimestamp();
+export function buildReminderContainer(reminder: ReminderData, userId?: string) {
+  const container = moduleContainer('reminders');
+  addText(container, `### ⏰ Reminder\n${reminder.message || '*(no message)*'}`);
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
+      name: 'When',
+      value: `<t:${Math.floor(reminder.triggerAt.getTime() / 1000)}:R>`,
+      inline: true,
+    },
+    {
+      name: 'ID',
+      value: `\`${reminder.id}\``,
+      inline: true,
+    }
+  ];
 
   if (reminder.recurring && reminder.interval) {
-    embed.addFields({
+    fields.push({
       name: 'Repeats',
       value: `Every ${formatDuration(reminder.interval)}`,
       inline: true,
     });
   }
 
-  return embed;
+  addFields(container, fields);
+  return container;
 }
 
 /**
- * Build a list embed for all user reminders
+ * Build a list container for all user reminders
  */
-export function buildReminderListEmbed(reminders: ReminderData[]): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle('⏰ Your Reminders')
-    .setTimestamp();
+export function buildReminderListContainer(reminderList: ReminderData[]) {
+  const container = moduleContainer('reminders');
+  addText(container, '### ⏰ Your Reminders');
 
-  if (reminders.length === 0) {
-    embed.setDescription('You have no active reminders.');
-    return embed;
+  if (reminderList.length === 0) {
+    addText(container, 'You have no active reminders.');
+    return container;
   }
 
-  const fields: APIEmbedField[] = reminders.map((r) => ({
+  const fields = reminderList.slice(0, 25).map((r) => ({
     name: `${r.id} • ${r.message.substring(0, 40)}${r.message.length > 40 ? '...' : ''}`,
     value: `Fires <t:${Math.floor(r.triggerAt.getTime() / 1000)}:R>${r.recurring ? ` • Repeats every ${formatDuration(r.interval!)}` : ''}`,
     inline: false,
   }));
 
-  embed.addFields(fields.slice(0, 25));
+  addFields(container, fields);
 
-  if (reminders.length > 25) {
-    embed.setFooter({ text: `Showing 25 of ${reminders.length} reminders` });
+  if (reminderList.length > 25) {
+    addText(container, `-# Showing 25 of ${reminderList.length} reminders`);
   }
 
-  return embed;
+  return container;
 }
 
 /**
- * Build snooze action row
+ * Build snooze buttons for a reminder
  */
-export function buildSnoozeRow(reminderId: string): ActionRowBuilder<ButtonBuilder> {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+export function buildSnoozeButtons(reminderId: string): ButtonBuilder[] {
+  return [
     new ButtonBuilder()
       .setCustomId(`snooze_10m_${reminderId}`)
       .setLabel('Snooze 10m')
@@ -282,22 +335,23 @@ export function buildSnoozeRow(reminderId: string): ActionRowBuilder<ButtonBuild
       .setCustomId(`snooze_dismiss_${reminderId}`)
       .setLabel('Dismiss')
       .setStyle(ButtonStyle.Danger)
-  );
+  ];
 }
 
 /**
  * Fire a reminder - send DM and channel message if possible
  */
-export async function fireReminder(client: any, redis: any, reminder: ReminderData): Promise<void> {
+export async function fireReminder(client: any, reminder: ReminderData): Promise<void> {
   const user = await client.users.fetch(reminder.userId).catch(() => null);
 
   if (!user) {
-    // User not found or bot can't access them
     return;
   }
 
-  const embed = buildReminderEmbed(reminder, reminder.userId);
-  const components = [buildSnoozeRow(reminder.id)];
+  const container = buildReminderContainer(reminder, reminder.userId);
+  const buttons = buildSnoozeButtons(reminder.id);
+  addButtons(container, buttons);
+  const payload = v2Payload([container]);
 
   let sentToChannel = false;
 
@@ -310,8 +364,7 @@ export async function fireReminder(client: any, redis: any, reminder: ReminderDa
         if (channel && channel.isTextBased()) {
           await (channel as any).send({
             content: `<@${reminder.userId}>`,
-            embeds: [embed],
-            components,
+            ...payload,
           });
           sentToChannel = true;
         }
@@ -324,12 +377,8 @@ export async function fireReminder(client: any, redis: any, reminder: ReminderDa
   // Always try to DM the user
   try {
     const dmChannel = await user.createDM();
-    await dmChannel.send({
-      embeds: [embed],
-      components,
-    });
+    await dmChannel.send(payload);
   } catch (error) {
-    // DM failed - user might have DMs closed
     if (!sentToChannel) {
       console.warn(`[Reminders] Could not DM user ${reminder.userId} and channel message failed`);
     }

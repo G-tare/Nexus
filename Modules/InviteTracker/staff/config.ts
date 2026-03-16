@@ -2,17 +2,15 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ColorResolvable,
   ChannelSelectMenuBuilder,
   ActionRowBuilder,
 } from 'discord.js';
+import { moduleContainer, addFields, v2Payload, successContainer } from '../../../Shared/src/utils/componentsV2';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getInviteConfig, InviteConfig } from '../helpers';
-import { getDb, getPool, getRedis } from '../../../Shared/src/database/connection';
-const db = getDb();
+import { getPool } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 const pool = getPool();
-const redis = getRedis();
 
 const command: BotCommand = {
   module: 'invitetracker',
@@ -106,55 +104,52 @@ const command: BotCommand = {
 
     try {
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2' as ColorResolvable)
-          .setTitle('Invite Tracker Configuration')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-            {
-              name: 'Track Joins',
-              value: config.trackJoins ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Track Leaves',
-              value: config.trackLeaves ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Track Fakes',
-              value: config.trackFakes ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Fake Account Age (Days)',
-              value: config.fakeAccountAgeDays.toString(),
-              inline: true,
-            },
-            {
-              name: 'Fake Leave Threshold (Hours)',
-              value: config.fakeLeaveHours.toString(),
-              inline: true,
-            },
-            {
-              name: 'Log Channel',
-              value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
-              inline: true,
-            },
-            {
-              name: 'Announce Joins',
-              value: config.announceJoins ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Announce Channel',
-              value: config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set',
-              inline: true,
-            }
-          )
-          .setFooter({ text: interaction.guild!.name });
+        const container = moduleContainer('invite_tracker');
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+          {
+            name: 'Track Joins',
+            value: config.trackJoins ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Track Leaves',
+            value: config.trackLeaves ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Track Fakes',
+            value: config.trackFakes ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Fake Account Age (Days)',
+            value: config.fakeAccountAgeDays.toString(),
+            inline: true,
+          },
+          {
+            name: 'Fake Leave Threshold (Hours)',
+            value: config.fakeLeaveHours.toString(),
+            inline: true,
+          },
+          {
+            name: 'Log Channel',
+            value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
+            inline: true,
+          },
+          {
+            name: 'Announce Joins',
+            value: config.announceJoins ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Announce Channel',
+            value: config.announceChannelId ? `<#${config.announceChannelId}>` : 'Not set',
+            inline: true,
+          }
+        ]);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
 
       // Update config
@@ -192,15 +187,9 @@ const command: BotCommand = {
       );
 
       // Clear cache
-      await redis.del(`inviteconfig:${interaction.guildId!}`);
+      cache.del(`inviteconfig:${interaction.guildId!}`);
 
-      const embed = new EmbedBuilder()
-        .setColor('#57F287' as ColorResolvable)
-        .setTitle('✅ Configuration Updated')
-        .setDescription(`The invite tracker has been configured.`)
-        .setFooter({ text: interaction.guild!.name });
-
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([successContainer('Configuration Updated', 'The invite tracker has been configured.')]));
     } catch (error) {
       console.error('Error in /invite-config command:', error);
       return interaction.editReply({

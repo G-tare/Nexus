@@ -1,7 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -12,6 +12,7 @@ import {
   emitGameLost,
   getFunConfig,
 } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '🔔', '⭐', '💎', '7️⃣'];
@@ -81,13 +82,11 @@ export default {
     }
 
     // Spinning animation
-    const embed = new EmbedBuilder()
-      .setTitle('🎰 Slot Machine')
-      .setDescription('Spinning...')
-      .setColor(0x3498db);
+    const container = moduleContainer('fun');
+    addText(container, '### 🎰 Slot Machine\nSpinning...');
 
     const message = await interaction.reply({
-      embeds: [embed],
+      ...v2Payload([container]),
       fetchReply: true,
     });
 
@@ -97,8 +96,9 @@ export default {
     let reel2 = spinReel();
     let reel3 = spinReel();
 
-    embed.setDescription(`${reel1} ${reel2} ${reel3}\n\nSpinning...`);
-    await message.edit({ embeds: [embed] });
+    const container1 = moduleContainer('fun');
+    addText(container1, `### 🎰 Slot Machine\n${reel1} ${reel2} ${reel3}\n\nSpinning...`);
+    await message.edit(v2Payload([container1]));
 
     // Spin 2
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -106,8 +106,9 @@ export default {
     reel2 = spinReel();
     reel3 = spinReel();
 
-    embed.setDescription(`${reel1} ${reel2} ${reel3}\n\nSpinning...`);
-    await message.edit({ embeds: [embed] });
+    const container2 = moduleContainer('fun');
+    addText(container2, `### 🎰 Slot Machine\n${reel1} ${reel2} ${reel3}\n\nSpinning...`);
+    await message.edit(v2Payload([container2]));
 
     // Spin 3 (final)
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -117,31 +118,22 @@ export default {
 
     const multiplier = getPayoutMultiplier(reel1, reel2, reel3);
 
-    embed.setDescription(`${reel1} ${reel2} ${reel3}`);
+    const containerFinal = moduleContainer('fun');
 
     if (multiplier > 0) {
       const winnings = bet * multiplier;
       await awardWinnings(interaction.guildId!, interaction.user.id, winnings);
       emitGameWon(interaction.guildId!, interaction.user.id, 'slots', bet, winnings);
 
-      embed
-        .setColor(0x00ff00)
-        .setTitle('✅ You Won!')
-        .addFields({
-          name: 'Payout',
-          value: `${multiplier}x = +${winnings}`,
-          inline: false,
-        });
+      addText(containerFinal, `### ✅ You Won!\n${reel1} ${reel2} ${reel3}`);
+      addFields(containerFinal, [{ name: 'Payout', value: `${multiplier}x = +${winnings}`, inline: false }]);
     } else {
       emitGameLost(interaction.guildId!, interaction.user.id, 'slots', bet);
 
-      embed
-        .setColor(0xff0000)
-        .setTitle('❌ You Lost!')
-        .setDescription(`${reel1} ${reel2} ${reel3}\n\nBetter luck next time!`);
+      addText(containerFinal, `### ❌ You Lost!\n${reel1} ${reel2} ${reel3}\n\nBetter luck next time!`);
     }
 
-    await message.edit({ embeds: [embed] });
+    await message.edit(v2Payload([containerFinal]));
     await setCooldown(interaction.guildId!, interaction.user.id, 'slots', 3);
   },
   category: 'fun',

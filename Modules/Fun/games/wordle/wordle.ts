@@ -1,14 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  ModalActionRowComponentBuilder,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const WORD_LIST = [
@@ -123,13 +119,11 @@ export default {
 
       activeGames.set(interaction.user.id, game);
 
-      const embed = new EmbedBuilder()
-        .setTitle('🎮 Wordle')
-        .setDescription(getGameDisplay(game, interaction.user.id));
+      const container = moduleContainer('fun');
+      addText(container, '### 🎮 Wordle');
+      addText(container, getGameDisplay(game, interaction.user.id));
 
-      await interaction.reply({
-        embeds: [embed],
-      });
+      await interaction.reply(v2Payload([container]));
 
       await setCooldown(interaction.guildId!, interaction.user.id, 'wordle', 3);
     } else if (subcommand === 'guess') {
@@ -168,25 +162,15 @@ export default {
         game.won = false;
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('🎮 Wordle')
-        .setDescription(getGameDisplay(game, interaction.user.id));
+      const container = moduleContainer('fun');
+      addText(container, '### 🎮 Wordle');
+      addText(container, getGameDisplay(game, interaction.user.id));
 
       if (game.gameOver) {
-        if (game.won) {
-          embed.setColor(0x00ff00);
-        } else {
-          embed.setColor(0xff0000);
-        }
-
         activeGames.delete(interaction.user.id);
-      } else {
-        embed.setColor(0x3498db);
       }
 
-      await interaction.reply({
-        embeds: [embed],
-      });
+      await interaction.reply(v2Payload([container]));
     }
   },
   category: 'fun',

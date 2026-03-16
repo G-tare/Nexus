@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -12,6 +15,7 @@ import {
   getColorConfig,
   hexToInt,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -107,12 +111,10 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(color.hex))
-      .setDescription(`🎨 Your color has been set to **${color.name}** (\`#${color.hex}\`)`)
-      .setFooter({ text: 'Use /colorremove to remove your color' });
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(color.hex));
+    addText(container, `🎨 Your color has been set to **${color.name}** (\`#${color.hex}\`)`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
 
     // Auto-delete if configured
     if (config.deleteResponses) {

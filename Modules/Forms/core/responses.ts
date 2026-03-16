@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormById, getFormResponses } from '../helpers';
+import { moduleContainer, addText, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -56,28 +57,24 @@ const command: BotCommand = {
 
       const totalPages = Math.ceil(total / limit);
 
-      const embed = new EmbedBuilder()
-        .setTitle(`${form.name} - Responses`)
-        .setColor('#5865F2')
-        .setDescription(
-          responses
-            .map(
-              (r, index) =>
-                `**Response ${offset + index + 1}**\n` +
-                `User: <@${r.userId}>\n` +
-                `Status: ${r.status}\n` +
-                `Submitted: <t:${Math.floor(r.submittedAt.getTime() / 1000)}:f>\n` +
-                `Answers: ${JSON.stringify(r.answers, null, 2).substring(0, 200)}...`
-            )
-            .join('\n\n')
+      const container = moduleContainer('forms');
+      const description = responses
+        .map(
+          (r, index) =>
+            `**Response ${offset + index + 1}**\n` +
+            `User: <@${r.userId}>\n` +
+            `Status: ${r.status}\n` +
+            `Submitted: <t:${Math.floor(r.submittedAt.getTime() / 1000)}:f>\n` +
+            `Answers: ${JSON.stringify(r.answers, null, 2).substring(0, 200)}...`
         )
-        .setFooter({ text: `Page ${page}/${totalPages} - Total responses: ${total}` })
-        .setTimestamp();
+        .join('\n\n');
 
-      const buttons = new ActionRowBuilder<ButtonBuilder>();
+      addText(container, `### ${form.name} - Responses\n${description}\n\n-# Page ${page}/${totalPages} - Total responses: ${total}`);
+
+      const buttonList: ButtonBuilder[] = [];
 
       if (page > 1) {
-        buttons.addComponents(
+        buttonList.push(
           new ButtonBuilder()
             .setCustomId(`formresponses_${formId}_${page - 1}`)
             .setLabel('← Previous')
@@ -86,7 +83,7 @@ const command: BotCommand = {
       }
 
       if (page < totalPages) {
-        buttons.addComponents(
+        buttonList.push(
           new ButtonBuilder()
             .setCustomId(`formresponses_${formId}_${page + 1}`)
             .setLabel('Next →')
@@ -94,12 +91,11 @@ const command: BotCommand = {
         );
       }
 
-      const components = buttons.components.length > 0 ? [buttons] : [];
+      if (buttonList.length > 0) {
+        addButtons(container, buttonList);
+      }
 
-      await interaction.editReply({
-        embeds: [embed],
-        components,
-      });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[Forms] /formresponses error:', error);
       await interaction.editReply({ content: '❌ An error occurred while fetching responses.' });

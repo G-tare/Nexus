@@ -2,7 +2,7 @@ import { GuildMember, PermissionsBitField, PermissionResolvable, PermissionFlags
 import { getDb } from '../database/connection';
 import { commandPermissions } from '../database/models/schema';
 import { eq, and } from 'drizzle-orm';
-import { getRedis } from '../database/connection';
+import { cache } from '../cache/cacheManager';
 import { createModuleLogger } from '../utils/logger';
 import { config } from '../config';
 
@@ -149,21 +149,14 @@ export class PermissionManager {
   }
 
   /**
-   * Get permission rules for a command in a guild, with Redis caching.
+   * Get permission rules for a command in a guild, with in-memory caching.
    */
   private async getPermissionRules(guildId: string, commandPath: string): Promise<PermissionRule[]> {
-    const redis = getRedis();
     const cacheKey = `perms:${guildId}:${commandPath}`;
 
-    // Try cache
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch {
-      // Redis failure, fall through to DB
-    }
+    // Try in-memory cache
+    const cached = cache.get<PermissionRule[]>(cacheKey);
+    if (cached !== null) return cached;
 
     // Query DB
     const db = getDb();
@@ -182,12 +175,8 @@ export class PermissionManager {
       allowed: row.allowed,
     }));
 
-    // Cache
-    try {
-      await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(rules));
-    } catch {
-      // Ignore cache write failures
-    }
+    // Cache in memory
+    cache.set(cacheKey, rules, CACHE_TTL);
 
     return rules;
   }
@@ -221,13 +210,8 @@ export class PermissionManager {
       allowed,
     });
 
-    // Invalidate cache
-    const redis = getRedis();
-    try {
-      await redis.del(`perms:${guildId}:${commandPath}`);
-    } catch {
-      // Ignore
-    }
+    // Invalidate in-memory cache
+    cache.del(`perms:${guildId}:${commandPath}`);
 
     logger.info('Permission updated', { guildId, commandPath, targetType, targetId, allowed });
   }
@@ -250,13 +234,8 @@ export class PermissionManager {
       )
     );
 
-    // Invalidate cache
-    const redis = getRedis();
-    try {
-      await redis.del(`perms:${guildId}:${commandPath}`);
-    } catch {
-      // Ignore
-    }
+    // Invalidate in-memory cache
+    cache.del(`perms:${guildId}:${commandPath}`);
   }
 
   /**
@@ -285,17 +264,10 @@ export class PermissionManager {
 
   /**
    * Clear all cached permissions for a guild (call after bulk updates).
+   * Uses deleteByPrefix instead of redis.keys() — instant, free.
    */
   async clearGuildCache(guildId: string): Promise<void> {
-    const redis = getRedis();
-    try {
-      const keys = await redis.keys(`perms:${guildId}:*`);
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-    } catch {
-      // Ignore
-    }
+    cache.deleteByPrefix(`perms:${guildId}:`);
   }
 }
 

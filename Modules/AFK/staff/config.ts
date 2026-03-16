@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAFKConfig, setAFKConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'afk',
@@ -99,49 +99,47 @@ const command: BotCommand = {
       const config = await getAFKConfig(interaction.guildId!);
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2')
-          .setTitle('AFK Module Configuration')
-          .addFields(
-            {
-              name: 'Enabled',
-              value: config.enabled ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Max Message Length',
-              value: `${config.maxMessageLength} characters`,
-              inline: true,
-            },
-            {
-              name: 'DM Pings on Return',
-              value: config.dmPingsOnReturn ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Max Pings to Track',
-              value: `${config.maxPingsToTrack}`,
-              inline: true,
-            },
-            {
-              name: 'Auto-Remove on Message',
-              value: config.autoRemoveOnMessage ? '✅ Yes' : '❌ No',
-              inline: true,
-            },
-            {
-              name: 'Log Channel',
-              value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
-              inline: true,
-            },
-            {
-              name: 'Banned Users',
-              value: config.bannedUsers.length > 0 ? `${config.bannedUsers.length} users` : 'None',
-              inline: false,
-            }
-          )
-          .setTimestamp();
+        const container = moduleContainer('afk');
+        addText(container, '### AFK Module Configuration');
+        addFields(container, [
+          {
+            name: 'Enabled',
+            value: config.enabled ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Max Message Length',
+            value: `${config.maxMessageLength} characters`,
+            inline: true,
+          },
+          {
+            name: 'DM Pings on Return',
+            value: config.dmPingsOnReturn ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Max Pings to Track',
+            value: `${config.maxPingsToTrack}`,
+            inline: true,
+          },
+          {
+            name: 'Auto-Remove on Message',
+            value: config.autoRemoveOnMessage ? '✅ Yes' : '❌ No',
+            inline: true,
+          },
+          {
+            name: 'Log Channel',
+            value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
+            inline: true,
+          },
+          {
+            name: 'Banned Users',
+            value: config.bannedUsers.length > 0 ? `${config.bannedUsers.length} users` : 'None',
+            inline: false,
+          }
+        ]);
 
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'toggle') {

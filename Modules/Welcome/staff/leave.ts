@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -7,7 +7,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getWelcomeConfig, WelcomeConfig } from '../helpers';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'welcome',
@@ -17,6 +17,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('leave')
     .setDescription('Configure leave messages')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(subcommand =>
       subcommand
         .setName('toggle')
@@ -101,12 +102,12 @@ const command: BotCommand = {
           config.leave.enabled = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Leave Messages',
-            `Leave messages are now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Leave Messages',
+              `Leave messages are now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'channel': {
@@ -114,12 +115,12 @@ const command: BotCommand = {
           config.leave.channelId = channel.id;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Leave Channel Updated',
-            `Leave messages will now be sent to ${channel}.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Leave Channel Updated',
+              `Leave messages will now be sent to ${channel}.`
+            )
+          );
         }
 
         case 'message': {
@@ -128,12 +129,12 @@ const command: BotCommand = {
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
           const placeholders = '{user}, {username}, {server}, {membercount}, {usertag}, {createdate}, {joindate}, {id}';
-          const embed = successEmbed(
-            'Leave Message Updated',
-            `Available placeholders:\n\`${placeholders}\``
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Leave Message Updated',
+              `Available placeholders:\n\`${placeholders}\``
+            )
+          );
         }
 
         case 'embed': {
@@ -141,12 +142,12 @@ const command: BotCommand = {
           config.leave.useEmbed = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Leave Embed Mode',
-            `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Leave Embed Mode',
+              `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'embed-color': {
@@ -154,22 +155,23 @@ const command: BotCommand = {
 
           // Validate hex color
           if (!/^#[0-9A-F]{6}$/i.test(color)) {
-            const embed = errorEmbed(
-              'Invalid Color',
-              'Please provide a valid hex color (e.g., #FF0000).'
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Invalid Color',
+                'Please provide a valid hex color (e.g., #FF0000).'
+              )
+            );
           }
 
           config.leave.embedColor = color;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Color Updated',
-            `Embed color is now set to \`${color}\`.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Color Updated',
+              `Embed color is now set to \`${color}\`.`
+            )
+          );
         }
 
         case 'embed-title': {
@@ -177,26 +179,28 @@ const command: BotCommand = {
           config.leave.embedTitle = title;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Title Updated',
-            `Embed title is now: **${title}**`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Title Updated',
+              `Embed title is now: **${title}**`
+            )
+          );
         }
 
         default: {
-          const embed = errorEmbed('Unknown Subcommand', 'An unknown subcommand was provided.').setColor(Colors.Error);
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            errorReply('Unknown Subcommand', 'An unknown subcommand was provided.')
+          );
         }
       }
     } catch (error) {
       console.error('[Leave Command Error]', error);
-      const embed = errorEmbed(
-        'Error',
-        'An error occurred while processing your command.'
-      ).setColor(Colors.Error);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(
+        errorReply(
+          'Error',
+          'An error occurred while processing your command.'
+        )
+      );
     }
   },
 };

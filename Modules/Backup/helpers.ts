@@ -8,9 +8,8 @@ import {
   TextChannel,
   VoiceChannel,
   OverwriteType,
-  EmbedBuilder,
 } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
 import { sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';

@@ -1,7 +1,8 @@
 import {  SlashCommandBuilder, PermissionFlagsBits, ChatInputCommandInteraction, TextChannel, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { createGiveaway, buildDropEmbed } from '../helpers';
+import { createGiveaway, buildDropContainer } from '../helpers';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,11 +28,11 @@ export default {
         winnerCount: maxWinners,
         endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h default
       });
-      const embed = buildDropEmbed(prize, maxWinners, []);
+      const container = buildDropContainer(prize, maxWinners, []);
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId(`giveaway_enter_${giveaway.id}`).setLabel('🎁 Claim').setStyle(ButtonStyle.Success)
       );
-      await (channel as any).send({ embeds: [embed], components: [row] });
+      await (channel as any).send({ ...v2Payload([container]), components: [row] });
       return interaction.reply({ embeds: [successEmbed('Drop created!')]  });
     } catch (error) {
       console.error('Drop error:', error);

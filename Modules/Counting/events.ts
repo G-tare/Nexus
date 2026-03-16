@@ -1,6 +1,6 @@
-import { Events, Message, PartialMessage, EmbedBuilder, TextChannel } from 'discord.js';
+import { Events, Message, PartialMessage, TextChannel } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import {
   getCountingConfig,
   incrementCount,
@@ -11,6 +11,14 @@ import {
   saveCountingConfig,
   updateGlobalLeaderboard,
 } from './helpers';
+import {
+  moduleContainer,
+  warningContainer,
+  errorContainer,
+  successContainer,
+  addText,
+  v2Payload,
+} from '../../Shared/src/utils/componentsV2';
 
 // ============================================
 // In-memory cache for recent counting messages
@@ -56,15 +64,15 @@ function cacheCount(messageId: string, data: CachedCount): void {
 const STRIKE_PENALTIES = [0, 10, 100, 500]; // index 0 = warning only
 
 async function getDeleteStrikes(guildId: string, userId: string): Promise<number> {
-  const val = await getRedis().get(`counting:strikes:${guildId}:${userId}`);
+  const val = cache.get<string>(`counting:strikes:${guildId}:${userId}`);
   return val ? parseInt(val, 10) : 0;
 }
 
 async function addDeleteStrike(guildId: string, userId: string): Promise<number> {
   const key = `counting:strikes:${guildId}:${userId}`;
-  const newCount = await getRedis().incr(key);
+  const newCount = await cache.incr(key);
   // Strikes persist for 90 days
-  await getRedis().expire(key, 7776000);
+  await cache.expire(key, 7776000);
   return newCount;
 }
 
@@ -76,12 +84,12 @@ async function setCountingBan(guildId: string, userId: string, banFor: number): 
   const key = `counting:ban:${guildId}:${userId}`;
   if (banFor === 0) {
     // Permanent ban — no expiry, value = "permanent"
-    await getRedis().set(key, 'permanent');
+    cache.set(key, 'permanent');
   } else {
     // Ban for N numbers — store the current count + banFor as the "unban at" number
     const config = await getCountingConfig(guildId);
     const unbanAt = config.currentCount + banFor;
-    await getRedis().set(key, String(unbanAt));
+    cache.set(key, String(unbanAt));
   }
 }
 
@@ -91,7 +99,7 @@ async function setCountingBan(guildId: string, userId: string, banFor: number): 
  */
 async function isCountingBanned(guildId: string, userId: string): Promise<boolean> {
   const key = `counting:ban:${guildId}:${userId}`;
-  const val = await getRedis().get(key);
+  const val = cache.get<string>(key);
   if (!val) return false;
   if (val === 'permanent') return true;
 
@@ -100,7 +108,7 @@ async function isCountingBanned(guildId: string, userId: string): Promise<boolea
   const config = await getCountingConfig(guildId);
   if (config.currentCount >= unbanAt) {
     // Ban expired — remove it
-    await getRedis().del(key);
+    cache.del(key);
     return false;
   }
   return true;
@@ -120,35 +128,23 @@ async function handleWrongCountMessage(message: Message, config: any): Promise<v
     await updateUserStats(guildId, userId, false);
 
     if (result.usedLife) {
-      const replyEmbed = new EmbedBuilder()
-        .setColor(0xffaa00)
-        .setTitle('❌ Wrong Number!')
-        .setDescription(
-          `Expected **${oldCount + 1}**, but you counted **${message.content}**.\n\n` +
-          `🛡️ **Saved by a life!** You have **${result.livesRemaining}** ${result.livesRemaining === 1 ? 'life' : 'lives'} remaining.`
-        )
-        .setTimestamp();
-
-      await message.reply({ embeds: [replyEmbed], allowedMentions: { repliedUser: false } }).catch(() => {});
+      const container = warningContainer(
+        '❌ Wrong Number!',
+        `Expected **${oldCount + 1}**, but you counted **${message.content}**.\n\n🛡️ **Saved by a life!** You have **${result.livesRemaining}** ${result.livesRemaining === 1 ? 'life' : 'lives'} remaining.`
+      );
+      await message.reply(v2Payload([container])).catch(() => {});
     } else if (result.reset) {
-      const resetEmbed = new EmbedBuilder()
-        .setColor(0xff0000)
-        .setTitle('💥 Count Reset!')
-        .setDescription(
-          `${message.author.toString()} broke the streak with **${message.content}** (expected **${oldCount + 1}**).\n\n` +
-          `The count has been reset from **${oldCount}** to **0**.`
-        )
-        .setTimestamp();
-
-      await message.reply({ embeds: [resetEmbed], allowedMentions: { repliedUser: false } }).catch(() => {});
+      const container = errorContainer(
+        '💥 Count Reset!',
+        `${message.author.toString()} broke the streak with **${message.content}** (expected **${oldCount + 1}**).\n\nThe count has been reset from **${oldCount}** to **0**.`
+      );
+      await message.reply(v2Payload([container])).catch(() => {});
     } else {
-      const wrongEmbed = new EmbedBuilder()
-        .setColor(0xff0000)
-        .setTitle('❌ Wrong Number!')
-        .setDescription(`Expected **${oldCount + 1}**, but you counted **${message.content}**.`)
-        .setTimestamp();
-
-      await message.reply({ embeds: [wrongEmbed], allowedMentions: { repliedUser: false } }).catch(() => {});
+      const container = errorContainer(
+        '❌ Wrong Number!',
+        `Expected **${oldCount + 1}**, but you counted **${message.content}**.`
+      );
+      await message.reply(v2Payload([container])).catch(() => {});
     }
 
     // Delete wrong message if enabled
@@ -204,12 +200,11 @@ const countingHandler: ModuleEvent = {
     // Check if user is banned from counting
     const banned = await isCountingBanned(message.guildId!, message.author.id);
     if (banned) {
-      const banEmbed = new EmbedBuilder()
-        .setColor(0xff6600)
-        .setDescription(`${message.author.toString()}, you're currently banned from counting for deleting numbers.`)
-        .setTimestamp();
-
-      await message.reply({ embeds: [banEmbed], allowedMentions: { repliedUser: false } }).catch(() => {});
+      const container = warningContainer(
+        'Counting Ban',
+        `${message.author.toString()}, you're currently banned from counting for deleting numbers.`
+      );
+      await message.reply(v2Payload([container])).catch(() => {});
       // Don't count this as a wrong count — just reject silently
       if (config.deleteWrongNumbers) {
         await message.delete().catch(() => {});
@@ -251,24 +246,20 @@ const countingHandler: ModuleEvent = {
 
       // Check for milestones
       if (config.notifyOnMilestone && checkMilestone(parsedNumber, config.milestoneInterval)) {
-        const milestoneEmbed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle(`🎉 Milestone Reached: ${parsedNumber}!`)
-          .setDescription(`${message.author.toString()} counted to the milestone!`)
-          .setTimestamp();
-
-        await (message.channel as any).send({ embeds: [milestoneEmbed] }).catch(() => {});
+        const container = successContainer(
+          `🎉 Milestone Reached: ${parsedNumber}!`,
+          `${message.author.toString()} counted to the milestone!`
+        );
+        await (message.channel as any).send(v2Payload([container])).catch(() => {});
       }
 
       // Check if new server record
       if (parsedNumber > config.highestCount) {
-        const recordEmbed = new EmbedBuilder()
-          .setColor(0xffd700)
-          .setTitle('🏆 New Server Record!')
-          .setDescription(`${message.author.toString()} reached **${parsedNumber}**! Previous record: **${config.highestCount}**`)
-          .setTimestamp();
-
-        await (message.channel as any).send({ embeds: [recordEmbed] }).catch(() => {});
+        const container = successContainer(
+          '🏆 New Server Record!',
+          `${message.author.toString()} reached **${parsedNumber}**! Previous record: **${config.highestCount}**`
+        );
+        await (message.channel as any).send(v2Payload([container])).catch(() => {});
 
         // Update global leaderboard if enabled
         if (config.globalLeaderboardEnabled) {
@@ -338,13 +329,12 @@ const deleteDetectionHandler: ModuleEvent = {
       penaltyText = `🔨 **Strike ${strikes}** — <@${cached.authorId}> has been permanently banned from counting. A server admin can remove this with \`/counting-config unban-counter\`.`;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xff4444)
-      .setTitle('🗑️ Deleted Count Detected')
-      .setDescription(`${description}\n\n${penaltyText}`)
-      .setTimestamp();
+    const container = errorContainer(
+      '🗑️ Deleted Count Detected',
+      `${description}\n\n${penaltyText}`
+    );
 
-    await channel.send({ embeds: [embed] }).catch(() => {});
+    await channel.send(v2Payload([container])).catch(() => {});
   },
 };
 

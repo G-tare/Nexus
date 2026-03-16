@@ -1,7 +1,8 @@
-import { Message, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { Message, PermissionFlagsBits, ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
 import { VariableParser } from '../parser';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('CustomCommands');
 
 export class CustomCommandTrigger {
@@ -92,15 +93,13 @@ export class CustomCommandTrigger {
           await message.reply('Could not send DM. Please check your privacy settings.');
         }
       } else if (command.embedResponse) {
-        // Send as embed
-        const embed = new EmbedBuilder()
-          .setDescription(parsedResponse)
-          .setColor('#2f3136')
-          .setTimestamp();
+        // Send as container
+        const container = new ContainerBuilder().setAccentColor(0x2f3136);
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(parsedResponse));
 
-        const sendOptions: any = { embeds: [embed] };
+        const sendOptions: any = v2Payload([container]);
         if (command.ephemeral) {
-          sendOptions.ephemeral = true;
+          sendOptions.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
         }
 
         await message.reply(sendOptions);

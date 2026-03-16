@@ -1,7 +1,8 @@
-import { ButtonInteraction, EmbedBuilder, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ButtonInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 const logger = createModuleLogger('Shop');
 import { shopHelpers } from './helpers';
+import { errorContainer, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 /**
  * Handle shop button interactions
@@ -40,7 +41,7 @@ export async function handleShopButton(interaction: ButtonInteraction, action: s
         );
 
         await interaction.update({
-          embeds: [embed],
+          ...v2Payload([embed]),
           components: [buttons],
         });
         break;
@@ -77,7 +78,7 @@ export async function handleShopButton(interaction: ButtonInteraction, action: s
         );
 
         await interaction.update({
-          embeds: [embed],
+          ...v2Payload([embed]),
           components: [buttons],
         });
         break;
@@ -106,7 +107,7 @@ export async function handleShopButton(interaction: ButtonInteraction, action: s
         );
 
         await interaction.update({
-          embeds: [embed],
+          ...v2Payload([embed]),
           components: [buttons],
         });
         break;
@@ -143,7 +144,7 @@ export async function handleShopButton(interaction: ButtonInteraction, action: s
         );
 
         await interaction.update({
-          embeds: [embed],
+          ...v2Payload([embed]),
           components: [buttons],
         });
         break;
@@ -155,22 +156,14 @@ export async function handleShopButton(interaction: ButtonInteraction, action: s
         const removed = await shopHelpers.removeShopItem(guildId, itemId);
 
         if (!removed) {
-          return await interaction.update({
-            content: '❌ Item not found or already deleted.',
-            embeds: [],
-            components: [],
-          });
+          const errorContainerMsg = errorContainer('Item not found or already deleted.');
+          return await interaction.update(v2Payload([errorContainerMsg]));
         }
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ Item Removed')
-          .setColor(Colors.Green)
-          .setDescription('The item has been removed from the shop.');
+        const { successContainer } = require('../../Shared/src/utils/componentsV2');
+        const container = successContainer('Item Removed', 'The item has been removed from the shop.');
 
-        await interaction.update({
-          embeds: [embed],
-          components: [],
-        });
+        await interaction.update(v2Payload([container]));
 
         const guild = interaction.guild;
         if (guild) {

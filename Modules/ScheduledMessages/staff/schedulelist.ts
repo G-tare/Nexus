@@ -1,8 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle, MessageFlags } from 'discord.js';
@@ -10,6 +9,7 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
 import { formatNextFireTime, getNextFireTime } from '../helpers';
+import { moduleContainer, addText, addFooter, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -63,11 +63,9 @@ const command: BotCommand = {
         return await interaction.editReply(`No scheduled messages found (filter: ${filter})`);
       }
 
-      // Create embed with list
-      const embed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle(`Scheduled Messages (${filter})`)
-        .setDescription(`Showing ${messages.length} message(s)`);
+      // Create container with list
+      const container = moduleContainer('scheduled_messages');
+      addText(container, `### Scheduled Messages (${filter})\nShowing ${messages.length} message(s)`);
 
       let fieldIndex = 0;
       for (const msg of messages.slice(0, 24)) {
@@ -87,22 +85,16 @@ const command: BotCommand = {
           ? msg.content.substring(0, 60) + (msg.content.length > 60 ? '...' : '')
           : '(Embed)';
 
-        embed.addFields({
-          name: `${status} ${type} ${msg.id}`,
-          value: `Channel: ${channelMention}\nSchedule: ${schedule}\nContent: ${contentPreview}`,
-          inline: false,
-        });
+        addText(container, `**${status} ${type} ${msg.id}**\nChannel: ${channelMention}\nSchedule: ${schedule}\nContent: ${contentPreview}`);
 
         fieldIndex++;
         if (fieldIndex >= 24) break;
       }
 
-      embed.setFooter({
-        text: `Use /scheduleedit <id> to edit, /scheduledelete <id> to remove. Showing ${Math.min(messages.length, 24)} of ${messages.length}`,
-      });
+      addFooter(container, `Use /scheduleedit <id> to edit, /scheduledelete <id> to remove. Showing ${Math.min(messages.length, 24)} of ${messages.length}`);
 
       // Create action row with buttons
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const buttons = [
         new ButtonBuilder()
           .setCustomId('sm_refresh_list')
           .setLabel('Refresh')
@@ -115,9 +107,10 @@ const command: BotCommand = {
           .setCustomId('sm_page_next')
           .setLabel('Next')
           .setStyle(ButtonStyle.Secondary)
-      );
+      ];
+      addButtons(container, buttons);
 
-      await interaction.editReply({ embeds: [embed], components: [row] });
+      await interaction.editReply(v2Payload([container]));
 
       logger.info(`[ScheduledMessages] Listed messages for guild ${guildId} (filter: ${filter})`);
     } catch (error) {

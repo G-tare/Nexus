@@ -9,7 +9,7 @@ import {
   getInviteConfig,
   getInviterStats,
   getInviterStatsInPeriod,
-  buildInvitesEmbed,
+  buildInvitesContainer,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -64,8 +64,7 @@ const command: BotCommand = {
         };
       }
 
-      const embed = buildInvitesEmbed(targetUser.id, stats, interaction.guild!, days);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(buildInvitesContainer(targetUser.id, stats, interaction.guild!, days));
     } catch (error) {
       console.error('Error in /invites command:', error);
       return interaction.editReply({

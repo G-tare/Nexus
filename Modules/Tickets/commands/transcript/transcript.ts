@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  AttachmentBuilder, MessageFlags } from 'discord.js';
+  AttachmentBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, generateTranscript } from '../../helpers';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../../Shared/src/utils/embed';
 
 const command: BotCommand = {
   module: 'tickets',

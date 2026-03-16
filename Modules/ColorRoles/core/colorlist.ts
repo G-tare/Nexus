@@ -1,7 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -10,6 +13,7 @@ import {
   hexToInt,
   getColorMemberCount,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -49,16 +53,15 @@ const command: BotCommand = {
       ? colorLines.join('\n')
       : colorLines.slice(0, maxPerEmbed).join('\n') + `\n*...and ${colorLines.length - maxPerEmbed} more*`;
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(colors[0].hex))
-      .setTitle(`🎨 ${guild.name} — Color Palette`)
-      .setDescription(description)
-      .setImage('attachment://color-palette.png')
-      .setFooter({ text: `${colors.length} colors available • Use /color <name> to pick one` });
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(colors[0].hex));
+    addText(container, `### 🎨 ${guild.name} — Color Palette`);
+    addText(container, description);
+    addFooter(container, `${colors.length} colors available • Use /color <name> to pick one`);
 
     await interaction.editReply({
-      embeds: [embed],
+      components: [container],
       files: [attachment],
+      flags: MessageFlags.IsComponentsV2,
     });
 
     // Auto-delete if configured

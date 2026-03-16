@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getQueue } from '../helpers';
+import { errorContainer, moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -18,74 +19,61 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
     // Check if user is in the same voice channel as the bot
     if (queue.voiceChannelId !== member.voice.channel.id) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to use this command.')])
+      );
     }
 
     // Check if there's a previous track
     if (!queue.previousTrack) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no previous track to play.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('No Previous Track', 'There is no previous track to play.')])
+      );
     }
 
     const previousTrack = queue.previousTrack;
-    const currentTrack = queue.tracks[0];
+    const currentTrack = queue.currentTrack;
 
     // Insert current track back to the front of the queue
     queue.tracks.unshift(currentTrack);
 
     // Set the previous track as current
     queue.previousTrack = null;
-    queue.tracks[0] = previousTrack;
+    queue.currentTrack = previousTrack;
 
     // Lavalink: player.playTrack({ track: { encoded: previousTrack.encoded } });
     // Lavalink: player.seek(0); // Reset to beginning of track
 
-    const embed = new EmbedBuilder()
-      .setTitle('Now Playing Previous Track')
-      .setDescription(
-        `**${previousTrack.title}**\nby ${previousTrack.author}`
-      )
-      .addFields([
-        {
-          name: 'Previous Track',
-          value: `**${currentTrack.title}**\nby ${currentTrack.author}`,
-          inline: false,
-        },
-      ])
-      .setColor(0x51cf66);
+    const container = moduleContainer('music');
+    addText(container, `### Now Playing Previous Track\n**${previousTrack.title}**\nby ${previousTrack.author}`);
+    addFields(container, [
+      {
+        name: 'Previous Track',
+        value: `**${currentTrack.title}**\nby ${currentTrack.author}`,
+        inline: false,
+      },
+    ]);
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

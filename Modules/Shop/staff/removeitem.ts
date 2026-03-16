@@ -1,16 +1,15 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
-  Colors,
   PermissionFlagsBits,
   AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, v2Payload, errorContainer } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -69,11 +68,8 @@ const command: BotCommand = {
         });
       }
 
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('Confirm Item Deletion')
-        .setColor(Colors.Red)
-        .setDescription(`Are you sure you want to remove **${item.name}** from the shop?`)
-        .addFields({ name: 'Item ID', value: item.id.toString(), inline: false });
+      const container = errorContainer('Confirm Item Deletion', `Are you sure you want to remove **${item.name}** from the shop?`);
+      addFields(container, [{ name: 'Item ID', value: item.id.toString(), inline: false }]);
 
       const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -87,7 +83,7 @@ const command: BotCommand = {
       );
 
       await interaction.editReply({
-        embeds: [confirmEmbed],
+        ...v2Payload([container]),
         components: [buttons],
       });
     } catch (error) {

@@ -3,6 +3,12 @@ import { Pool } from 'pg';
 import Redis from 'ioredis';
 import { config } from '../config';
 import { createModuleLogger } from '../utils/logger';
+import * as schema from './models/schema';
+
+// Re-export cache infrastructure singletons for convenient access
+export { cache } from '../cache/cacheManager';
+export { timers } from '../cache/timerManager';
+import { invalidator } from '../cache/cacheInvalidator';
 
 const logger = createModuleLogger('Database');
 
@@ -16,13 +22,21 @@ export function getPool(): Pool {
   if (!pool) {
     pool = new Pool({
       connectionString: config.database.url,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      max: 10,
+      // Neon suspends after ~5min idle — drop stale connections before they rot
+      idleTimeoutMillis: 20_000, // 20s idle → close connection (Neon drops after ~5min anyway)
+      connectionTimeoutMillis: 10_000, // 10s to establish (Neon cold starts can be slow)
+      // statement_timeout kills queries stuck on dead connections instead of waiting for TCP timeout
+      statement_timeout: 15_000, // 15s max per query
     });
 
     pool.on('error', (err) => {
-      logger.error('Unexpected PostgreSQL pool error', { error: err.message });
+      // Stale connection errors after sleep — pool will create fresh ones automatically
+      if (err.message.includes('ETIMEDOUT') || err.message.includes('ECONNRESET')) {
+        logger.warn('PostgreSQL connection dropped (likely sleep/network change), pool will reconnect');
+      } else {
+        logger.error('Unexpected PostgreSQL pool error', { error: err.message });
+      }
     });
 
     pool.on('connect', () => {
@@ -33,7 +47,7 @@ export function getPool(): Pool {
 }
 
 export function getDb() {
-  return drizzle(getPool());
+  return drizzle(getPool(), { schema });
 }
 
 // ============================================
@@ -97,6 +111,9 @@ export async function connectAll(): Promise<void> {
     }
   }
 
+  // Initialize cache invalidation pub/sub listener
+  await invalidator.init();
+
   logger.info('All database connections established');
 }
 
@@ -114,4 +131,7 @@ export async function disconnectAll(): Promise<void> {
     redis = null;
     logger.info('Redis disconnected');
   }
+
+  // Disconnect cache invalidation subscriber
+  await invalidator.disconnect();
 }

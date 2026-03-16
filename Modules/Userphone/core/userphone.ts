@@ -1,7 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getActiveCall,
@@ -12,7 +12,9 @@ import {
   startCall,
   setCallCooldown,
   isServerBanned,
+  isUserBanned,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -65,6 +67,16 @@ const command: BotCommand = {
       return;
     }
 
+    // Check if user is individually banned from userphone
+    const userBan = await isUserBanned(interaction.user.id);
+    if (userBan.banned) {
+      await interaction.reply({
+        content: `🚫 You have been ${userBan.permanent ? 'permanently' : 'temporarily'} restricted from using userphone.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     await interaction.deferReply();
 
     // Try to find a match
@@ -77,13 +89,11 @@ const command: BotCommand = {
         { guildId: match.guildId, channelId: match.channelId, guildName: match.guildName },
       );
 
-      const embed1 = new EmbedBuilder()
-        .setColor(0x2ECC71)
-        .setTitle('📞 Connected!')
-        .setDescription(`You're now connected to ${config.showServerName ? `**${match.guildName}**` : 'another server'}.\n\nType messages here to talk. Use \`/hangup\` to end the call.`)
-        .setFooter({ text: `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}` });
+      const container1 = moduleContainer('userphone');
+      addText(container1, `### 📞 Connected!\nYou're now connected to ${config.showServerName ? `**${match.guildName}**` : 'another server'}.\n\nType messages here to talk. Use \`/hangup\` to end the call.`);
+      addFooter(container1, `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}`);
 
-      await interaction.editReply({ embeds: [embed1] });
+      await interaction.editReply(v2Payload([container1]));
 
       // Notify the other side
       try {
@@ -92,13 +102,11 @@ const command: BotCommand = {
           const otherChannel = await otherGuild.channels.fetch(match.channelId).catch(() => null);
           if (otherChannel && 'send' in otherChannel) {
             const otherConfig = await getUserphoneConfig(match.guildId);
-            const embed2 = new EmbedBuilder()
-              .setColor(0x2ECC71)
-              .setTitle('📞 Connected!')
-              .setDescription(`You're now connected to ${otherConfig.showServerName ? `**${guild.name}**` : 'another server'}.\n\nType messages here to talk. Use \`/hangup\` to end the call.`)
-              .setFooter({ text: `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}` });
+            const container2 = moduleContainer('userphone');
+            addText(container2, `### 📞 Connected!\nYou're now connected to ${otherConfig.showServerName ? `**${guild.name}**` : 'another server'}.\n\nType messages here to talk. Use \`/hangup\` to end the call.`);
+            addFooter(container2, `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}`);
 
-            await (otherChannel as any).send({ embeds: [embed2] });
+            await (otherChannel as any).send(v2Payload([container2]));
           }
         }
       } catch {}
@@ -106,13 +114,11 @@ const command: BotCommand = {
       // Join the queue
       await joinQueue(guild.id, channel.id, guild.name);
 
-      const embed = new EmbedBuilder()
-        .setColor(0xF39C12)
-        .setTitle('📞 Searching...')
-        .setDescription('Looking for another server to connect with.\n\nYou\'ll be automatically connected when someone else calls. This expires in **2 minutes**.')
-        .setFooter({ text: 'Waiting for a match...' });
+      const container = moduleContainer('userphone');
+      addText(container, `### 📞 Searching...\nLooking for another server to connect with.\n\nYou'll be automatically connected when someone else calls. This expires in **2 minutes**.`);
+      addFooter(container, 'Waiting for a match...');
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     }
   },
 };

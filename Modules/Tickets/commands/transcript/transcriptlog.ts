@@ -1,11 +1,15 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
+import {
+  successContainer,
+} from '../../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'tickets',
@@ -66,14 +70,14 @@ const command: BotCommand = {
       config.transcriptChannelId = undefined;
       moduleConfig.setConfig(interaction.guildId!, 'tickets', config);
 
-      const embed = successEmbed(
+      const container = successContainer(
         'Transcript Log Disabled',
         'Transcripts will no longer be automatically logged to a channel.'
       );
 
       return interaction.reply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral,
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
 
@@ -88,14 +92,14 @@ const command: BotCommand = {
     config.transcriptChannelId = channel.id;
     moduleConfig.setConfig(interaction.guildId!, 'tickets', config);
 
-    const embed = successEmbed(
+    const container = successContainer(
       'Transcript Log Channel Set',
       `Transcripts will be logged to ${channel.toString()}`
     );
 
     return interaction.reply({
-      embeds: [embed],
-      flags: MessageFlags.Ephemeral,
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
   },
 };

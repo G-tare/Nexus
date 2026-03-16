@@ -1,8 +1,19 @@
-import { GuildMember, Guild, EmbedBuilder, AttachmentBuilder, TextChannel } from 'discord.js';
+import { GuildMember, Guild, AttachmentBuilder, TextChannel, ContainerBuilder } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis } from '../../Shared/src/database/connection';
-import { Colors } from '../../Shared/src/utils/embed';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import {
+  moduleContainer,
+  successContainer,
+  errorContainer,
+  addText,
+  addFields,
+  addSeparator,
+  addSectionWithThumbnail,
+  addMediaGallery,
+  addFooter,
+  v2Payload,
+} from '../../Shared/src/utils/componentsV2';
 // Lazy-load canvas — try @napi-rs/canvas first (prebuilt), fall back to node-canvas
 let createCanvas: any;
 let loadImage: any;
@@ -204,113 +215,75 @@ export function replacePlaceholders(text: string, member: GuildMember): string {
 }
 
 /**
- * Build a welcome embed from configuration
+ * Build a welcome container from configuration
  */
-export function buildWelcomeEmbed(
+export function buildWelcomeContainer(
   member: GuildMember,
   config: WelcomeConfig['welcome']
-): EmbedBuilder {
-  const embed = new EmbedBuilder();
+): ContainerBuilder {
+  const container = moduleContainer('welcome');
 
-  // Set color
-  if (config.embedColor) {
-    try {
-      embed.setColor(config.embedColor as any);
-    } catch {
-      embed.setColor(Colors.Primary || '#5865F2');
-    }
-  } else {
-    embed.setColor(Colors.Primary || '#5865F2');
-  }
-
-  // Set title
-  if (config.embedTitle) {
-    embed.setTitle(config.embedTitle);
-  }
-
-  // Set description with placeholders replaced
+  // Add title/header with thumbnail if enabled
   const description = replacePlaceholders(config.message, member);
-  embed.setDescription(description);
+  const title = config.embedTitle ? `### ${config.embedTitle}` : '';
 
-  // Set thumbnail to member avatar if enabled
   if (config.embedThumbnail) {
-    embed.setThumbnail(member.user.displayAvatarURL({ size: 256 }));
+    const avatarUrl = member.user.displayAvatarURL({ size: 256 });
+    const content = title ? `${title}\n${description}` : description;
+    addSectionWithThumbnail(container, content, avatarUrl);
+  } else {
+    const content = title ? `${title}\n${description}` : description;
+    addText(container, content);
   }
 
-  // Set footer if provided
-  if (config.embedFooter) {
-    embed.setFooter({ text: config.embedFooter });
+  // Add separator if there's more content to come
+  if (config.embedImage || config.embedFooter) {
+    addSeparator(container, 'small');
   }
 
-  // Set image if provided
+  // Add image if provided
   if (config.embedImage) {
-    embed.setImage(config.embedImage);
+    addMediaGallery(container, [{ url: config.embedImage }]);
   }
 
-  // Set timestamp
-  embed.setTimestamp();
+  // Add footer if provided
+  if (config.embedFooter) {
+    addFooter(container, config.embedFooter);
+  }
 
-  return embed;
+  return container;
 }
 
 /**
- * Build a leave embed from configuration
+ * Build a leave container from configuration
  */
-export function buildLeaveEmbed(
+export function buildLeaveContainer(
   member: GuildMember,
   config: WelcomeConfig['leave']
-): EmbedBuilder {
-  const embed = new EmbedBuilder();
+): ContainerBuilder {
+  const container = errorContainer(
+    config.embedTitle || 'Goodbye',
+    replacePlaceholders(config.message, member)
+  );
 
-  // Set color
-  if (config.embedColor) {
-    try {
-      embed.setColor(config.embedColor as any);
-    } catch {
-      embed.setColor('#ED4245');
-    }
-  } else {
-    embed.setColor('#ED4245');
-  }
-
-  // Set title
-  if (config.embedTitle) {
-    embed.setTitle(config.embedTitle);
-  }
-
-  // Set description with placeholders replaced
-  const description = replacePlaceholders(config.message, member);
-  embed.setDescription(description);
-
-  // Set timestamp
-  embed.setTimestamp();
-
-  return embed;
+  return container;
 }
 
 /**
- * Build a DM embed from configuration
+ * Build a DM container from configuration
  */
-export function buildDmEmbed(
+export function buildDmContainer(
   member: GuildMember,
   config: WelcomeConfig['dm']
-): EmbedBuilder {
-  const embed = new EmbedBuilder();
+): ContainerBuilder {
+  const container = moduleContainer('welcome');
 
-  // Set default color
-  embed.setColor(Colors.Primary || '#5865F2');
-
-  // Set description with placeholders replaced
   const description = replacePlaceholders(config.message, member);
-  embed.setDescription(description);
+  const avatarUrl = member.user.displayAvatarURL({ size: 256 });
 
-  // Set thumbnail to member avatar
-  embed.setThumbnail(member.user.displayAvatarURL({ size: 256 }));
+  addSectionWithThumbnail(container, description, avatarUrl);
 
-  // Set timestamp
-  embed.setTimestamp();
-
-  return embed;
+  return container;
 }
 
 /**
@@ -419,11 +392,8 @@ export async function sendWelcomeMessage(
     }
 
     if (config.welcome.useEmbed) {
-      const embed = buildWelcomeEmbed(member, config.welcome);
-      await textChannel.send({
-        embeds: [embed],
-        files: attachments,
-      });
+      const container = buildWelcomeContainer(member, config.welcome);
+      await textChannel.send(v2Payload([container], attachments));
     } else {
       const message = replacePlaceholders(config.welcome.message, member);
       await textChannel.send({
@@ -461,8 +431,8 @@ export async function sendLeaveMessage(
     const textChannel = channel as TextChannel;
 
     if (config.leave.useEmbed) {
-      const embed = buildLeaveEmbed(member, config.leave);
-      await textChannel.send({ embeds: [embed] });
+      const container = buildLeaveContainer(member, config.leave);
+      await textChannel.send(v2Payload([container]));
     } else {
       const message = replacePlaceholders(config.leave.message, member);
       await textChannel.send({ content: message });
@@ -487,8 +457,8 @@ export async function sendWelcomeDm(
     }
 
     if (config.dm.useEmbed) {
-      const embed = buildDmEmbed(member, config.dm);
-      await member.send({ embeds: [embed] });
+      const container = buildDmContainer(member, config.dm);
+      await member.send(v2Payload([container]));
     } else {
       const message = replacePlaceholders(config.dm.message, member);
       await member.send({ content: message });
@@ -528,8 +498,7 @@ export async function assignAutoroles(
     const delaySeconds = config.autorole.delaySeconds || 0;
 
     if (delaySeconds > 0) {
-      // Store timeout in Redis for persistence
-      const redis = getRedis();
+      // Store timeout in cache for persistence
       const timeoutKey = `autorole:${member.guild.id}:${member.id}`;
 
       // Set timeout
@@ -537,8 +506,8 @@ export async function assignAutoroles(
         await assignRolesToMember(member, rolesToAssign);
       }, delaySeconds * 1000);
 
-      // Store in Redis (for recovery on bot restart)
-      await redis.setex(timeoutKey, delaySeconds, timeoutId.toString());
+      // Store in cache (for recovery on bot restart)
+      await cache.set(timeoutKey, timeoutId.toString(), delaySeconds);
 
       logger.info(
         `Scheduled autorole assignment for ${member.user.tag} in ${member.guild.name} (${delaySeconds}s delay)`
@@ -659,16 +628,19 @@ export async function markFirstMessage(
   userId: string
 ): Promise<boolean> {
   try {
-    const redis = getRedis();
     const key = `welcome:greeted:${guildId}:${userId}`;
 
-    // SETNX returns 1 if key was set (didn't exist), 0 if key already existed
-    const result = await redis.setnx(key, '1');
+    // Check if key already exists (was this user greeted before?)
+    const exists = await cache.has(key);
 
-    // Set expiry to 30 days
-    await redis.expire(key, 30 * 24 * 60 * 60);
+    if (exists) {
+      return false; // Not first time
+    }
 
-    return result === 1; // True if first time
+    // Set the key with expiry of 30 days
+    await cache.set(key, '1', 30 * 24 * 60 * 60);
+
+    return true; // First time
   } catch (error) {
     logger.error(`Failed to mark first message for user ${userId}:`, error);
     return false; // Return false on error (conservative approach)

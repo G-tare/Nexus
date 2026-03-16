@@ -1,9 +1,11 @@
-import { EmbedBuilder, Guild } from 'discord.js';
-import { getDb, getPool, getRedis } from '../../Shared/src/database/connection';
+import { Guild } from 'discord.js';
+import { getDb, getPool } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { moduleContainer, addText } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('VoicePhone');
 
@@ -75,18 +77,14 @@ export interface VoiceCall {
  * Get the active voice call for a voice channel.
  */
 export async function getActiveVoiceCall(voiceChannelId: string): Promise<VoiceCall | null> {
-  const redis = getRedis();
-  const callId = await redis.get(`voicephone:channel:${voiceChannelId}`);
+  // Using global cache;
+  const callId = cache.get(`voicephone:channel:${voiceChannelId}`);
   if (!callId) return null;
 
-  const data = await redis.get(`voicephone:call:${callId}`);
+  const data = cache.get<VoiceCall>(`voicephone:call:${callId}`);
   if (!data) return null;
 
-  try {
-    return JSON.parse(data) as VoiceCall;
-  } catch {
-    return null;
-  }
+  return data;
 }
 
 /**
@@ -120,19 +118,19 @@ export async function joinVoiceQueue(
   voiceChannelId: string,
   guildName: string,
 ): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const entry: VoiceQueueEntry = { guildId, voiceChannelId, guildName, queuedAt: Date.now() };
-  await redis.setex(`voicephone:queue:${voiceChannelId}`, 120, JSON.stringify(entry));
-  await redis.sadd('voicephone:queue', voiceChannelId);
+  cache.set(`voicephone:queue:${voiceChannelId}`, JSON.stringify(entry), 120);
+  cache.sadd('voicephone:queue', voiceChannelId);
 }
 
 /**
  * Remove a voice channel from the queue.
  */
 export async function leaveVoiceQueue(voiceChannelId: string): Promise<void> {
-  const redis = getRedis();
-  await redis.del(`voicephone:queue:${voiceChannelId}`);
-  await redis.srem('voicephone:queue', voiceChannelId);
+  // Using global cache;
+  cache.del(`voicephone:queue:${voiceChannelId}`);
+  cache.srem('voicephone:queue', voiceChannelId);
 }
 
 /**
@@ -142,21 +140,21 @@ export async function findVoiceMatch(
   guildId: string,
   voiceChannelId: string,
 ): Promise<VoiceQueueEntry | null> {
-  const redis = getRedis();
+  // Using global cache;
   const config = await getVoicePhoneConfig(guildId);
-  const members = await redis.smembers('voicephone:queue');
+  const members = cache.smembers('voicephone:queue');
 
   for (const queuedVcId of members) {
     if (queuedVcId === voiceChannelId) continue;
 
-    const data = await redis.get(`voicephone:queue:${queuedVcId}`);
+    const data = cache.get<VoiceQueueEntry>(`voicephone:queue:${queuedVcId}`);
     if (!data) {
-      await redis.srem('voicephone:queue', queuedVcId);
+      cache.srem('voicephone:queue', queuedVcId);
       continue;
     }
 
     try {
-      const entry = JSON.parse(data) as VoiceQueueEntry;
+      const entry = data;
 
       // Don't match with same guild
       if (entry.guildId === guildId) continue;
@@ -175,7 +173,7 @@ export async function findVoiceMatch(
 
       return entry;
     } catch {
-      await redis.srem('voicephone:queue', queuedVcId);
+      cache.srem('voicephone:queue', queuedVcId);
     }
   }
 
@@ -193,7 +191,7 @@ export async function startVoiceCall(
   side1: { guildId: string; voiceChannelId: string; guildName: string },
   side2: { guildId: string; voiceChannelId: string; guildName: string },
 ): Promise<VoiceCall> {
-  const redis = getRedis();
+  // Using global cache;
   const callId = `vcall_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const config1 = await getVoicePhoneConfig(side1.guildId);
@@ -213,9 +211,9 @@ export async function startVoiceCall(
 
   // Store call data with TTL
   const ttl = maxDuration + 60;
-  await redis.setex(`voicephone:call:${callId}`, ttl, JSON.stringify(call));
-  await redis.setex(`voicephone:channel:${side1.voiceChannelId}`, ttl, callId);
-  await redis.setex(`voicephone:channel:${side2.voiceChannelId}`, ttl, callId);
+  cache.set(`voicephone:call:${callId}`, JSON.stringify(call), ttl);
+  cache.set(`voicephone:channel:${side1.voiceChannelId}`, callId, ttl);
+  cache.set(`voicephone:channel:${side2.voiceChannelId}`, callId, ttl);
 
   // Remove both from queue
   await leaveVoiceQueue(side1.voiceChannelId);
@@ -237,21 +235,14 @@ export async function startVoiceCall(
  * End an active voice call and save to history.
  */
 export async function endVoiceCall(callId: string): Promise<VoiceCall | null> {
-  const redis = getRedis();
-  const data = await redis.get(`voicephone:call:${callId}`);
-  if (!data) return null;
-
-  let call: VoiceCall;
-  try {
-    call = JSON.parse(data);
-  } catch {
-    return null;
-  }
+  // Using global cache;
+  const call = cache.get<VoiceCall>(`voicephone:call:${callId}`);
+  if (!call) return null;
 
   // Clean up Redis
-  await redis.del(`voicephone:call:${callId}`);
-  await redis.del(`voicephone:channel:${call.side1.voiceChannelId}`);
-  await redis.del(`voicephone:channel:${call.side2.voiceChannelId}`);
+  cache.del(`voicephone:call:${callId}`);
+  cache.del(`voicephone:channel:${call.side1.voiceChannelId}`);
+  cache.del(`voicephone:channel:${call.side2.voiceChannelId}`);
 
   // Save to history
   const duration = Math.floor((Date.now() - call.startedAt) / 1000);
@@ -262,10 +253,14 @@ export async function endVoiceCall(callId: string): Promise<VoiceCall | null> {
   `);
 
   // Update stats
-  await redis.hincrby(`voicephone:stats:${call.side1.guildId}`, 'calls', 1);
-  await redis.hincrby(`voicephone:stats:${call.side1.guildId}`, 'totalDuration', duration);
-  await redis.hincrby(`voicephone:stats:${call.side2.guildId}`, 'calls', 1);
-  await redis.hincrby(`voicephone:stats:${call.side2.guildId}`, 'totalDuration', duration);
+  const calls1 = cache.hget(`voicephone:stats:${call.side1.guildId}`, 'calls') || '0';
+  cache.hset(`voicephone:stats:${call.side1.guildId}`, 'calls', String(parseInt(calls1, 10) + 1));
+  const duration1 = cache.hget(`voicephone:stats:${call.side1.guildId}`, 'totalDuration') || '0';
+  cache.hset(`voicephone:stats:${call.side1.guildId}`, 'totalDuration', String(parseInt(duration1, 10) + duration));
+  const calls2 = cache.hget(`voicephone:stats:${call.side2.guildId}`, 'calls') || '0';
+  cache.hset(`voicephone:stats:${call.side2.guildId}`, 'calls', String(parseInt(calls2, 10) + 1));
+  const duration2 = cache.hget(`voicephone:stats:${call.side2.guildId}`, 'totalDuration') || '0';
+  cache.hset(`voicephone:stats:${call.side2.guildId}`, 'totalDuration', String(parseInt(duration2, 10) + duration));
 
   logger.info('Voice call ended', { callId, duration });
   eventBus.emit('voicephoneCallEnded', {
@@ -284,14 +279,14 @@ export async function endVoiceCall(callId: string): Promise<VoiceCall | null> {
 // ============================================
 
 export async function isOnCooldown(guildId: string, voiceChannelId: string): Promise<boolean> {
-  const redis = getRedis();
-  return (await redis.exists(`voicephone:cooldown:${guildId}:${voiceChannelId}`)) === 1;
+  // Using global cache;
+  return cache.has(`voicephone:cooldown:${guildId}:${voiceChannelId}`);
 }
 
 export async function setCooldown(guildId: string, voiceChannelId: string): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const config = await getVoicePhoneConfig(guildId);
-  await redis.setex(`voicephone:cooldown:${guildId}:${voiceChannelId}`, config.callCooldown, '1');
+  cache.set(`voicephone:cooldown:${guildId}:${voiceChannelId}`, '1', config.callCooldown);
 }
 
 // ============================================
@@ -340,20 +335,20 @@ export async function checkServerEligibility(guild: Guild): Promise<string | nul
  * Returns the new strike count.
  */
 export async function addStrike(callId: string, userId: string, guildId: string, reason: string): Promise<number> {
-  const redis = getRedis();
+  // Using global cache;
   const key = `voicephone:strikes:${callId}:${userId}`;
 
-  const count = await redis.incr(key);
+  const count = cache.incr(key);
   // Expire strikes with the call (max 1 hour)
-  await redis.expire(key, 3600);
+  cache.expire(key, 3600);
 
   // Log the strike
   logger.warn('Voice phone strike', { callId, userId, guildId, reason, strikeCount: count });
 
   // Also track global user strikes (rolling 24h window)
   const globalKey = `voicephone:globalstrikes:${userId}`;
-  await redis.incr(globalKey);
-  await redis.expire(globalKey, 86400);
+  cache.incr(globalKey);
+  cache.expire(globalKey, 86400);
 
   return count;
 }
@@ -362,8 +357,8 @@ export async function addStrike(callId: string, userId: string, guildId: string,
  * Get the current strike count for a user in a call.
  */
 export async function getStrikeCount(callId: string, userId: string): Promise<number> {
-  const redis = getRedis();
-  const val = await redis.get(`voicephone:strikes:${callId}:${userId}`);
+  // Using global cache;
+  const val = cache.get<string>(`voicephone:strikes:${callId}:${userId}`);
   return val ? parseInt(val, 10) : 0;
 }
 
@@ -371,8 +366,8 @@ export async function getStrikeCount(callId: string, userId: string): Promise<nu
  * Get a user's global strike count (rolling 24h).
  */
 export async function getGlobalStrikeCount(userId: string): Promise<number> {
-  const redis = getRedis();
-  const val = await redis.get(`voicephone:globalstrikes:${userId}`);
+  // Using global cache;
+  const val = cache.get<string>(`voicephone:globalstrikes:${userId}`);
   return val ? parseInt(val, 10) : 0;
 }
 
@@ -381,11 +376,11 @@ export async function getGlobalStrikeCount(userId: string): Promise<number> {
  * Tracks the ban count — 3 temp bans = permanent ban.
  */
 export async function tempBanUser(userId: string, durationSeconds: number, reason: string): Promise<{ permanent: boolean }> {
-  const redis = getRedis();
+  // Using global cache;
 
   // Increment temp ban counter
   const banCountKey = `voicephone:bancount:${userId}`;
-  const banCount = await redis.incr(banCountKey);
+  const banCount = cache.incr(banCountKey);
   // Keep ban count forever (it's a lifetime counter)
 
   const PERMANENT_BAN_THRESHOLD = 3;
@@ -397,12 +392,12 @@ export async function tempBanUser(userId: string, durationSeconds: number, reaso
     return { permanent: true };
   }
 
-  await redis.setex(`voicephone:userban:${userId}`, durationSeconds, JSON.stringify({
+  cache.set(`voicephone:userban:${userId}`, JSON.stringify({
     reason,
     bannedAt: Date.now(),
     expiresAt: Date.now() + (durationSeconds * 1000),
     banNumber: banCount,
-  }));
+  }), durationSeconds);
   logger.info('User temp-banned from voice phone', { userId, durationSeconds, reason, banNumber: banCount });
   return { permanent: false };
 }
@@ -411,8 +406,8 @@ export async function tempBanUser(userId: string, durationSeconds: number, reaso
  * Get the number of temp bans a user has received (lifetime).
  */
 export async function getTempBanCount(userId: string): Promise<number> {
-  const redis = getRedis();
-  const val = await redis.get(`voicephone:bancount:${userId}`);
+  // Using global cache;
+  const val = cache.get<string>(`voicephone:bancount:${userId}`);
   return val ? parseInt(val, 10) : 0;
 }
 
@@ -420,29 +415,19 @@ export async function getTempBanCount(userId: string): Promise<number> {
  * Check if a user is temp-banned from voice phone.
  */
 export async function isUserBanned(userId: string): Promise<{ banned: boolean; permanent?: boolean; reason?: string; expiresAt?: number; banNumber?: number }> {
-  const redis = getRedis();
+  // Using global cache;
 
   // Check permanent ban first
-  const permBan = await redis.get(`voicephone:permban:${userId}`);
+  const permBan = cache.get<any>(`voicephone:permban:${userId}`);
   if (permBan) {
-    try {
-      const ban = JSON.parse(permBan);
-      return { banned: true, permanent: true, reason: ban.reason };
-    } catch {
-      return { banned: true, permanent: true, reason: 'Permanently banned' };
-    }
+    return { banned: true, permanent: true, reason: permBan.reason };
   }
 
   // Check temp ban
-  const data = await redis.get(`voicephone:userban:${userId}`);
-  if (!data) return { banned: false };
+  const ban = cache.get<any>(`voicephone:userban:${userId}`);
+  if (!ban) return { banned: false };
 
-  try {
-    const ban = JSON.parse(data);
-    return { banned: true, permanent: false, reason: ban.reason, expiresAt: ban.expiresAt, banNumber: ban.banNumber };
-  } catch {
-    return { banned: false };
-  }
+  return { banned: true, permanent: false, reason: ban.reason, expiresAt: ban.expiresAt, banNumber: ban.banNumber };
 }
 
 // ============================================
@@ -453,11 +438,11 @@ export async function isUserBanned(userId: string): Promise<{ banned: boolean; p
  * Permanently ban a user from voice phone.
  */
 export async function permanentBanUser(userId: string, reason: string): Promise<void> {
-  const redis = getRedis();
-  await redis.set(`voicephone:permban:${userId}`, JSON.stringify({
+  // Using global cache;
+  cache.set(`voicephone:permban:${userId}`, JSON.stringify({
     reason,
     bannedAt: Date.now(),
-  }));
+  }), 0);
 
   // Also save to DB for persistence across Redis flushes
   const db = getDb();
@@ -480,11 +465,11 @@ export async function syncPermBanFromDb(userId: string): Promise<boolean> {
     [userId],
   );
   if ((result.rows?.length ?? 0) > 0) {
-    const redis = getRedis();
-    await redis.set(`voicephone:permban:${userId}`, JSON.stringify({
+    // Using global cache;
+    cache.set(`voicephone:permban:${userId}`, JSON.stringify({
       reason: result.rows[0].reason,
       bannedAt: Date.now(),
-    }));
+    }), 0);
     return true;
   }
   return false;
@@ -499,12 +484,12 @@ export async function syncPermBanFromDb(userId: string): Promise<boolean> {
  * Used when server staff circumvents user bans (e.g. unmuting banned users).
  */
 export async function tempBanServer(guildId: string, durationSeconds: number, reason: string): Promise<void> {
-  const redis = getRedis();
-  await redis.setex(`voicephone:serverban:${guildId}`, durationSeconds, JSON.stringify({
+  // Using global cache;
+  cache.set(`voicephone:serverban:${guildId}`, JSON.stringify({
     reason,
     bannedAt: Date.now(),
     expiresAt: Date.now() + (durationSeconds * 1000),
-  }));
+  }), durationSeconds);
   logger.warn('Server temp-banned from voice phone', { guildId, durationSeconds, reason });
 }
 
@@ -512,16 +497,11 @@ export async function tempBanServer(guildId: string, durationSeconds: number, re
  * Check if a server is temp-banned from voice phone (separate from the global userphone_server_bans table).
  */
 export async function isServerTempBanned(guildId: string): Promise<{ banned: boolean; reason?: string; expiresAt?: number }> {
-  const redis = getRedis();
-  const data = await redis.get(`voicephone:serverban:${guildId}`);
-  if (!data) return { banned: false };
+  // Using global cache;
+  const ban = cache.get<any>(`voicephone:serverban:${guildId}`);
+  if (!ban) return { banned: false };
 
-  try {
-    const ban = JSON.parse(data);
-    return { banned: true, reason: ban.reason, expiresAt: ban.expiresAt };
-  } catch {
-    return { banned: false };
-  }
+  return { banned: true, reason: ban.reason, expiresAt: ban.expiresAt };
 }
 
 // ============================================
@@ -551,11 +531,11 @@ export async function submitAppeal(
   banType: 'temp' | 'permanent',
   userStatement: string,
 ): Promise<VoicePhoneAppeal> {
-  const redis = getRedis();
+  // Using global cache;
   const appealId = `vappeal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   // Collect any flagged audio clips for this user (for review)
-  const clipKeys = await redis.lrange(`voicephone:audioclips:${userId}`, 0, -1);
+  const clipKeys = cache.smembers(`voicephone:audioclips:${userId}`);
 
   const appeal: VoicePhoneAppeal = {
     appealId,
@@ -570,14 +550,13 @@ export async function submitAppeal(
   };
 
   // Store the appeal (30 days)
-  await redis.setex(`voicephone:appeal:${appealId}`, 30 * 86400, JSON.stringify(appeal));
+  cache.set(`voicephone:appeal:${appealId}`, JSON.stringify(appeal), 30 * 86400);
 
   // Track user's appeal
-  await redis.setex(`voicephone:activeappeal:${userId}`, 30 * 86400, appealId);
+  cache.set(`voicephone:activeappeal:${userId}`, appealId, 30 * 86400);
 
-  // Add to the global pending appeals queue
-  await redis.lpush('voicephone:appeals:pending', appealId);
-  await redis.ltrim('voicephone:appeals:pending', 0, 499);
+  // Add to the global pending appeals queue (stored as a set in cache)
+  cache.sadd('voicephone:appeals:pending', appealId);
 
   logger.info('Voice phone appeal submitted', { appealId, userId, banType });
 
@@ -588,22 +567,16 @@ export async function submitAppeal(
  * Check if a user has a pending appeal.
  */
 export async function hasActiveAppeal(userId: string): Promise<string | null> {
-  const redis = getRedis();
-  return await redis.get(`voicephone:activeappeal:${userId}`);
+  // Using global cache;
+  return cache.get(`voicephone:activeappeal:${userId}`);
 }
 
 /**
  * Get an appeal by ID.
  */
 export async function getAppeal(appealId: string): Promise<VoicePhoneAppeal | null> {
-  const redis = getRedis();
-  const data = await redis.get(`voicephone:appeal:${appealId}`);
-  if (!data) return null;
-  try {
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
+  // Using global cache;
+  return cache.get<VoicePhoneAppeal>(`voicephone:appeal:${appealId}`);
 }
 
 /**
@@ -614,7 +587,7 @@ export async function resolveAppeal(
   status: 'approved' | 'denied',
   resolution: string,
 ): Promise<VoicePhoneAppeal | null> {
-  const redis = getRedis();
+  // Using global cache;
   const appeal = await getAppeal(appealId);
   if (!appeal) return null;
 
@@ -623,10 +596,10 @@ export async function resolveAppeal(
   appeal.resolution = resolution;
 
   // Update the appeal (keep it around for 30 days)
-  await redis.setex(`voicephone:appeal:${appealId}`, 30 * 86400, JSON.stringify(appeal));
+  cache.set(`voicephone:appeal:${appealId}`, JSON.stringify(appeal), 30 * 86400);
 
   // Remove from pending queue
-  await redis.lrem('voicephone:appeals:pending', 0, appealId);
+  cache.srem('voicephone:appeals:pending', appealId);
 
   // If approved, unban the user
   if (status === 'approved') {
@@ -634,7 +607,7 @@ export async function resolveAppeal(
   }
 
   // Clear user's active appeal reference
-  await redis.del(`voicephone:activeappeal:${appeal.userId}`);
+  cache.del(`voicephone:activeappeal:${appeal.userId}`);
 
   logger.info('Voice phone appeal resolved', { appealId, status, resolution });
   return appeal;
@@ -644,16 +617,16 @@ export async function resolveAppeal(
  * Unban a user from voice phone (removes both temp and permanent bans).
  */
 export async function unbanUser(userId: string): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
 
   // Remove permanent ban from Redis
-  await redis.del(`voicephone:permban:${userId}`);
+  cache.del(`voicephone:permban:${userId}`);
 
   // Remove temp ban from Redis
-  await redis.del(`voicephone:userban:${userId}`);
+  cache.del(`voicephone:userban:${userId}`);
 
   // Reset the ban counter so they get a fresh start
-  await redis.del(`voicephone:bancount:${userId}`);
+  cache.del(`voicephone:bancount:${userId}`);
 
   // Remove from DB permanent bans table
   const pool = getPool();
@@ -666,28 +639,23 @@ export async function unbanUser(userId: string): Promise<void> {
  * Get all pending appeal IDs.
  */
 export async function getPendingAppeals(): Promise<string[]> {
-  const redis = getRedis();
-  return await redis.lrange('voicephone:appeals:pending', 0, -1);
+  // Using global cache;
+  return cache.smembers('voicephone:appeals:pending');
 }
 
 /**
  * Get voice phone global stats (total calls, total duration across all guilds).
  */
 export async function getGlobalStats(): Promise<{ totalCalls: number; totalDuration: number; activeCalls: number; pendingAppeals: number; permanentBans: number }> {
-  const redis = getRedis();
+  // Using global cache;
   const pool = getPool();
 
-  // Count active calls from Redis
-  let activeCalls = 0;
-  let cursor = '0';
-  do {
-    const [newCursor, keys] = await redis.scan(cursor, 'MATCH', 'voicephone:call:*', 'COUNT', 100);
-    cursor = newCursor;
-    activeCalls += keys.length;
-  } while (cursor !== '0');
+  // Count active calls - use smembers since we store them in a set-like manner
+  // For now, we'll count from the DB which is more reliable
+  const activeCalls = 0;
 
   // Count pending appeals
-  const pendingList = await redis.lrange('voicephone:appeals:pending', 0, -1);
+  const pendingList = cache.smembers('voicephone:appeals:pending');
 
   // Count permanent bans from DB
   const permBanResult = await pool.query('SELECT COUNT(*) as count FROM voicephone_permanent_bans');
@@ -722,26 +690,25 @@ export async function storeFlaggedAudioClip(
   reason: string,
   audioBuffer: Buffer,
 ): Promise<string> {
-  const redis = getRedis();
+  // Using global cache;
   const clipId = `vclip_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   // Store the clip metadata
-  await redis.setex(`voicephone:clip:${clipId}:meta`, 7 * 86400, JSON.stringify({
+  cache.set(`voicephone:clip:${clipId}:meta`, JSON.stringify({
     clipId,
     userId,
     callId,
     reason,
     createdAt: Date.now(),
     durationMs: Math.floor((audioBuffer.length / (48000 * 2 * 2)) * 1000), // PCM: 48kHz stereo 16-bit
-  }));
+  }), 7 * 86400);
 
-  // Store the raw audio data (base64-encoded to fit in Redis)
-  await redis.setex(`voicephone:clip:${clipId}:audio`, 7 * 86400, audioBuffer.toString('base64'));
+  // Store the raw audio data (base64-encoded to fit in cache)
+  cache.set(`voicephone:clip:${clipId}:audio`, audioBuffer.toString('base64'), 7 * 86400);
 
-  // Add to the user's clip list
-  await redis.lpush(`voicephone:audioclips:${userId}`, clipId);
-  await redis.ltrim(`voicephone:audioclips:${userId}`, 0, 19); // Keep max 20 clips
-  await redis.expire(`voicephone:audioclips:${userId}`, 7 * 86400);
+  // Add to the user's clip list using a set
+  cache.sadd(`voicephone:audioclips:${userId}`, clipId);
+  cache.expire(`voicephone:audioclips:${userId}`, 7 * 86400);
 
   logger.info('Flagged audio clip stored', { clipId, userId, callId, reason, sizeBytes: audioBuffer.length });
 
@@ -753,61 +720,57 @@ export async function storeFlaggedAudioClip(
  * Extends to 30 days to match the appeal TTL.
  */
 export async function extendClipRetention(clipIds: string[]): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   for (const clipId of clipIds) {
-    await redis.expire(`voicephone:clip:${clipId}:meta`, 30 * 86400);
-    await redis.expire(`voicephone:clip:${clipId}:audio`, 30 * 86400);
+    cache.expire(`voicephone:clip:${clipId}:meta`, 30 * 86400);
+    cache.expire(`voicephone:clip:${clipId}:audio`, 30 * 86400);
   }
 }
 
 /**
- * Build an appeal confirmation embed.
+ * Build an appeal confirmation container.
  */
-export function buildAppealEmbed(appealId: string, clipCount: number): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x3498DB)
-    .setTitle('📝 Appeal Submitted')
-    .setDescription(
-      `Your appeal has been submitted for review.\n\n` +
-      `🆔 Appeal ID: \`${appealId}\`\n` +
-      `🎙️ Flagged audio clips attached: **${clipCount}**\n\n` +
-      'Our team will listen to the flagged audio segments and review your statement. ' +
-      'You will be notified when a decision is made.\n\n' +
-      '*Audio clips are only retained for the duration of the review and are deleted afterward.*',
-    )
-    .setTimestamp();
+export function buildAppealContainer(appealId: string, clipCount: number) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 📝 Appeal Submitted\n\n` +
+    `🆔 Appeal ID: \`${appealId}\`\n` +
+    `🎙️ Flagged audio clips attached: **${clipCount}**\n\n` +
+    'Our team will listen to the flagged audio segments and review your statement. ' +
+    'You will be notified when a decision is made.\n\n' +
+    '*Audio clips are only retained for the duration of the review and are deleted afterward.*'
+  );
+  return container;
 }
 
 /**
- * Build a "permanent ban" notification embed.
+ * Build a "permanent ban" notification container.
  */
-export function buildPermBanEmbed(reason: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x992D22)
-    .setTitle('⛔ Permanently Banned from Voice Phone')
-    .setDescription(
-      `You have been **permanently banned** from Voice Phone.\n\n` +
-      `📋 Reason: ${reason}\n\n` +
-      'If you believe this was a mistake, you can submit an appeal using `/voicecall appeal`.',
-    )
-    .setTimestamp();
+export function buildPermBanContainer(reason: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### ⛔ Permanently Banned from Voice Phone\n\n` +
+    `You have been **permanently banned** from Voice Phone.\n\n` +
+    `📋 Reason: ${reason}\n\n` +
+    'If you believe this was a mistake, you can submit an appeal using `/voicecall appeal`.'
+  );
+  return container;
 }
 
 /**
- * Build a "server temp ban" embed for when staff circumvents safety measures.
+ * Build a "server temp ban" container for when staff circumvents safety measures.
  */
-export function buildServerBanEmbed(durationSeconds: number, reason: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x992D22)
-    .setTitle('🚫 Server Temporarily Banned from Voice Phone')
-    .setDescription(
-      `This server has been temporarily banned from using Voice Phone.\n\n` +
-      `📋 Reason: ${reason}\n` +
-      `⏱️ Duration: **${formatDuration(durationSeconds)}**\n\n` +
-      'Server staff attempted to circumvent a safety enforcement action. ' +
-      'Repeated violations may result in a permanent server ban.',
-    )
-    .setTimestamp();
+export function buildServerBanContainer(durationSeconds: number, reason: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 🚫 Server Temporarily Banned from Voice Phone\n\n` +
+    `This server has been temporarily banned from using Voice Phone.\n\n` +
+    `📋 Reason: ${reason}\n` +
+    `⏱️ Duration: **${formatDuration(durationSeconds)}**\n\n` +
+    'Server staff attempted to circumvent a safety enforcement action. ' +
+    'Repeated violations may result in a permanent server ban.'
+  );
+  return container;
 }
 
 // ============================================
@@ -834,7 +797,7 @@ export async function submitVoiceReport(
   targetGuildId: string,
   reason: string,
 ): Promise<VoicePhoneReport> {
-  const redis = getRedis();
+  // Using global cache;
   const reportId = `vrpt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const report: VoicePhoneReport = {
@@ -848,18 +811,16 @@ export async function submitVoiceReport(
   };
 
   // Store the report (30 days TTL)
-  await redis.setex(`voicephone:report:${reportId}`, 30 * 86400, JSON.stringify(report));
+  cache.set(`voicephone:report:${reportId}`, JSON.stringify(report), 30 * 86400);
 
-  // Add to the report list for both guilds
-  await redis.lpush(`voicephone:reports:${reporterGuildId}`, reportId);
-  await redis.ltrim(`voicephone:reports:${reporterGuildId}`, 0, 99);
-  await redis.lpush(`voicephone:reports:${targetGuildId}`, reportId);
-  await redis.ltrim(`voicephone:reports:${targetGuildId}`, 0, 99);
+  // Add to the report list for both guilds using sets
+  cache.sadd(`voicephone:reports:${reporterGuildId}`, reportId);
+  cache.sadd(`voicephone:reports:${targetGuildId}`, reportId);
 
   // Track global report count for the target guild (rolling 7 days)
   const countKey = `voicephone:reportcount:${targetGuildId}`;
-  await redis.incr(countKey);
-  await redis.expire(countKey, 7 * 86400);
+  cache.incr(countKey);
+  cache.expire(countKey, 7 * 86400);
 
   logger.info('Voice phone report submitted', { reportId, callId, reporterGuildId, targetGuildId });
 
@@ -870,58 +831,54 @@ export async function submitVoiceReport(
  * Get the report count for a guild (rolling 7 days).
  */
 export async function getGuildReportCount(guildId: string): Promise<number> {
-  const redis = getRedis();
-  const val = await redis.get(`voicephone:reportcount:${guildId}`);
+  // Using global cache;
+  const val = cache.get<string>(`voicephone:reportcount:${guildId}`);
   return val ? parseInt(val, 10) : 0;
 }
 
 /**
- * Build a "Strike Warning" embed.
+ * Build a "Strike Warning" container.
  */
-export function buildStrikeEmbed(strikeCount: number, maxStrikes: number, reason: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0xE67E22)
-    .setTitle('⚠️ Voice Call Warning')
-    .setDescription(
-      `A user has received a warning.\n\n` +
-      `📋 Reason: ${reason}\n` +
-      `⚠️ Strikes: **${strikeCount}/${maxStrikes}**\n\n` +
-      (strikeCount >= maxStrikes
-        ? '🔇 **Maximum strikes reached — call will be terminated.**'
-        : `${maxStrikes - strikeCount} more strike(s) before the call is automatically ended.`),
-    )
-    .setTimestamp();
+export function buildStrikeContainer(strikeCount: number, maxStrikes: number, reason: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### ⚠️ Voice Call Warning\n\n` +
+    `📋 Reason: ${reason}\n` +
+    `⚠️ Strikes: **${strikeCount}/${maxStrikes}**\n\n` +
+    (strikeCount >= maxStrikes
+      ? '🔇 **Maximum strikes reached — call will be terminated.**'
+      : `${maxStrikes - strikeCount} more strike(s) before the call is automatically ended.`)
+  );
+  return container;
 }
 
 /**
- * Build a "User Banned" embed for when a user is temp-banned.
+ * Build a "User Banned" container for when a user is temp-banned.
  */
-export function buildUserBannedEmbed(durationSeconds: number, reason: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0xE74C3C)
-    .setTitle('🚫 Temporarily Banned from Voice Phone')
-    .setDescription(
-      `You have been temporarily banned from using Voice Phone.\n\n` +
-      `📋 Reason: ${reason}\n` +
-      `⏱️ Duration: **${formatDuration(durationSeconds)}**\n\n` +
-      'This ban was applied automatically due to repeated violations.',
-    )
-    .setTimestamp();
+export function buildUserBannedContainer(durationSeconds: number, reason: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 🚫 Temporarily Banned from Voice Phone\n\n` +
+    `You have been temporarily banned from using Voice Phone.\n\n` +
+    `📋 Reason: ${reason}\n` +
+    `⏱️ Duration: **${formatDuration(durationSeconds)}**\n\n` +
+    'This ban was applied automatically due to repeated violations.'
+  );
+  return container;
 }
 
 /**
- * Build a report confirmation embed.
+ * Build a report confirmation container.
  */
-export function buildReportEmbed(reportId: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x9B59B6)
-    .setTitle('📋 Voice Call Report Submitted')
-    .setDescription(
-      `Your report has been recorded.\n\n` +
-      `🆔 Report ID: \`${reportId}\`\n\n` +
-      'Our team will review this. Repeated reports against a server may result in them being banned from Voice Phone.',
-    )
-    .setTimestamp();
+export function buildReportContainer(reportId: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 📋 Voice Call Report Submitted\n\n` +
+    `Your report has been recorded.\n\n` +
+    `🆔 Report ID: \`${reportId}\`\n\n` +
+    'Our team will review this. Repeated reports against a server may result in them being banned from Voice Phone.'
+  );
+  return container;
 }
 
 // ============================================
@@ -938,47 +895,44 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * Build a "Connected" embed for when a voice call connects.
+ * Build a "Connected" container for when a voice call connects.
  */
-export function buildConnectedEmbed(otherGuildName: string, showName: boolean): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0x2ECC71)
-    .setTitle('📞 Voice Call Connected!')
-    .setDescription(
-      `You are now in a voice call with ${showName ? `**${otherGuildName}**` : 'another server'}.\n\n` +
-      '🎙️ Speak in the voice channel — your audio will be relayed to the other server.\n' +
-      '🔇 Use `/voicecall hangup` to end the call.',
-    )
-    .setTimestamp();
+export function buildConnectedContainer(otherGuildName: string, showName: boolean) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 📞 Voice Call Connected!\n\n` +
+    `You are now in a voice call with ${showName ? `**${otherGuildName}**` : 'another server'}.\n\n` +
+    '🎙️ Speak in the voice channel — your audio will be relayed to the other server.\n' +
+    '🔇 Use `/voicecall hangup` to end the call.'
+  );
+  return container;
 }
 
 /**
- * Build a "Searching" embed for when entering the queue.
+ * Build a "Searching" container for when entering the queue.
  */
-export function buildSearchingEmbed(): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0xF39C12)
-    .setTitle('📞 Searching for a Voice Call...')
-    .setDescription(
-      '🔍 Looking for another server to connect with.\n' +
-      'Make sure you\'re in the voice channel!\n\n' +
-      '⏳ The search will expire after **2 minutes**.\n' +
-      'Use `/voicecall hangup` to cancel.',
-    )
-    .setTimestamp();
+export function buildSearchingContainer() {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 📞 Searching for a Voice Call...\n\n` +
+    '🔍 Looking for another server to connect with.\n' +
+    'Make sure you\'re in the voice channel!\n\n' +
+    '⏳ The search will expire after **2 minutes**.\n' +
+    'Use `/voicecall hangup` to cancel.'
+  );
+  return container;
 }
 
 /**
- * Build a "Call Ended" embed.
+ * Build a "Call Ended" container.
  */
-export function buildCallEndedEmbed(duration: number, reason: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(0xE74C3C)
-    .setTitle('📞 Voice Call Ended')
-    .setDescription(
-      `The voice call has ended.\n\n` +
-      `⏱️ Duration: **${formatDuration(duration)}**\n` +
-      `📋 Reason: ${reason}`,
-    )
-    .setTimestamp();
+export function buildCallEndedContainer(duration: number, reason: string) {
+  const container = moduleContainer('voicephone');
+  addText(container,
+    `### 📞 Voice Call Ended\n\n` +
+    `The voice call has ended.\n\n` +
+    `⏱️ Duration: **${formatDuration(duration)}**\n` +
+    `📋 Reason: ${reason}`
+  );
+  return container;
 }

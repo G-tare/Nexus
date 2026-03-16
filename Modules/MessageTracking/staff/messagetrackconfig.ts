@@ -1,11 +1,11 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
   ChannelType,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addFields, v2Payload, successReply } from '../../../Shared/src/utils/componentsV2';
 import { getMessageTrackingConfig, setMessageTrackingConfig } from '../helpers';
 
 const logger = createModuleLogger('MessageTracking');
@@ -67,45 +67,35 @@ const command: BotCommand = {
       const config = await getMessageTrackingConfig(interaction.guild.id);
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2')
-          .setTitle('Message Tracking Configuration')
-          .addFields(
-            { name: 'Log Edits', value: config.logEdits ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Log Deletes', value: config.logDeletes ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Log Bulk Deletes', value: config.logBulkDeletes ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Ghost Ping Alert', value: config.ghostPingAlert ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Snipe Enabled', value: config.snipeEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Snipe Timeout', value: `${config.snipeTimeout} seconds`, inline: true },
-            { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not configured', inline: false },
-            { name: 'Ignore Bots', value: config.ignoreBots ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Ignored Channels', value: config.ignoredChannels.length > 0 ? config.ignoredChannels.map((id) => `<#${id}>`).join(', ') : 'None', inline: false }
-          )
-          .setFooter({ text: `Viewed by ${interaction.user.username}` })
-          .setTimestamp();
+        const container = moduleContainer('message_tracking');
+        addFields(container, [
+          { name: 'Log Edits', value: config.logEdits ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Log Deletes', value: config.logDeletes ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Log Bulk Deletes', value: config.logBulkDeletes ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Ghost Ping Alert', value: config.ghostPingAlert ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Snipe Enabled', value: config.snipeEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Snipe Timeout', value: `${config.snipeTimeout} seconds`, inline: true },
+          { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not configured', inline: false },
+          { name: 'Ignore Bots', value: config.ignoreBots ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Ignored Channels', value: config.ignoredChannels.length > 0 ? config.ignoredChannels.map((id) => `<#${id}>`).join(', ') : 'None', inline: false }
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'logchannel') {
         const channel = interaction.options.getChannel('channel', true);
         await setMessageTrackingConfig(interaction.guild.id, { logChannelId: channel.id });
 
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Log channel set to <#${channel.id}>`)],
-        });
+        await interaction.reply(successReply('Configuration Updated', `Log channel set to <#${channel.id}>`));
       } else if (subcommand === 'snipe') {
         const enabled = interaction.options.getBoolean('enabled', true);
         await setMessageTrackingConfig(interaction.guild.id, { snipeEnabled: enabled });
 
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Snipe functionality ${enabled ? '✅ enabled' : '❌ disabled'}`)],
-        });
+        await interaction.reply(successReply('Configuration Updated', `Snipe functionality ${enabled ? '✅ enabled' : '❌ disabled'}`));
       } else if (subcommand === 'ghostping') {
         const enabled = interaction.options.getBoolean('enabled', true);
         await setMessageTrackingConfig(interaction.guild.id, { ghostPingAlert: enabled });
 
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`Ghost ping alerts ${enabled ? '✅ enabled' : '❌ disabled'}`)],
-        });
+        await interaction.reply(successReply('Configuration Updated', `Ghost ping alerts ${enabled ? '✅ enabled' : '❌ disabled'}`));
       } else if (subcommand === 'ignorechannel') {
         const channel = interaction.options.getChannel('channel', true);
         const ignoredChannels = [...config.ignoredChannels];
@@ -122,9 +112,7 @@ const command: BotCommand = {
 
         await setMessageTrackingConfig(interaction.guild.id, { ignoredChannels });
 
-        await interaction.reply({
-          embeds: [new EmbedBuilder().setColor('#43B581').setTitle('✅ Configuration Updated').setDescription(`<#${channel.id}> is now ${isNowIgnored ? '❌ ignored' : '✅ tracked'} for message tracking`)],
-        });
+        await interaction.reply(successReply('Configuration Updated', `<#${channel.id}> is now ${isNowIgnored ? '❌ ignored' : '✅ tracked'} for message tracking`));
       }
     } catch (error) {
       logger.error('Error executing messagetrackconfig command:', error);

@@ -1,9 +1,10 @@
-import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { config as globalConfig } from '../../../Shared/src/config';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getAIConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AIChatbot');
 
@@ -51,15 +52,11 @@ const command: BotCommand = {
 
       await moduleConfig.updateConfig(interaction.guildId!, 'aichatbot', { ...config, allowedChannels });
 
-      const embed = new EmbedBuilder()
-        .setTitle('📝 Channel Updated')
-        .setDescription(`${channel} has been ${action} AI chat channels.`)
-        .addFields({ name: 'Total AI Channels', value: allowedChannels.length.toString(), inline: true })
-        .setColor(index > -1 ? '#FF0000' : '#43B581')
-        .setFooter({ text: `Updated by ${interaction.user.username}` })
-        .setTimestamp();
+      const container = moduleContainer('ai_chatbot');
+      addText(container, `### 📝 Channel Updated\n${channel} has been ${action} AI chat channels.`);
+      addText(container, `**Total AI Channels**\n${allowedChannels.length.toString()}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in aichannel command execution', error);
       await interaction.reply({ content: '❌ Failed to update channel configuration.' });

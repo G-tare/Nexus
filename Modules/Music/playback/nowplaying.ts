@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getQueue, formatDuration } from '../helpers';
+import { getQueue, formatDuration, buildNowPlayingContainer } from '../helpers';
+import { errorContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -17,67 +18,14 @@ const command: BotCommand = {
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
-    const currentTrack = queue.tracks[0];
-    const duration = currentTrack.duration;
-
-    // Build progress bar
-    const totalBars = 20;
-    const filledBars = Math.round((queue.position / duration) * totalBars);
-    const emptyBars = totalBars - filledBars;
-    const progressBar =
-      '█'.repeat(Math.max(0, filledBars - 1)) +
-      '🔘' +
-      '░'.repeat(Math.max(0, emptyBars - 1));
-
-    // Format time strings
-    const currentMinutes = Math.floor(queue.position / 60000);
-    const currentSeconds = Math.floor((queue.position % 60000) / 1000);
-    const currentTimeStr = `${currentMinutes}:${currentSeconds
-      .toString()
-      .padStart(2, '0')}`;
-
-    const totalMinutes = Math.floor(duration / 60000);
-    const totalSeconds = Math.floor((duration % 60000) / 1000);
-    const totalTimeStr = `${totalMinutes}:${totalSeconds
-      .toString()
-      .padStart(2, '0')}`;
-
-    // Build embed
-    const embed = new EmbedBuilder()
-      .setTitle('Now Playing')
-      .setDescription(`**${currentTrack.title}**\nby ${currentTrack.author}`)
-      .addFields([
-        {
-          name: 'Progress',
-          value: `${progressBar}\n${currentTimeStr} / ${totalTimeStr}`,
-          inline: false,
-        },
-        {
-          name: 'Queue Position',
-          value: `${queue.tracks.length} track(s) in queue`,
-          inline: true,
-        },
-        {
-          name: 'Volume',
-          value: `${queue.volume}%`,
-          inline: true,
-        },
-        {
-          name: 'Loop Mode',
-          value: queue.loop === 'off' ? 'Off' : queue.loop === 'queue' ? 'Queue' : 'Track',
-          inline: true,
-        },
-      ])
-      .setColor(0x2f3136);
+    // Build the now playing container
+    const container = buildNowPlayingContainer(queue.currentTrack, queue);
 
     // Build action row with buttons
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -99,9 +47,9 @@ const command: BotCommand = {
       new ButtonBuilder()
         .setCustomId('btn_loop')
         .setLabel(
-          (queue as any).loopMode === 'off'
+          queue.loop === 'off'
             ? 'Loop Off'
-            : (queue as any).loopMode === 'queue'
+            : queue.loop === 'queue'
               ? 'Loop Queue'
               : 'Loop Track'
         )
@@ -109,9 +57,12 @@ const command: BotCommand = {
         .setEmoji('🔁')
     );
 
+    // Add buttons to container
+    container.addActionRowComponents(row);
+
     return interaction.editReply({
-      embeds: [embed],
-      components: [row],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
   },
 };

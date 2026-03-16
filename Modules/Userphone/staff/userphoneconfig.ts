@@ -2,12 +2,12 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ChannelType,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getUserphoneConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -123,23 +123,22 @@ const command: BotCommand = {
         ? config.contentFilter.customBlockedWords.map(w => `\`${w}\``).join(', ')
         : 'None';
 
-      const embed = new EmbedBuilder()
-        .setColor(0x9B59B6)
-        .setTitle('📞 Userphone Settings')
-        .addFields(
-          { name: 'Allowed Channels', value: channels },
-          { name: 'Max Duration', value: config.maxDuration > 0 ? `${config.maxDuration}s` : 'Unlimited', inline: true },
-          { name: 'Attachments', value: config.allowAttachments ? '✅' : '❌', inline: true },
-          { name: 'Show Server Name', value: config.showServerName ? '✅' : '❌', inline: true },
-          { name: 'Call Cooldown', value: `${config.callCooldown}s`, inline: true },
-          { name: 'Report Channel', value: config.reportChannelId ? `<#${config.reportChannelId}>` : 'Not set', inline: true },
-          { name: 'Message Format', value: config.messageFormat === 'plain' ? '📝 Plain Text' : '📦 Embed', inline: true },
-          { name: 'Blacklisted Servers', value: config.blacklistedServers.length > 0 ? config.blacklistedServers.join(', ') : 'None' },
-          { name: 'Content Filter', value: filterStatus },
-          { name: 'Custom Blocked Words', value: blockedWords },
-        );
+      const container = moduleContainer('userphone');
+      addText(container, '### 📞 Userphone Settings');
+      addFields(container, [
+        { name: 'Allowed Channels', value: channels },
+        { name: 'Max Duration', value: config.maxDuration > 0 ? `${config.maxDuration}s` : 'Unlimited', inline: true },
+        { name: 'Attachments', value: config.allowAttachments ? '✅' : '❌', inline: true },
+        { name: 'Show Server Name', value: config.showServerName ? '✅' : '❌', inline: true },
+        { name: 'Call Cooldown', value: `${config.callCooldown}s`, inline: true },
+        { name: 'Report Channel', value: config.reportChannelId ? `<#${config.reportChannelId}>` : 'Not set', inline: true },
+        { name: 'Message Format', value: config.messageFormat === 'plain' ? '📝 Plain Text' : '📦 Container', inline: true },
+        { name: 'Blacklisted Servers', value: config.blacklistedServers.length > 0 ? config.blacklistedServers.join(', ') : 'None' },
+        { name: 'Content Filter', value: filterStatus },
+        { name: 'Custom Blocked Words', value: blockedWords },
+      ]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 

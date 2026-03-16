@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -42,7 +42,8 @@ const command: BotCommand = {
     // Check if channel is a text channel
     if (!channel || !channel.isTextBased() || channel.isDMBased()) {
       await interaction.reply({
-        embeds: [errorEmbed('Invalid Channel', 'This command only works in text channels.')],
+        components: [errorContainer('Invalid Channel', 'This command only works in text channels.')],
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -90,7 +91,8 @@ const command: BotCommand = {
       if (toDelete.length === 0) {
         const filterLabel = filter === 'all' ? 'messages' : `messages with ${filter}`;
         await interaction.editReply({
-          embeds: [errorEmbed('No Messages', `No ${filterLabel} found that are less than 14 days old.`)],
+          components: [errorContainer('No Messages', `No ${filterLabel} found that are less than 14 days old.`)],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -106,16 +108,18 @@ const command: BotCommand = {
         all: 'messages',
       }[filter] || 'messages';
 
-      const embed = successEmbed(
-        'Messages Deleted',
-        `Successfully deleted **${toDelete.length}** ${filterLabel} from ${channel}.`
-      ).setColor(Colors.Moderation);
-
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [successContainer(
+          'Messages Deleted',
+          `Successfully deleted **${toDelete.length}** ${filterLabel} from ${channel}.`
+        )],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Bulk delete command error:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('Deletion Failed', 'An error occurred while deleting messages.')],
+        components: [errorContainer('Deletion Failed', 'An error occurred while deleting messages.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

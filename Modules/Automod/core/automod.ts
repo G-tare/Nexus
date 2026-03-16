@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, infoEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addSeparator } from '../../../Shared/src/utils/componentsV2';
 import { getAutomodConfig } from '../helpers';
 
 const command: BotCommand = {
@@ -30,15 +30,16 @@ const command: BotCommand = {
     try {
       const config = await getAutomodConfig(interaction.guildId!);
 
-      // Build the comprehensive embed
-      const embed = new EmbedBuilder()
-        .setTitle('Automod Configuration Overview')
-        .setColor(Colors.Info)
-        .setTimestamp();
+      // Build the comprehensive container
+      const container = moduleContainer('automod');
+      addText(container, '### Automod Configuration Overview');
+      addSeparator(container, 'small');
+
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
 
       // Anti-Spam Section
       const antiSpamStatus = config.antispam.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Anti-Spam ${config.antispam.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${antiSpamStatus}\n` +
@@ -47,12 +48,11 @@ const command: BotCommand = {
           `Max Emojis: ${config.antispam.maxEmojis}\n` +
           `Max Caps: ${config.antispam.maxCaps}%\n` +
           `Max Mentions: ${config.antispam.maxMentions}`,
-        inline: false,
       });
 
       // Anti-Raid Section
       const antiRaidStatus = config.antiraid.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Anti-Raid ${config.antiraid.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${antiRaidStatus}\n` +
@@ -60,12 +60,11 @@ const command: BotCommand = {
           `Min Account Age: ${config.antiraid.minAccountAgeDays} days\n` +
           `Action: ${config.antiraid.action}\n` +
           `Lockdown Duration: ${config.antiraid.lockdownDurationMinutes} minutes`,
-        inline: false,
       });
 
       // Anti-Link Section
       const antiLinkStatus = config.antilink.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Anti-Link ${config.antilink.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${antiLinkStatus}\n` +
@@ -73,35 +72,32 @@ const command: BotCommand = {
           `Blacklisted Domains: ${config.antilink.blacklistedDomains.length}\n` +
           `Allowed Channels: ${config.antilink.allowedChannels.length}\n` +
           `Allowed Roles: ${config.antilink.allowedRoles.length}`,
-        inline: false,
       });
 
       // Anti-Invite Section
       const antiInviteStatus = config.antiinvite.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Anti-Invite ${config.antiinvite.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${antiInviteStatus}\n` +
           `Allowed Servers: ${config.antiinvite.allowedServers.length}\n` +
           `Allowed Roles: ${config.antiinvite.allowedRoles.length}`,
-        inline: false,
       });
 
       // Word Filter Section
       const wordFilterStatus = config.wordfilter.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Word Filter ${config.wordfilter.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${wordFilterStatus}\n` +
           `Filtered Words: ${config.wordfilter.words.length}\n` +
           `Wildcard Patterns: ${config.wordfilter.wildcards.length}\n` +
           `Regex Patterns: ${config.wordfilter.regexPatterns.length}`,
-        inline: false,
       });
 
       // Anti-Nuke Section
       const antiNukeStatus = config.antinuke.enabled ? '✅ Enabled' : '❌ Disabled';
-      embed.addFields({
+      fields.push({
         name: `Anti-Nuke ${config.antinuke.enabled ? '✅' : '❌'}`,
         value:
           `Status: ${antiNukeStatus}\n` +
@@ -110,7 +106,6 @@ const command: BotCommand = {
           `Max Bans/min: ${config.antinuke.maxBansPerMinute}\n` +
           `Max Webhook Creates/min: ${config.antinuke.maxWebhookCreatesPerMinute}\n` +
           `Action: ${config.antinuke.action}`,
-        inline: false,
       });
 
       // Punishment Escalation Section
@@ -138,35 +133,34 @@ const command: BotCommand = {
         })
         .join('\n');
 
-      embed.addFields({
+      fields.push({
         name: 'Punishment Escalation',
         value: punishmentLevels || 'No punishments configured',
-        inline: false,
       });
 
       // Exemptions Section
-      embed.addFields({
+      fields.push({
         name: 'Exemptions',
         value:
           `Exempt Roles: ${config.exemptRoles.length}\n` +
           `Exempt Channels: ${config.exemptChannels.length}\n` +
           `Exempt Users: ${config.exemptUsers.length}`,
-        inline: false,
       });
 
       // Logging Section
       const logChannelInfo = config.logChannelId
         ? `<#${config.logChannelId}>`
         : 'Not set';
-      embed.addFields({
+      fields.push({
         name: 'Logging',
         value: `Log Channel: ${logChannelInfo}`,
-        inline: false,
       });
 
+      addFields(container, fields);
+
       await interaction.reply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral,
+        components: [container],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       console.error('Error in automod command:', error);

@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addMediaGallery, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const memeFallback = {
   title: 'Meme',
@@ -24,13 +25,12 @@ export default {
 
       const meme = memeFallback;
 
-      const embed = new EmbedBuilder()
-        .setTitle(meme.title)
-        .setImage(meme.image)
-        .setFooter({ text: meme.subreddit })
-        .setColor('#FF6B6B');
+      const container = moduleContainer('fun');
+      addText(container, `### ${meme.title}`);
+      addMediaGallery(container, [{ url: meme.image }]);
+      addFooter(container, meme.subreddit);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Meme command error:', error);
       await interaction.reply({

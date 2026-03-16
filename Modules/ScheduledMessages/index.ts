@@ -7,18 +7,20 @@ import schedule from './staff/schedule';
 import schedulelist from './staff/schedulelist';
 import scheduleedit from './staff/scheduleedit';
 import scheduledelete from './staff/scheduledelete';
+import announce from './staff/announce';
 import config from './staff/config';
 
-const logger = createModuleLogger('ScheduledMessages');
+const logger = createModuleLogger('Announcements');
 
 const scheduledMessagesModule: BotModule = {
   name: 'scheduledmessages',
-  displayName: 'Scheduled Messages',
-  description: 'Schedule messages to be sent at specific times or on recurring schedules (staff only)',
+  displayName: 'Announcements',
+  description: 'Send instant announcements or schedule messages to be sent at specific times or on recurring schedules (staff only)',
   category: 'utility',
 
   commands: [
-    // Staff (5)
+    // Staff (6)
+    announce,
     schedule,
     schedulelist,
     scheduleedit,
@@ -29,7 +31,7 @@ const scheduledMessagesModule: BotModule = {
   events: scheduledMessagesEvents,
 
   async onLoad() {
-    logger.info('Scheduled Messages module loaded — 5 commands (staff only)');
+    logger.info('Announcements module loaded — 6 commands (staff only)');
   },
 
   defaultConfig: {

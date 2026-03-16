@@ -19,6 +19,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('doublexp')
     .setDescription('Manage double XP events')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('start')

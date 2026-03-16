@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { banUser, isUserBanned, auditLog } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcban')
@@ -60,18 +60,16 @@ export const vcban: BotCommand = {
         reason,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor('#ff0000')
-        .setTitle('User Banned')
-        .setDescription(`${targetUser.username} has been banned from creating temporary voice channels.`)
-        .addFields(
-          { name: 'User', value: targetUser.username, inline: true },
-          { name: 'Banned By', value: user.username, inline: true },
-          { name: 'Reason', value: reason }
-        );
+      const container = moduleContainer('temp_voice').setAccentColor(0xff0000);
+      addText(container, `### User Banned\n${targetUser.username} has been banned from creating temporary voice channels.`);
+      addFields(container, [
+        { name: 'User', value: targetUser.username, inline: true },
+        { name: 'Banned By', value: user.username, inline: true },
+        { name: 'Reason', value: reason }
+      ]);
 
       logger.info('[TempVoice] Staff banned user from creating temp VCs:', targetUser.id, 'reason:', reason);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vcban command:', error);
       return interaction.editReply('An error occurred while banning the user.');

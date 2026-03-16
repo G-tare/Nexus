@@ -1,11 +1,11 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getContacts, removeContact } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -34,12 +34,10 @@ const command: BotCommand = {
       const contacts = await getContacts(guild.id);
 
       if (contacts.length === 0) {
-        const embed = new EmbedBuilder()
-          .setColor(0x9B59B6)
-          .setTitle('📒 Contacts')
-          .setDescription('No saved contacts yet.\n\nAfter a userphone call, click the **Save Contact** button to save a server you enjoyed chatting with!');
+        const container = moduleContainer('userphone');
+        addText(container, `### 📒 Contacts\nNo saved contacts yet.\n\nAfter a userphone call, click the **Save Contact** button to save a server you enjoyed chatting with!`);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
         return;
       }
 
@@ -48,13 +46,11 @@ const command: BotCommand = {
         return `**${i + 1}.** ${name} (\`${c.contactGuildId}\`)`;
       });
 
-      const embed = new EmbedBuilder()
-        .setColor(0x9B59B6)
-        .setTitle('📒 Contacts')
-        .setDescription(lines.join('\n'))
-        .setFooter({ text: `${contacts.length} contact${contacts.length !== 1 ? 's' : ''} • Use /directcall to call a contact` });
+      const container = moduleContainer('userphone');
+      addText(container, `### 📒 Contacts\n${lines.join('\n')}`);
+      addText(container, `-# ${contacts.length} contact${contacts.length !== 1 ? 's' : ''} • Use /directcall to call a contact`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 

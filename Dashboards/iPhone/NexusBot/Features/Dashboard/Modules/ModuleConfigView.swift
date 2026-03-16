@@ -221,6 +221,8 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var typedConfigSections: some View {
         switch moduleKey {
+        case "core":
+            coreConfig
         case "moderation":
             moderationConfig
         case "automod":
@@ -295,8 +297,42 @@ struct ModuleConfigView: View {
             userphoneConfig
         case "voicephone":
             voicephoneConfig
+        case "raffles":
+            rafflesConfig
+        case "donationtracking":
+            donationTrackingConfig
+        case "timers":
+            timersConfig
+        case "reminders":
+            remindersConfig
+        case "tempvoice":
+            tempvoiceConfig
+        case "casino":
+            casinoConfig
+        case "profile":
+            profileConfig
+        case "family":
+            familyConfig
+        case "images":
+            imagesConfig
+        case "utilities":
+            utilitiesConfig
+        case "soundboard":
+            soundboardConfig
+        case "autosetup":
+            autosetupConfig
         default:
             genericConfig
+        }
+    }
+
+    // MARK: - Core Config
+
+    @ViewBuilder
+    private var coreConfig: some View {
+        ConfigSection(title: "Embed Colors", icon: "paintbrush.fill") {
+            ConfigToggle(label: "Help Embed Colors", key: "helpEmbedColors", config: $config)
+            ConfigToggle(label: "Config Embed Colors", key: "configEmbedColors", config: $config)
         }
     }
 
@@ -314,7 +350,7 @@ struct ModuleConfigView: View {
         ConfigSection(title: "Rules", icon: "doc.text.fill") {
             ConfigToggle(label: "Require Reason", key: "requireReason", config: $config)
             ConfigToggle(label: "Enable Appeals", key: "appealEnabled", config: $config)
-            ConfigTextField(label: "Appeal Channel ID", key: "appealChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Appeal Channel", key: "appealChannelId", config: $config)
         }
 
         ConfigSection(title: "Reputation", icon: "star.fill") {
@@ -330,7 +366,7 @@ struct ModuleConfigView: View {
         ConfigSection(title: "Advanced", icon: "gearshape.2.fill") {
             ConfigToggle(label: "Shadow Bans", key: "shadowBanEnabled", config: $config)
             ConfigToggle(label: "Alt Detection", key: "altDetectionEnabled", config: $config)
-            ConfigTextField(label: "Alt Log Channel", key: "altDetectionLogChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Alt Log Channel", key: "altDetectionLogChannelId", config: $config)
             ConfigToggle(label: "Currency Fines", key: "fineEnabled", config: $config)
         }
     }
@@ -368,7 +404,7 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Logging", icon: "doc.text.fill") {
-            ConfigTextField(label: "Log Channel ID", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -395,7 +431,7 @@ struct ModuleConfigView: View {
                 ("dm", "Direct Message"),
                 ("off", "Off"),
             ])
-            ConfigTextField(label: "Announce Channel ID", key: "announceChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Announce Channel", key: "announceChannelId", config: $config)
             ConfigTextField(label: "Announce Message", key: "announceMessage", config: $config, placeholder: "{user} reached level {level}!")
         }
 
@@ -416,17 +452,21 @@ struct ModuleConfigView: View {
     private var welcomeConfig: some View {
         ConfigSection(title: "Welcome Message", icon: "hand.wave.fill") {
             ConfigToggle(label: "Enabled", key: "welcome.enabled", config: $config, nested: true)
-            ConfigTextField(label: "Channel ID", key: "welcome.channelId", config: $config, nested: true, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Channel", key: "welcome.channelId", config: $config, nested: true)
             ConfigTextField(label: "Message", key: "welcome.message", config: $config, nested: true, placeholder: "Welcome {user} to {server}!")
-            ConfigToggle(label: "Use Embed", key: "welcome.useEmbed", config: $config, nested: true)
-            ConfigTextField(label: "Embed Color", key: "welcome.embedColor", config: $config, nested: true, placeholder: "#00FFFF")
         }
+
+        // Welcome embed editor
+        EmbedEditorView(sectionTitle: "Welcome Embed", configPrefix: "welcome", config: $config)
 
         ConfigSection(title: "Leave Message", icon: "figure.walk") {
             ConfigToggle(label: "Enabled", key: "leave.enabled", config: $config, nested: true)
-            ConfigTextField(label: "Channel ID", key: "leave.channelId", config: $config, nested: true, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Channel", key: "leave.channelId", config: $config, nested: true)
             ConfigTextField(label: "Message", key: "leave.message", config: $config, nested: true, placeholder: "{username} has left the server")
         }
+
+        // Leave embed editor
+        EmbedEditorView(sectionTitle: "Leave Embed", configPrefix: "leave", config: $config)
 
         ConfigSection(title: "DM on Join", icon: "envelope.fill") {
             ConfigToggle(label: "Enabled", key: "dm.enabled", config: $config, nested: true)
@@ -458,7 +498,7 @@ struct ModuleConfigView: View {
 
         ConfigSection(title: "Transcripts", icon: "doc.text.fill") {
             ConfigToggle(label: "Enable Transcripts", key: "transcriptEnabled", config: $config)
-            ConfigTextField(label: "Transcript Channel", key: "transcriptChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Transcript Channel", key: "transcriptChannelId", config: $config)
         }
 
         ConfigSection(title: "Auto-Close", icon: "clock.fill") {
@@ -471,7 +511,7 @@ struct ModuleConfigView: View {
             ConfigToggle(label: "Require Confirmation", key: "closeConfirmation", config: $config)
             ConfigToggle(label: "Delete on Close", key: "deleteOnClose", config: $config)
             ConfigNumberField(label: "Delete Delay (sec)", key: "closeDelay", config: $config)
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -481,7 +521,7 @@ struct ModuleConfigView: View {
     private var musicConfig: some View {
         ConfigSection(title: "DJ System", icon: "music.mic") {
             ConfigToggle(label: "DJ Mode", key: "djEnabled", config: $config)
-            ConfigTextField(label: "DJ Role ID", key: "djRoleId", config: $config, placeholder: "Role ID")
+            ConfigRolePicker(label: "DJ Role", key: "djRoleId", config: $config)
         }
 
         ConfigSection(title: "Playback", icon: "play.circle.fill") {
@@ -499,7 +539,7 @@ struct ModuleConfigView: View {
         ConfigSection(title: "Behavior", icon: "gearshape.fill") {
             ConfigToggle(label: "Auto-Play", key: "autoplayEnabled", config: $config)
             ConfigToggle(label: "24/7 Mode", key: "twentyFourSevenEnabled", config: $config)
-            ConfigTextField(label: "24/7 Voice Channel", key: "twentyFourSevenChannelId", config: $config, placeholder: "Voice Channel ID")
+            ConfigChannelPicker(label: "24/7 Voice Channel", key: "twentyFourSevenChannelId", config: $config, voiceOnly: true)
             ConfigToggle(label: "Now Playing Announce", key: "announceNowPlaying", config: $config)
             ConfigToggle(label: "Leave on Empty", key: "leaveOnEmpty", config: $config)
             ConfigNumberField(label: "Leave Delay (sec)", key: "leaveOnEmptyDelay", config: $config)
@@ -519,6 +559,26 @@ struct ModuleConfigView: View {
         ConfigSection(title: "Earning", icon: "arrow.up.circle.fill") {
             ConfigNumberField(label: "Streak Bonus", key: "streakBonusMultiplier", config: $config)
             ConfigNumberField(label: "Max Multiplier", key: "streakMaxMultiplier", config: $config)
+        }
+
+        ConfigSection(title: "Banking", icon: "building.columns.fill") {
+            ConfigToggle(label: "Enable Banking", key: "banking", config: $config)
+            ConfigToggle(label: "Enable Savings", key: "savings", config: $config)
+            ConfigToggle(label: "Enable Robbery", key: "robbery", config: $config)
+            ConfigNumberField(label: "Rob Chance %", key: "robChance", config: $config)
+        }
+
+        ConfigSection(title: "Earning Options", icon: "dollarsign.circle.fill") {
+            ConfigToggle(label: "Enable Earning", key: "earning", config: $config)
+            ConfigNumberField(label: "Monthly Amount", key: "monthlyAmount", config: $config)
+            ConfigNumberField(label: "Monthly Gems", key: "monthlyGems", config: $config)
+        }
+
+        ConfigSection(title: "Jobs", icon: "briefcase.fill") {
+            ConfigToggle(label: "Enable Jobs", key: "jobs", config: $config)
+            ConfigToggle(label: "Job Slacking Detection", key: "jobSlacking", config: $config)
+            ConfigNumberField(label: "Slacking Threshold", key: "slackingThreshold", config: $config)
+            ConfigNumberField(label: "Jail Duration (sec)", key: "jailDuration", config: $config)
         }
     }
 
@@ -541,8 +601,8 @@ struct ModuleConfigView: View {
                 ("quarantine", "Quarantine"),
                 ("alert", "Alert Only"),
             ])
-            ConfigTextField(label: "Alert Channel", key: "alertChannelId", config: $config, placeholder: "Channel ID")
-            ConfigTextField(label: "Quarantine Role", key: "quarantineRoleId", config: $config, placeholder: "Role ID")
+            ConfigChannelPicker(label: "Alert Channel", key: "alertChannelId", config: $config)
+            ConfigRolePicker(label: "Quarantine Role", key: "quarantineRoleId", config: $config)
         }
 
         ConfigSection(title: "Verification", icon: "checkmark.shield.fill") {
@@ -556,7 +616,7 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var loggingConfig: some View {
         ConfigSection(title: "General", icon: "doc.text.fill") {
-            ConfigTextField(label: "Default Log Channel", key: "defaultChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Default Log Channel", key: "defaultChannelId", config: $config)
         }
 
         ConfigSection(title: "Event Categories", icon: "list.bullet") {
@@ -583,7 +643,7 @@ struct ModuleConfigView: View {
             ConfigNumberField(label: "Inactive Threshold (days)", key: "inactiveThresholdDays", config: $config)
             ConfigNumberField(label: "Leaderboard Size", key: "leaderboardSize", config: $config)
             ConfigToggle(label: "Reset on Leave", key: "resetOnLeave", config: $config)
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -649,7 +709,7 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var countingConfig: some View {
         ConfigSection(title: "General", icon: "number") {
-            ConfigTextField(label: "Channel ID", key: "channelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Channel", key: "channelId", config: $config)
             ConfigToggle(label: "Math Mode", key: "mathMode", config: $config)
             ConfigToggle(label: "Allow Double Count", key: "allowDoubleCount", config: $config)
         }
@@ -688,7 +748,7 @@ struct ModuleConfigView: View {
     private var formsConfig: some View {
         ConfigSection(title: "General", icon: "doc.text.fill") {
             ConfigToggle(label: "Require Approval", key: "requireApproval", config: $config)
-            ConfigTextField(label: "Notification Channel", key: "notificationChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Notification Channel", key: "notificationChannelId", config: $config)
         }
     }
 
@@ -700,7 +760,7 @@ struct ModuleConfigView: View {
             ConfigToggle(label: "Persistent Roles", key: "persistentRoles", config: $config)
             ConfigToggle(label: "Ignore Bots", key: "ignoreBots", config: $config)
             ConfigToggle(label: "Stack Roles", key: "stackRoles", config: $config)
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -739,7 +799,7 @@ struct ModuleConfigView: View {
                 ("button", "Button"),
             ])
             ConfigToggle(label: "DM Confirmation", key: "dmConfirmation", config: $config)
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -768,7 +828,7 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Logging", icon: "doc.text.fill") {
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -792,7 +852,7 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Logging", icon: "doc.text.fill") {
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -811,17 +871,19 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var confessionsConfig: some View {
         ConfigSection(title: "General", icon: "theatermasks.fill") {
-            ConfigTextField(label: "Channel ID", key: "channelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Channel", key: "channelId", config: $config)
             ConfigToggle(label: "Full Anonymity", key: "fullAnonymity", config: $config)
             ConfigNumberField(label: "Cooldown (sec)", key: "cooldownSeconds", config: $config)
             ConfigToggle(label: "Allow Images", key: "allowImages", config: $config)
-            ConfigTextField(label: "Embed Color", key: "embedColor", config: $config, placeholder: "#9B59B6")
         }
 
         ConfigSection(title: "Moderation", icon: "shield.fill") {
             ConfigToggle(label: "Moderation Enabled", key: "moderationEnabled", config: $config)
-            ConfigTextField(label: "Moderation Channel", key: "moderationChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Moderation Channel", key: "moderationChannelId", config: $config)
         }
+
+        // Confessions embed editor
+        EmbedEditorView(sectionTitle: "Confession Embed", configPrefix: "", config: $config)
     }
 
     // MARK: - Fun Config
@@ -851,7 +913,7 @@ struct ModuleConfigView: View {
             ConfigToggle(label: "DM Pings on Return", key: "dmPingsOnReturn", config: $config)
             ConfigNumberField(label: "Max Pings to Track", key: "maxPingsToTrack", config: $config)
             ConfigToggle(label: "Auto-Remove on Message", key: "autoRemoveOnMessage", config: $config)
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -873,8 +935,8 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var birthdaysConfig: some View {
         ConfigSection(title: "General", icon: "birthday.cake.fill") {
-            ConfigTextField(label: "Channel ID", key: "channelId", config: $config, placeholder: "Channel ID")
-            ConfigTextField(label: "Birthday Role ID", key: "roleId", config: $config, placeholder: "Role ID")
+            ConfigChannelPicker(label: "Channel", key: "channelId", config: $config)
+            ConfigRolePicker(label: "Birthday Role", key: "roleId", config: $config)
             ConfigTextField(label: "Timezone", key: "timezone", config: $config, placeholder: "UTC")
         }
 
@@ -903,7 +965,7 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Logging", icon: "doc.text.fill") {
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
             ConfigToggle(label: "Ignore Bots", key: "ignoreBots", config: $config)
         }
     }
@@ -913,7 +975,7 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var giveawaysConfig: some View {
         ConfigSection(title: "General", icon: "gift.fill") {
-            ConfigTextField(label: "Default Channel", key: "defaultChannel", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Default Channel", key: "defaultChannel", config: $config)
             ConfigTextField(label: "Reaction Emoji", key: "reactionEmoji", config: $config, placeholder: "🎉")
             ConfigToggle(label: "Button Mode", key: "buttonMode", config: $config)
             ConfigToggle(label: "DM Winners", key: "dmWinners", config: $config)
@@ -922,13 +984,15 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
-            ConfigTextField(label: "Ping Role ID", key: "pingRole", config: $config, placeholder: "Role ID")
-            ConfigTextField(label: "Embed Color", key: "embedColor", config: $config, placeholder: "#FF6B6B")
+            ConfigRolePicker(label: "Ping Role", key: "pingRole", config: $config)
             ConfigPicker(label: "End Action", key: "endAction", config: $config, options: [
                 ("edit", "Edit Message"),
                 ("new", "New Message"),
             ])
         }
+
+        // Giveaway embed editor
+        EmbedEditorView(sectionTitle: "Giveaway Embed", configPrefix: "", config: $config)
     }
 
     // MARK: - Color Roles Config
@@ -936,7 +1000,7 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var colorRolesConfig: some View {
         ConfigSection(title: "General", icon: "paintpalette.fill") {
-            ConfigTextField(label: "Command Channel", key: "commandChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Command Channel", key: "commandChannelId", config: $config)
             ConfigTextField(label: "Join Color (hex)", key: "joinColor", config: $config, placeholder: "#FFFFFF")
             ConfigNumberField(label: "Max Colors", key: "maxColors", config: $config)
         }
@@ -967,8 +1031,8 @@ struct ModuleConfigView: View {
 
         ConfigSection(title: "Announcements", icon: "megaphone.fill") {
             ConfigToggle(label: "Announce Joins", key: "announceJoins", config: $config)
-            ConfigTextField(label: "Announce Channel", key: "announceChannelId", config: $config, placeholder: "Channel ID")
-            ConfigTextField(label: "Log Channel", key: "logChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Announce Channel", key: "announceChannelId", config: $config)
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
         }
     }
 
@@ -1020,7 +1084,7 @@ struct ModuleConfigView: View {
     @ViewBuilder
     private var suggestionsConfig: some View {
         ConfigSection(title: "General", icon: "lightbulb.fill") {
-            ConfigTextField(label: "Channel ID", key: "channelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Channel", key: "channelId", config: $config)
             ConfigToggle(label: "Anonymous", key: "anonymous", config: $config)
             ConfigToggle(label: "Auto Thread", key: "autoThread", config: $config)
             ConfigToggle(label: "Require Reason", key: "requireReason", config: $config)
@@ -1034,12 +1098,15 @@ struct ModuleConfigView: View {
         }
 
         ConfigSection(title: "Colors", icon: "paintbrush.fill") {
-            ConfigTextField(label: "Embed Color", key: "embedColor", config: $config, placeholder: "#3498DB")
-            ConfigTextField(label: "Approved Color", key: "approvedColor", config: $config, placeholder: "#2ECC71")
-            ConfigTextField(label: "Denied Color", key: "deniedColor", config: $config, placeholder: "#E74C3C")
-            ConfigTextField(label: "Considering Color", key: "consideringColor", config: $config, placeholder: "#F39C12")
-            ConfigTextField(label: "Implemented Color", key: "implementedColor", config: $config, placeholder: "#9B59B6")
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#3498DB")
+            ConfigColorPicker(label: "Approved Color", key: "approvedColor", config: $config, defaultColor: "#2ECC71")
+            ConfigColorPicker(label: "Denied Color", key: "deniedColor", config: $config, defaultColor: "#E74C3C")
+            ConfigColorPicker(label: "Considering Color", key: "consideringColor", config: $config, defaultColor: "#F39C12")
+            ConfigColorPicker(label: "Implemented Color", key: "implementedColor", config: $config, defaultColor: "#9B59B6")
         }
+
+        // Suggestion embed editor
+        EmbedEditorView(sectionTitle: "Suggestion Embed", configPrefix: "", config: $config)
     }
 
     // MARK: - Scheduled Messages Config
@@ -1072,7 +1139,7 @@ struct ModuleConfigView: View {
             ConfigNumberField(label: "Max Duration (min)", key: "maxDuration", config: $config)
             ConfigToggle(label: "Allow Attachments", key: "allowAttachments", config: $config)
             ConfigToggle(label: "Show Server Name", key: "showServerName", config: $config)
-            ConfigTextField(label: "Report Channel", key: "reportChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Report Channel", key: "reportChannelId", config: $config)
             ConfigNumberField(label: "Call Cooldown (sec)", key: "callCooldown", config: $config)
         }
 
@@ -1098,7 +1165,7 @@ struct ModuleConfigView: View {
             ConfigNumberField(label: "Max Duration (sec)", key: "maxDuration", config: $config)
             ConfigNumberField(label: "Call Cooldown (sec)", key: "callCooldown", config: $config)
             ConfigToggle(label: "Show Server Name", key: "showServerName", config: $config)
-            ConfigTextField(label: "Report Channel", key: "reportChannelId", config: $config, placeholder: "Channel ID")
+            ConfigChannelPicker(label: "Report Channel", key: "reportChannelId", config: $config)
         }
 
         ConfigSection(title: "Audio", icon: "waveform") {
@@ -1111,6 +1178,217 @@ struct ModuleConfigView: View {
             ConfigToggle(label: "Require Community Server", key: "requireCommunity", config: $config)
             ConfigNumberField(label: "Max Strikes", key: "maxStrikes", config: $config)
             ConfigNumberField(label: "Strike Ban Duration (sec)", key: "strikeBanDuration", config: $config)
+        }
+    }
+
+    // MARK: - Raffles Config
+
+    @ViewBuilder
+    private var rafflesConfig: some View {
+        ConfigSection(title: "Tickets", icon: "ticket.fill") {
+            ConfigNumberField(label: "Ticket Price", key: "ticketPrice", config: $config)
+            ConfigPicker(label: "Currency", key: "currencyType", config: $config, options: [
+                ("coins", "Coins"),
+                ("gems", "Gems"),
+                ("event_tokens", "Event Tokens"),
+            ])
+            ConfigNumberField(label: "Max Tickets/User", key: "maxTicketsPerUser", config: $config)
+            ConfigNumberField(label: "Max Active Raffles", key: "maxActive", config: $config)
+        }
+
+        ConfigSection(title: "Behavior", icon: "gearshape.fill") {
+            ConfigToggle(label: "DM Winners", key: "dmWinners", config: $config)
+            ConfigToggle(label: "Refund on Cancel", key: "refundOnCancel", config: $config)
+        }
+
+        ConfigSection(title: "Channels & Roles", icon: "number") {
+            ConfigChannelPicker(label: "Default Channel", key: "defaultChannelId", config: $config)
+            ConfigRolePicker(label: "Ping Role", key: "pingRoleId", config: $config)
+        }
+
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#FF6B35")
+        }
+    }
+
+    // MARK: - Donation Tracking Config
+
+    @ViewBuilder
+    private var donationTrackingConfig: some View {
+        ConfigSection(title: "Currency", icon: "banknote.fill") {
+            ConfigPicker(label: "Currency", key: "currencyType", config: $config, options: [
+                ("coins", "Coins"),
+                ("gems", "Gems"),
+                ("event_tokens", "Event Tokens"),
+            ])
+            ConfigNumberField(label: "Min Donation", key: "minDonation", config: $config)
+            ConfigNumberField(label: "Max Donation", key: "maxDonation", config: $config)
+        }
+
+        ConfigSection(title: "Goal", icon: "flag.fill") {
+            ConfigToggle(label: "Goal Active", key: "goalActive", config: $config)
+            ConfigTextField(label: "Goal Name", key: "goalName", config: $config, placeholder: "Server Upgrade Fund")
+            ConfigNumberField(label: "Goal Amount", key: "goalAmount", config: $config)
+        }
+
+        ConfigSection(title: "Announcements", icon: "megaphone.fill") {
+            ConfigToggle(label: "Announce Milestones", key: "announceMilestones", config: $config)
+            ConfigNumberField(label: "Leaderboard Size", key: "leaderboardSize", config: $config)
+        }
+
+        ConfigSection(title: "Channels", icon: "number") {
+            ConfigChannelPicker(label: "Default Channel", key: "defaultChannelId", config: $config)
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
+        }
+
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#2ECC71")
+        }
+    }
+
+    // MARK: - Timers Config
+
+    @ViewBuilder
+    private var timersConfig: some View {
+        ConfigSection(title: "Limits", icon: "timer") {
+            ConfigNumberField(label: "Max Per User", key: "maxPerUser", config: $config)
+            ConfigToggle(label: "Allow DM Notifications", key: "allowDm", config: $config)
+        }
+
+        ConfigSection(title: "Channels", icon: "number") {
+            ConfigChannelPicker(label: "Notify Channel", key: "defaultNotifyChannelId", config: $config)
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
+        }
+
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#3498DB")
+        }
+    }
+
+    // MARK: - Reminders Config
+
+    @ViewBuilder
+    private var remindersConfig: some View {
+        ConfigSection(title: "Limits", icon: "bell.badge.fill") {
+            ConfigNumberField(label: "Max Reminders Per User", key: "maxReminders", config: $config)
+            ConfigNumberField(label: "Max Repeat Count", key: "maxRepeat", config: $config)
+        }
+    }
+
+    // MARK: - Temp Voice Config
+
+    @ViewBuilder
+    private var tempvoiceConfig: some View {
+        ConfigSection(title: "Channel Setup", icon: "waveform") {
+            ConfigChannelPicker(label: "Category", key: "categoryId", config: $config)
+            ConfigChannelPicker(label: "Lobby Channel", key: "lobbyChannelId", config: $config)
+        }
+
+        ConfigSection(title: "Defaults", icon: "gearshape.fill") {
+            ConfigNumberField(label: "Default User Limit", key: "defaultUserLimit", config: $config)
+            ConfigNumberField(label: "Default Bitrate", key: "defaultBitrate", config: $config)
+            ConfigTextField(label: "Name Template", key: "nameTemplate", config: $config, placeholder: "{user}'s Channel")
+        }
+    }
+
+    // MARK: - Casino Config
+
+    @ViewBuilder
+    private var casinoConfig: some View {
+        ConfigSection(title: "Betting", icon: "dice.fill") {
+            ConfigNumberField(label: "Min Bet", key: "minBet", config: $config)
+            ConfigNumberField(label: "Max Bet", key: "maxBet", config: $config)
+            ConfigPicker(label: "Currency", key: "currencyType", config: $config, options: [
+                ("coins", "Coins"),
+                ("gems", "Gems"),
+            ])
+        }
+        ConfigSection(title: "Settings", icon: "gearshape.fill") {
+            ConfigNumberField(label: "Cooldown (seconds)", key: "cooldown", config: $config)
+            ConfigChannelPicker(label: "Log Channel", key: "logChannelId", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#FFD700")
+        }
+    }
+
+    // MARK: - Profile Config
+
+    @ViewBuilder
+    private var profileConfig: some View {
+        ConfigSection(title: "General", icon: "person.crop.circle.fill") {
+            ConfigNumberField(label: "Max List Items", key: "maxListItems", config: $config)
+            ConfigToggle(label: "Require /profile create", key: "requireCreate", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#9B59B6")
+        }
+    }
+
+    // MARK: - Family Config
+
+    @ViewBuilder
+    private var familyConfig: some View {
+        ConfigSection(title: "Limits", icon: "figure.2.and.child.holdinghands") {
+            ConfigNumberField(label: "Max Children", key: "maxChildren", config: $config)
+            ConfigNumberField(label: "Proposal Expiry (sec)", key: "proposalExpiry", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#E91E63")
+        }
+    }
+
+    // MARK: - Images Config
+
+    @ViewBuilder
+    private var imagesConfig: some View {
+        ConfigSection(title: "Settings", icon: "photo.fill") {
+            ConfigNumberField(label: "Cooldown (seconds)", key: "cooldown", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#3498DB")
+        }
+    }
+
+    // MARK: - Utilities Config
+
+    @ViewBuilder
+    private var utilitiesConfig: some View {
+        ConfigSection(title: "Search", icon: "magnifyingglass") {
+            ConfigNumberField(label: "Search Cooldown (sec)", key: "searchCooldown", config: $config)
+        }
+        ConfigSection(title: "Notepad", icon: "note.text") {
+            ConfigToggle(label: "Enable Notepad", key: "notepadEnabled", config: $config)
+            ConfigNumberField(label: "Max Notes", key: "maxNotes", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#2ECC71")
+        }
+    }
+
+    // MARK: - Soundboard Config
+
+    @ViewBuilder
+    private var soundboardConfig: some View {
+        ConfigSection(title: "Settings", icon: "speaker.wave.3.fill") {
+            ConfigNumberField(label: "Max Custom Sounds", key: "maxCustomSounds", config: $config)
+            ConfigToggle(label: "Allow User Upload", key: "allowUserUpload", config: $config)
+            ConfigNumberField(label: "Cooldown (seconds)", key: "cooldown", config: $config)
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#E67E22")
+        }
+    }
+
+    // MARK: - Autosetup Config
+
+    @ViewBuilder
+    private var autosetupConfig: some View {
+        ConfigSection(title: "Settings", icon: "wand.and.stars") {
+            ConfigTextField(label: "Category Name", key: "categoryName", config: $config, placeholder: "Bot Setup")
+        }
+        ConfigSection(title: "Appearance", icon: "paintbrush.fill") {
+            ConfigColorPicker(label: "Embed Color", key: "embedColor", config: $config, defaultColor: "#1ABC9C")
         }
     }
 

@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer } from '../../../Shared/src/utils/componentsV2';
 import { getCurrencyConfig, getBalance, transferCurrency, trackTransfer, ensureMember, CurrencyType } from '../helpers';
 import { eventBus } from '../../../Shared/src/events/eventBus';
 
@@ -49,36 +49,24 @@ const command: BotCommand = {
 
       if (!guildId) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription('This command can only be used in a server.')
-          ]
+          components: [errorContainer('Error', 'This command can only be used in a server.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
       // Can't pay self
       if (fromUserId === toUser.id) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription('You cannot send currency to yourself!')
-          ]
+          components: [errorContainer('Error', 'You cannot send currency to yourself!')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
       // Can't pay bots
       if (toUser.bot) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription('You cannot send currency to bots!')
-          ]
+          components: [errorContainer('Error', 'You cannot send currency to bots!')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -94,12 +82,8 @@ const command: BotCommand = {
       const currentBalance = currencyType === 'coins' ? senderBalance.coins : currencyType === 'gems' ? senderBalance.gems : senderBalance.eventTokens;
       if (currentBalance < amount) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Insufficient Balance')
-              .setDescription(`You don't have enough ${config.currencies[currencyType].name} to send ${amount}. You have ${currentBalance}.`)
-          ]
+          components: [errorContainer('Insufficient Balance', `You don't have enough ${config.currencies[currencyType].name} to send ${amount}. You have ${currentBalance}.`)],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -108,12 +92,8 @@ const command: BotCommand = {
 
       if (!transferResult.success) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Transfer Failed')
-              .setDescription(transferResult.error || 'An error occurred during the transfer.')
-          ]
+          components: [errorContainer('Transfer Failed', transferResult.error || 'An error occurred during the transfer.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -149,22 +129,14 @@ const command: BotCommand = {
         `**${toUser.username}'s Balance:**\n${currencyInfo.emoji} ${receiverNewBalanceAmount.toLocaleString()} ${currencyInfo.name}`;
 
       return interaction.editReply({
-        embeds: [
-          successEmbed()
-            .setTitle('Transfer Successful')
-            .setDescription(description)
-            .setColor(Colors.Success)
-        ]
+        components: [successContainer('Transfer Successful', description)],
+        flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       console.error('[Pay Command Error]', error);
       return interaction.editReply({
-        embeds: [
-          successEmbed()
-            .setColor(Colors.Error)
-            .setTitle('Error')
-            .setDescription('An error occurred while processing the transfer.')
-        ]
+        components: [errorContainer('Error', 'An error occurred while processing the transfer.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

@@ -5,7 +5,7 @@ import {
   GuildChannel,
 } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import {
@@ -105,13 +105,12 @@ async function triggerChangeBackup(guildId: string, client: Client): Promise<voi
   const config = await getBackupConfig(guildId);
   if (!config.backupOnChange) return;
 
-  const redis = getRedis();
   const cooldownKey = `backup:changecooldown:${guildId}`;
-  const onCooldown = await redis.get(cooldownKey);
+  const onCooldown = await cache.has(cooldownKey);
   if (onCooldown) return;
 
   // Set cooldown
-  await redis.setex(cooldownKey, config.changeCooldown * 60, '1');
+  await cache.set(cooldownKey, '1', config.changeCooldown * 60);
 
   const guild = client.guilds.cache.get(guildId);
   if (!guild) return;

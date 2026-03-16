@@ -13,7 +13,7 @@ const command: BotCommand = {
       opt.setName('rule_id')
         .setDescription('The rule ID to delete (from /autorolelist)')
         .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autoroledelete',

@@ -1,13 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getConfig, saveConfig, DEFAULT_CONFIG } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload, successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcconfig')
@@ -158,28 +158,27 @@ async function handleView(
   try {
     const config = await getConfig(guild);
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Temporary Voice Channel Configuration')
-      .addFields(
-        { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
-        { name: 'Creator Channel', value: config.creatorChannelId ? `<#${config.creatorChannelId}>` : 'Not set', inline: true },
-        { name: 'Category', value: config.categoryId ? `<#${config.categoryId}>` : 'Not set', inline: true },
-        { name: 'Max VCs', value: config.maxVCs.toString(), inline: true },
-        { name: 'Cooldown', value: `${config.cooldownSeconds}s`, inline: true },
-        { name: 'Delete After Empty', value: `${config.deleteAfterEmpty}s`, inline: true },
-        { name: 'Inactivity Timeout', value: config.inactivityTimeout === 0 ? 'Disabled' : `${config.inactivityTimeout}m`, inline: true },
-        { name: 'Bitrate', value: `${config.bitrate} bps`, inline: true },
-        { name: 'Default User Limit', value: config.defaultUserLimit === 0 ? 'Unlimited' : config.defaultUserLimit.toString(), inline: true },
-        { name: 'Name Template', value: config.nameTemplate },
-        { name: 'Banned Users', value: config.bannedUsers.length.toString(), inline: true }
-      );
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, '### Temporary Voice Channel Configuration');
+    addFields(container, [
+      { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
+      { name: 'Creator Channel', value: config.creatorChannelId ? `<#${config.creatorChannelId}>` : 'Not set', inline: true },
+      { name: 'Category', value: config.categoryId ? `<#${config.categoryId}>` : 'Not set', inline: true },
+      { name: 'Max VCs', value: config.maxVCs.toString(), inline: true },
+      { name: 'Cooldown', value: `${config.cooldownSeconds}s`, inline: true },
+      { name: 'Delete After Empty', value: `${config.deleteAfterEmpty}s`, inline: true },
+      { name: 'Inactivity Timeout', value: config.inactivityTimeout === 0 ? 'Disabled' : `${config.inactivityTimeout}m`, inline: true },
+      { name: 'Bitrate', value: `${config.bitrate} bps`, inline: true },
+      { name: 'Default User Limit', value: config.defaultUserLimit === 0 ? 'Unlimited' : config.defaultUserLimit.toString(), inline: true },
+      { name: 'Name Template', value: config.nameTemplate },
+      { name: 'Banned Users', value: config.bannedUsers.length.toString(), inline: true }
+    ]);
 
     logger.info('[TempVoice] Staff viewed config for guild:', guild.id);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error viewing config:', error);
-    return interaction.editReply('An error occurred while retrieving config.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred while retrieving config.')]));
   }
 }
 
@@ -190,15 +189,13 @@ async function handleEnable(
   try {
     await saveConfig(guild, { enabled: true });
 
-    const embed = new EmbedBuilder()
-      .setColor('#00ff00')
-      .setTitle('Temporary Voice Channels Enabled');
+    const container = successContainer('Temporary Voice Channels Enabled');
 
     logger.info('[TempVoice] Staff enabled temp VCs for guild:', guild.id);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error enabling temp VCs:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -209,15 +206,13 @@ async function handleDisable(
   try {
     await saveConfig(guild, { enabled: false });
 
-    const embed = new EmbedBuilder()
-      .setColor('#ff0000')
-      .setTitle('Temporary Voice Channels Disabled');
+    const container = errorContainer('Temporary Voice Channels Disabled');
 
     logger.info('[TempVoice] Staff disabled temp VCs for guild:', guild.id);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error disabling temp VCs:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -228,21 +223,19 @@ async function handleCreator(
   try {
     const channel = interaction.options.getChannel('channel');
     if (!channel) {
-      return interaction.editReply('Channel not found.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Channel not found.')]));
     }
 
     await saveConfig(guild, { creatorChannelId: channel.id });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Creator Channel Set')
-      .setDescription(`Users will join <#${channel.id}> to create temporary voice channels.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Creator Channel Set\nUsers will join <#${channel.id}> to create temporary voice channels.`);
 
     logger.info('[TempVoice] Staff set creator channel for guild:', guild.id);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting creator channel:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -253,21 +246,19 @@ async function handleCategory(
   try {
     const category = interaction.options.getChannel('category');
     if (!category) {
-      return interaction.editReply('Category not found.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Category not found.')]));
     }
 
     await saveConfig(guild, { categoryId: category.id });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Category Set')
-      .setDescription(`Temporary voice channels will be created in <#${category.id}>.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Category Set\nTemporary voice channels will be created in <#${category.id}>.`);
 
     logger.info('[TempVoice] Staff set category for guild:', guild.id);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting category:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -278,21 +269,19 @@ async function handleMaxVCs(
   try {
     const count = interaction.options.getInteger('count');
     if (count === null) {
-      return interaction.editReply('Invalid count.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Invalid count.')]));
     }
 
     await saveConfig(guild, { maxVCs: count });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Max VCs Updated')
-      .setDescription(`Maximum temporary voice channels set to **${count}**.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Max VCs Updated\nMaximum temporary voice channels set to **${count}**.`);
 
     logger.info('[TempVoice] Staff set max VCs for guild:', guild.id, 'count:', count);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting max VCs:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -303,21 +292,19 @@ async function handleCooldown(
   try {
     const seconds = interaction.options.getInteger('seconds');
     if (seconds === null) {
-      return interaction.editReply('Invalid seconds.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Invalid seconds.')]));
     }
 
     await saveConfig(guild, { cooldownSeconds: seconds });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Cooldown Updated')
-      .setDescription(`Creation cooldown set to **${seconds}** seconds.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Cooldown Updated\nCreation cooldown set to **${seconds}** seconds.`);
 
     logger.info('[TempVoice] Staff set cooldown for guild:', guild.id, 'seconds:', seconds);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting cooldown:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -328,21 +315,19 @@ async function handleDeleteEmpty(
   try {
     const seconds = interaction.options.getInteger('seconds');
     if (seconds === null) {
-      return interaction.editReply('Invalid seconds.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Invalid seconds.')]));
     }
 
     await saveConfig(guild, { deleteAfterEmpty: seconds });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Delete After Empty Updated')
-      .setDescription(`Empty channels will be deleted after **${seconds}** seconds.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Delete After Empty Updated\nEmpty channels will be deleted after **${seconds}** seconds.`);
 
     logger.info('[TempVoice] Staff set delete after empty for guild:', guild.id, 'seconds:', seconds);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting delete after empty:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 
@@ -353,21 +338,19 @@ async function handleInactivity(
   try {
     const minutes = interaction.options.getInteger('minutes');
     if (minutes === null) {
-      return interaction.editReply('Invalid minutes.');
+      return interaction.editReply(v2Payload([errorContainer('Error', 'Invalid minutes.')]));
     }
 
     await saveConfig(guild, { inactivityTimeout: minutes });
 
-    const embed = new EmbedBuilder()
-      .setColor('#0099ff')
-      .setTitle('Inactivity Timeout Updated')
-      .setDescription(`Inactivity timeout set to **${minutes === 0 ? 'disabled' : minutes + ' minutes'}**.`);
+    const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+    addText(container, `### Inactivity Timeout Updated\nInactivity timeout set to **${minutes === 0 ? 'disabled' : minutes + ' minutes'}**.`);
 
     logger.info('[TempVoice] Staff set inactivity timeout for guild:', guild.id, 'minutes:', minutes);
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     logger.error('[TempVoice] Error setting inactivity timeout:', error);
-    return interaction.editReply('An error occurred.');
+    return interaction.editReply(v2Payload([errorContainer('Error', 'An error occurred.')]));
   }
 }
 

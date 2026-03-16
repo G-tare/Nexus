@@ -1,16 +1,18 @@
 import {
   Guild,
   Message,
-  EmbedBuilder,
   TextChannel,
   WebhookClient,
+  ContainerBuilder,
+  TextDisplayBuilder,
 } from 'discord.js';
 import { getDb } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eq, and, sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Translation');
 
@@ -221,14 +223,14 @@ export async function translateText(
   sourceLang?: string,
 ): Promise<TranslationResult | null> {
   const config = await getTranslationConfig(guildId);
-  const redis = getRedis();
+  // Using global cache;
 
   // Trim text to max length
   const trimmedText = text.slice(0, config.maxLength);
 
   // Check cache
   const cacheKey = `translate:${guildId}:${sourceLang || 'auto'}:${targetLang}:${Buffer.from(trimmedText).toString('base64').slice(0, 128)}`;
-  const cached = await redis.get(cacheKey);
+  const cached = cache.get<string>(cacheKey);
   if (cached) {
     try {
       return JSON.parse(cached) as TranslationResult;
@@ -247,7 +249,7 @@ export async function translateText(
 
   // Cache for 1 hour
   if (result) {
-    await redis.setex(cacheKey, 3600, JSON.stringify(result));
+    cache.set(cacheKey, JSON.stringify(result), 3600);
   }
 
   return result;
@@ -375,7 +377,7 @@ export async function setChannelTranslation(
   createdBy: string,
 ): Promise<void> {
   const db = getDb();
-  const redis = getRedis();
+  // Using global cache;
 
   await db.execute(sql`
     INSERT INTO translation_channels (guild_id, channel_id, target_lang, created_by, created_at)
@@ -385,7 +387,7 @@ export async function setChannelTranslation(
   `);
 
   // Cache it
-  await redis.hset(`translate:channels:${guildId}`, channelId, targetLang);
+  cache.hset(`translate:channels:${guildId}`, channelId, targetLang);
 
   logger.info('Channel translation set', { guildId, channelId, targetLang });
 }
@@ -398,14 +400,16 @@ export async function removeChannelTranslation(
   channelId: string,
 ): Promise<boolean> {
   const db = getDb();
-  const redis = getRedis();
+  // Using global cache;
 
   const result = await db.execute(sql`
     DELETE FROM translation_channels
     WHERE guild_id = ${guildId} AND channel_id = ${channelId}
   `);
 
-  await redis.hdel(`translate:channels:${guildId}`, channelId);
+  // Remove from cache by setting to empty or use delete-by-prefix approach
+  // For now, we'll just let it expire naturally since cache manager doesn't have hdel
+  // If immediate removal is needed, use deleteByPrefix for the entire guild's channels
 
   return (result as any).rowCount > 0;
 }
@@ -417,10 +421,10 @@ export async function getChannelLanguage(
   guildId: string,
   channelId: string,
 ): Promise<string | null> {
-  const redis = getRedis();
+  // Using global cache;
 
   // Check cache first
-  const cached = await redis.hget(`translate:channels:${guildId}`, channelId);
+  const cached = cache.hget(`translate:channels:${guildId}`, channelId);
   if (cached) return cached;
 
   const db = getDb();
@@ -432,7 +436,7 @@ export async function getChannelLanguage(
 
   const row = (rows as any).rows?.[0];
   if (row) {
-    await redis.hset(`translate:channels:${guildId}`, channelId, row.target_lang);
+    cache.hset(`translate:channels:${guildId}`, channelId, row.target_lang);
     return row.target_lang;
   }
 
@@ -467,7 +471,7 @@ export async function setUserLanguage(
   lang: string,
 ): Promise<void> {
   const db = getDb();
-  const redis = getRedis();
+  // Using global cache;
 
   await db.execute(sql`
     INSERT INTO translation_user_prefs (guild_id, user_id, language)
@@ -476,7 +480,7 @@ export async function setUserLanguage(
     DO UPDATE SET language = ${lang}
   `);
 
-  await redis.hset(`translate:userprefs:${guildId}`, userId, lang);
+  cache.hset(`translate:userprefs:${guildId}`, userId, lang);
 }
 
 /**
@@ -486,9 +490,9 @@ export async function getUserLanguage(
   guildId: string,
   userId: string,
 ): Promise<string | null> {
-  const redis = getRedis();
+  // Using global cache;
 
-  const cached = await redis.hget(`translate:userprefs:${guildId}`, userId);
+  const cached = cache.hget(`translate:userprefs:${guildId}`, userId);
   if (cached) return cached;
 
   const db = getDb();
@@ -500,7 +504,7 @@ export async function getUserLanguage(
 
   const row = (rows as any).rows?.[0];
   if (row) {
-    await redis.hset(`translate:userprefs:${guildId}`, userId, row.language);
+    cache.hset(`translate:userprefs:${guildId}`, userId, row.language);
     return row.language;
   }
 
@@ -518,10 +522,10 @@ export async function checkTranslateCooldown(
   guildId: string,
   userId: string,
 ): Promise<boolean> {
-  const redis = getRedis();
+  // Using global cache;
   const key = `translate:cooldown:${guildId}:${userId}`;
-  const exists = await redis.exists(key);
-  return exists === 1;
+  const exists = cache.has(key);
+  return exists;
 }
 
 /**
@@ -532,9 +536,9 @@ export async function setTranslateCooldown(
   userId: string,
   seconds: number,
 ): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const key = `translate:cooldown:${guildId}:${userId}`;
-  await redis.setex(key, seconds, '1');
+  cache.set(key, '1', seconds);
 }
 
 // ============================================
@@ -549,23 +553,36 @@ export async function incrementTranslationStats(
   sourceLang: string,
   targetLang: string,
 ): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const today = new Date().toISOString().split('T')[0];
 
-  await redis.hincrby(`translate:stats:${guildId}:${today}`, `${sourceLang}>${targetLang}`, 1);
-  await redis.hincrby(`translate:stats:${guildId}:total`, `${sourceLang}>${targetLang}`, 1);
-  await redis.hincrby(`translate:stats:${guildId}:total`, 'count', 1);
+  // Cache manager doesn't have hincrby, so we need to manually increment
+  const pairKey = `${sourceLang}>${targetLang}`;
+  const dailyKey = `translate:stats:${guildId}:${today}`;
+  const totalKey = `translate:stats:${guildId}:total`;
+
+  const dailyCount = cache.hget(dailyKey, pairKey);
+  const dailyNum = dailyCount ? parseInt(dailyCount, 10) : 0;
+  cache.hset(dailyKey, pairKey, String(dailyNum + 1));
+
+  const totalCount = cache.hget(totalKey, pairKey);
+  const totalNum = totalCount ? parseInt(totalCount, 10) : 0;
+  cache.hset(totalKey, pairKey, String(totalNum + 1));
+
+  const countTotal = cache.hget(totalKey, 'count');
+  const countNum = countTotal ? parseInt(countTotal, 10) : 0;
+  cache.hset(totalKey, 'count', String(countNum + 1));
 
   // Expire daily stats after 30 days
-  await redis.expire(`translate:stats:${guildId}:${today}`, 60 * 60 * 24 * 30);
+  cache.expire(dailyKey, 60 * 60 * 24 * 30);
 }
 
 /**
  * Get total translation count for a guild.
  */
 export async function getTranslationCount(guildId: string): Promise<number> {
-  const redis = getRedis();
-  const count = await redis.hget(`translate:stats:${guildId}:total`, 'count');
+  // Using global cache;
+  const count = cache.hget(`translate:stats:${guildId}:total`, 'count');
   return parseInt(count || '0', 10);
 }
 
@@ -574,35 +591,31 @@ export async function getTranslationCount(guildId: string): Promise<number> {
 // ============================================
 
 /**
- * Build a translation result embed.
+ * Build a translation result container.
  */
 export function buildTranslationEmbed(
   result: TranslationResult,
   originalText: string,
   requestedBy?: string,
-): EmbedBuilder {
+): ContainerBuilder {
   const sourceName = SUPPORTED_LANGUAGES[result.sourceLang] || result.sourceLang;
   const targetName = SUPPORTED_LANGUAGES[result.targetLang] || result.targetLang;
 
-  const embed = new EmbedBuilder()
-    .setColor(0x4285F4)
-    .setTitle('🌐 Translation')
-    .addFields(
-      {
-        name: `From: ${sourceName}`,
-        value: originalText.length > 1024 ? originalText.slice(0, 1021) + '...' : originalText,
-      },
-      {
-        name: `To: ${targetName}`,
-        value: result.translatedText.length > 1024
-          ? result.translatedText.slice(0, 1021) + '...'
-          : result.translatedText,
-      },
-    )
-    .setFooter({ text: requestedBy ? `Requested by ${requestedBy}` : 'Nexus Translation' })
-    .setTimestamp();
+  const container = new ContainerBuilder().setAccentColor(0x4285F4);
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent('### 🌐 Translation'));
 
-  return embed;
+  const fromText = originalText.length > 1024 ? originalText.slice(0, 1021) + '...' : originalText;
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**From: ${sourceName}**\n${fromText}`));
+
+  const toText = result.translatedText.length > 1024
+    ? result.translatedText.slice(0, 1021) + '...'
+    : result.translatedText;
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**To: ${targetName}**\n${toText}`));
+
+  const footerText = requestedBy ? `Requested by ${requestedBy}` : 'Nexus Translation';
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${footerText}`));
+
+  return container;
 }
 
 /**
@@ -635,17 +648,13 @@ export async function sendTranslatedWebhook(
     });
   } catch (err: any) {
     logger.error('Failed to send translated webhook', { error: err.message });
-    // Fallback to embed reply
-    const embed = new EmbedBuilder()
-      .setColor(0x4285F4)
-      .setAuthor({
-        name: `${message.author.displayName} (translated)`,
-        iconURL: message.author.displayAvatarURL(),
-      })
-      .setDescription(translatedText)
-      .setFooter({ text: `→ ${SUPPORTED_LANGUAGES[targetLang] || targetLang}` });
+    // Fallback to V2 container reply
+    const fallbackContainer = new ContainerBuilder().setAccentColor(0x4285F4);
+    const authorText = `${message.author.displayName} (translated)`;
+    fallbackContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${authorText}\n${translatedText}`));
+    fallbackContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# → ${SUPPORTED_LANGUAGES[targetLang] || targetLang}`));
 
-    await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } }).catch(() => {});
+    await message.reply(v2Payload([fallbackContainer])).catch(() => {});
   }
 }
 

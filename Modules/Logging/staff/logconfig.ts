@@ -1,11 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   inlineCode,
   bold,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { infoContainer, addFields, addSeparator, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const EVENT_CATEGORIES = {
   '📨 Messages': [
@@ -129,47 +131,48 @@ const command: BotCommand = {
         ? config.ignoredUsers.map((id: any) => `<@${id}>`).join(', ')
         : 'None';
 
-    // Create main embed
-    const mainEmbed = new EmbedBuilder()
-      .setTitle('📊 Logging Configuration')
-      .setColor('Blurple')
-      .addFields(
-        {
-          name: '🎯 Default Channel',
-          value: defaultChannel,
-          inline: false,
-        },
-        {
-          name: '📍 Channel Overrides',
-          value: channelOverridesText,
-          inline: false,
-        },
-        ...eventStatusFields,
-      );
+    // Create main container
+    const mainContainer = infoContainer('Logging Configuration');
+    const mainFields = [
+      {
+        name: '🎯 Default Channel',
+        value: defaultChannel,
+        inline: false,
+      },
+      {
+        name: '📍 Channel Overrides',
+        value: channelOverridesText,
+        inline: false,
+      },
+      ...eventStatusFields,
+    ];
+    addFields(mainContainer, mainFields);
 
-    // Create ignored items embed
-    const ignoredEmbed = new EmbedBuilder()
-      .setTitle('🚫 Ignored from Logging')
-      .setColor('Blurple')
-      .addFields(
-        {
-          name: `Channels (${config.ignoredChannels.length})`,
-          value: ignoredChannelsText,
-          inline: false,
-        },
-        {
-          name: `Roles (${config.ignoredRoles.length})`,
-          value: ignoredRolesText,
-          inline: false,
-        },
-        {
-          name: `Users (${config.ignoredUsers.length})`,
-          value: ignoredUsersText,
-          inline: false,
-        },
-      );
+    // Create ignored items container
+    addSeparator(mainContainer, 'large');
+    addText(mainContainer, '### 🚫 Ignored from Logging');
+    addSeparator(mainContainer, 'small');
 
-    return interaction.editReply({ embeds: [mainEmbed, ignoredEmbed] });
+    const ignoredFields = [
+      {
+        name: `Channels (${config.ignoredChannels.length})`,
+        value: ignoredChannelsText,
+        inline: false,
+      },
+      {
+        name: `Roles (${config.ignoredRoles.length})`,
+        value: ignoredRolesText,
+        inline: false,
+      },
+      {
+        name: `Users (${config.ignoredUsers.length})`,
+        value: ignoredUsersText,
+        inline: false,
+      },
+    ];
+    addFields(mainContainer, ignoredFields);
+
+    return interaction.editReply(v2Payload([mainContainer]));
   },
 };
 

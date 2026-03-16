@@ -1,9 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   AutocompleteInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   validateHex,
@@ -13,6 +16,7 @@ import {
   getColorByName,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -126,15 +130,14 @@ const command: BotCommand = {
 
     const displayHex = newHex || color.hex;
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(displayHex))
-      .setDescription(
-        `✅ Color updated!\n` +
-        (newName ? `**Name:** ${color.name} → ${newName}\n` : '') +
-        (newHex ? `**Hex:** \`#${color.hex}\` → \`#${newHex}\`\n` : '')
-      );
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(displayHex));
+    addText(container,
+      `✅ Color updated!\n` +
+      (newName ? `**Name:** ${color.name} → ${newName}\n` : '') +
+      (newHex ? `**Hex:** \`#${color.hex}\` → \`#${newHex}\`\n` : '')
+    );
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

@@ -1,10 +1,18 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import {
+  errorContainer,
+  successContainer,
+  warningContainer,
+  moduleContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 import {
   getQueue,
   getMusicConfig,
@@ -41,40 +49,25 @@ const command: BotCommand = {
 
     // Check if user is in voice
     if (!isInVoiceChannel(member)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Not in Voice Channel')
-            .setDescription('You must be in a voice channel to use this command.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
       return;
     }
 
     // Check if queue exists
     if (!queue) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('No Active Queue')
-            .setDescription('There is no active music queue in this server.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('No Queue', 'There is no active music queue in this server.')])
+      );
       return;
     }
 
     // Check if user is in same voice channel
     if (!isInSameVoice(member, queue)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Wrong Voice Channel')
-            .setDescription('You must be in the same voice channel as the bot.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot.')])
+      );
       return;
     }
 
@@ -83,47 +76,35 @@ const command: BotCommand = {
     // If no level provided, show current volume
     if (level === null) {
       const volumeBar = buildVolumeBar(queue.volume, config.maxVolume);
+      const container = moduleContainer('music');
+      addText(container, `### 🔊 Current Volume\n${volumeBar}`);
+      addFields(container, [
+        {
+          name: 'Volume Level',
+          value: `${queue.volume}/${config.maxVolume}`,
+          inline: false,
+        },
+      ]);
       await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Music)
-            .setTitle('🔊 Current Volume')
-            .setDescription(volumeBar)
-            .addFields({
-              name: 'Volume Level',
-              value: `${queue.volume}/${config.maxVolume}`,
-              inline: false,
-            }),
-        ],
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
 
     // Check DJ permissions if required
     if (requiresDJ('volume', config) && !isDJ(member, config)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('DJ Only')
-            .setDescription('Only DJs can change the volume.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('DJ Only', 'Only DJs can change the volume.')])
+      );
       return;
     }
 
     // Validate level is within maxVolume
     if (level > config.maxVolume) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Warning)
-            .setTitle('Volume Too High')
-            .setDescription(
-              `Maximum volume is **${config.maxVolume}%**. Setting volume to max.`
-            ),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([warningContainer('Volume Too High', `Maximum volume is **${config.maxVolume}%**. Setting volume to max.`)])
+      );
       queue.volume = config.maxVolume;
     } else {
       queue.volume = level;
@@ -133,18 +114,18 @@ const command: BotCommand = {
     // await lavaliinkPlayer.setVolume(queue.volume);
 
     const volumeBar = buildVolumeBar(queue.volume, config.maxVolume);
+    const container = moduleContainer('music');
+    addText(container, `### 🔊 Volume Updated\n${volumeBar}`);
+    addFields(container, [
+      {
+        name: 'New Volume',
+        value: `${queue.volume}/${config.maxVolume}`,
+        inline: false,
+      },
+    ]);
     await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(Colors.Success)
-          .setTitle('🔊 Volume Updated')
-          .setDescription(volumeBar)
-          .addFields({
-            name: 'New Volume',
-            value: `${queue.volume}/${config.maxVolume}`,
-            inline: false,
-          }),
-      ],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
   },
 };

@@ -1,8 +1,9 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Colors, AutocompleteInteraction, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
 import { getBalance, addCurrency } from '../../Currency/helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, v2Payload, successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -106,33 +107,31 @@ const command: BotCommand = {
       const tax = Math.floor((totalCost * config.taxPercent) / 100);
       const finalCost = totalCost + tax;
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Purchase Successful')
-        .setColor(Colors.Green)
-        .addFields(
-          { name: 'Item', value: item.name, inline: true },
-          { name: 'Quantity', value: `${quantity}`, inline: true },
-          { name: 'Price (each)', value: `${item.price} currency`, inline: true },
-          { name: 'Subtotal', value: `${totalCost} currency`, inline: true }
-        );
+      const container = successContainer('Purchase Successful');
+      const fields = [
+        { name: 'Item', value: item.name, inline: true },
+        { name: 'Quantity', value: `${quantity}`, inline: true },
+        { name: 'Price (each)', value: `${item.price} currency`, inline: true },
+        { name: 'Subtotal', value: `${totalCost} currency`, inline: true }
+      ];
 
       if (tax > 0) {
-        embed.addFields({ name: 'Tax', value: `${tax} currency`, inline: true });
+        fields.push({ name: 'Tax', value: `${tax} currency`, inline: true });
       }
 
-      embed.addFields(
+      fields.push(
         { name: 'Total Cost', value: `${finalCost} currency`, inline: true },
         { name: 'New Balance', value: `${newBalance} currency`, inline: false }
       );
+
+      addFields(container, fields);
 
       const guild = interaction.guild;
       if (guild && config.logChannelId) {
         await shopHelpers.logShopAction(guild, config, 'Purchase', userId, item.name, finalCost);
       }
 
-      await interaction.editReply({
-        embeds: [embed],
-      });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[Shop] /buy command error:', error);
       await interaction.editReply({

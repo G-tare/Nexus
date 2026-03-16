@@ -1,9 +1,9 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addSectionWithThumbnail, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getUserRep, getUserRank, getRepHistory, formatDelta, relativeTimestamp } from '../helpers';
 
 const command: BotCommand = {
@@ -33,18 +33,13 @@ const command: BotCommand = {
         }).join('\n')
       : 'No recent changes';
 
-    const embed = new EmbedBuilder()
-      .setColor(rep >= 0 ? 0x2ECC71 : 0xE74C3C)
-      .setTitle(`⭐ ${target.displayName}'s Reputation`)
-      .setThumbnail(target.displayAvatarURL())
-      .addFields(
-        { name: 'Reputation', value: `**${rep}**`, inline: true },
-        { name: 'Rank', value: `#${rank}`, inline: true },
-        { name: 'Recent Changes', value: recentChanges },
-      )
-      .setTimestamp();
+    const container = moduleContainer('reputation');
+    addSectionWithThumbnail(container, `### ⭐ ${target.displayName}'s Reputation`, target.displayAvatarURL());
+    addText(container, `**Reputation:** ${rep}\n**Rank:** #${rank}`);
+    addText(container, `**Recent Changes**\n${recentChanges}`);
+    addFooter(container, `Requested by ${interaction.user.displayName}`);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

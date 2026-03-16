@@ -1,15 +1,15 @@
 import {
   Guild,
   TextChannel,
-  EmbedBuilder,
   Message,
 } from 'discord.js';
 import { getDb, getPool } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { moduleContainer, addText, addSectionWithThumbnail, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Userphone');
 
@@ -80,11 +80,11 @@ export interface ActiveCall {
  * Get the active call for a channel.
  */
 export async function getActiveCall(channelId: string): Promise<ActiveCall | null> {
-  const redis = getRedis();
-  const callId = await redis.get(`userphone:channel:${channelId}`);
+  // Using global cache;
+  const callId = cache.get<string>(`userphone:channel:${channelId}`);
   if (!callId) return null;
 
-  const data = await redis.get(`userphone:call:${callId}`);
+  const data = cache.get<string>(`userphone:call:${callId}`);
   if (!data) return null;
 
   try {
@@ -118,35 +118,35 @@ interface QueueEntry {
  * Add a channel to the call queue.
  */
 export async function joinQueue(guildId: string, channelId: string, guildName: string): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const entry: QueueEntry = { guildId, channelId, guildName, queuedAt: Date.now() };
-  await redis.setex(`userphone:queue:${channelId}`, 120, JSON.stringify(entry));
-  await redis.sadd('userphone:queue', channelId);
+  cache.set(`userphone:queue:${channelId}`, JSON.stringify(entry), 120);
+  cache.sadd('userphone:queue', channelId);
 }
 
 /**
  * Remove a channel from the queue.
  */
 export async function leaveQueue(channelId: string): Promise<void> {
-  const redis = getRedis();
-  await redis.del(`userphone:queue:${channelId}`);
-  await redis.srem('userphone:queue', channelId);
+  // Using global cache;
+  cache.del(`userphone:queue:${channelId}`);
+  cache.srem('userphone:queue', channelId);
 }
 
 /**
  * Find a match in the queue (not from the same guild, not blacklisted).
  */
 export async function findMatch(guildId: string, channelId: string): Promise<QueueEntry | null> {
-  const redis = getRedis();
+  // Using global cache;
   const config = await getUserphoneConfig(guildId);
-  const members = await redis.smembers('userphone:queue');
+  const members = cache.smembers('userphone:queue');
 
   for (const queuedChannelId of members) {
     if (queuedChannelId === channelId) continue;
 
-    const data = await redis.get(`userphone:queue:${queuedChannelId}`);
+    const data = cache.get<string>(`userphone:queue:${queuedChannelId}`);
     if (!data) {
-      await redis.srem('userphone:queue', queuedChannelId);
+      cache.srem('userphone:queue', queuedChannelId);
       continue;
     }
 
@@ -170,7 +170,7 @@ export async function findMatch(guildId: string, channelId: string): Promise<Que
 
       return entry;
     } catch {
-      await redis.srem('userphone:queue', queuedChannelId);
+      cache.srem('userphone:queue', queuedChannelId);
     }
   }
 
@@ -188,7 +188,7 @@ export async function startCall(
   side1: { guildId: string; channelId: string; guildName: string },
   side2: { guildId: string; channelId: string; guildName: string },
 ): Promise<ActiveCall> {
-  const redis = getRedis();
+  // Using global cache;
   const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const config1 = await getUserphoneConfig(side1.guildId);
@@ -204,9 +204,9 @@ export async function startCall(
   };
 
   // Store call data
-  await redis.setex(`userphone:call:${callId}`, maxDuration + 60, JSON.stringify(call));
-  await redis.setex(`userphone:channel:${side1.channelId}`, maxDuration + 60, callId);
-  await redis.setex(`userphone:channel:${side2.channelId}`, maxDuration + 60, callId);
+  cache.set(`userphone:call:${callId}`, JSON.stringify(call), maxDuration + 60);
+  cache.set(`userphone:channel:${side1.channelId}`, callId, maxDuration + 60);
+  cache.set(`userphone:channel:${side2.channelId}`, callId, maxDuration + 60);
 
   // Remove both from queue
   await leaveQueue(side1.channelId);
@@ -230,8 +230,8 @@ export async function startCall(
  * End an active call.
  */
 export async function endCall(callId: string): Promise<ActiveCall | null> {
-  const redis = getRedis();
-  const data = await redis.get(`userphone:call:${callId}`);
+  // Using global cache;
+  const data = cache.get<string>(`userphone:call:${callId}`);
   if (!data) return null;
 
   let call: ActiveCall;
@@ -242,9 +242,9 @@ export async function endCall(callId: string): Promise<ActiveCall | null> {
   }
 
   // Clean up Redis
-  await redis.del(`userphone:call:${callId}`);
-  await redis.del(`userphone:channel:${call.side1.channelId}`);
-  await redis.del(`userphone:channel:${call.side2.channelId}`);
+  cache.del(`userphone:call:${callId}`);
+  cache.del(`userphone:channel:${call.side1.channelId}`);
+  cache.del(`userphone:channel:${call.side2.channelId}`);
 
   // Save to history
   const duration = Math.floor((Date.now() - call.startedAt) / 1000);
@@ -255,10 +255,14 @@ export async function endCall(callId: string): Promise<ActiveCall | null> {
   `);
 
   // Update stats
-  await redis.hincrby(`userphone:stats:${call.side1.guildId}`, 'calls', 1);
-  await redis.hincrby(`userphone:stats:${call.side1.guildId}`, 'totalDuration', duration);
-  await redis.hincrby(`userphone:stats:${call.side2.guildId}`, 'calls', 1);
-  await redis.hincrby(`userphone:stats:${call.side2.guildId}`, 'totalDuration', duration);
+  const calls1 = cache.hget(`userphone:stats:${call.side1.guildId}`, 'calls') || '0';
+  cache.hset(`userphone:stats:${call.side1.guildId}`, 'calls', String(parseInt(calls1, 10) + 1));
+  const duration1 = cache.hget(`userphone:stats:${call.side1.guildId}`, 'totalDuration') || '0';
+  cache.hset(`userphone:stats:${call.side1.guildId}`, 'totalDuration', String(parseInt(duration1, 10) + duration));
+  const calls2 = cache.hget(`userphone:stats:${call.side2.guildId}`, 'calls') || '0';
+  cache.hset(`userphone:stats:${call.side2.guildId}`, 'calls', String(parseInt(calls2, 10) + 1));
+  const duration2 = cache.hget(`userphone:stats:${call.side2.guildId}`, 'totalDuration') || '0';
+  cache.hset(`userphone:stats:${call.side2.guildId}`, 'totalDuration', String(parseInt(duration2, 10) + duration));
 
   logger.info('Call ended', { callId, duration });
   eventBus.emit('userphoneCallEnded', {
@@ -276,8 +280,8 @@ export async function endCall(callId: string): Promise<ActiveCall | null> {
  * Extend the call duration by resetting startedAt and refreshing TTLs.
  */
 export async function extendCall(callId: string): Promise<boolean> {
-  const redis = getRedis();
-  const data = await redis.get(`userphone:call:${callId}`);
+  // Using global cache;
+  const data = cache.get<string>(`userphone:call:${callId}`);
   if (!data) return false;
 
   let call: ActiveCall;
@@ -290,9 +294,9 @@ export async function extendCall(callId: string): Promise<boolean> {
   // Reset the timer by updating startedAt
   call.startedAt = Date.now();
   const ttl = call.maxDuration + 60;
-  await redis.setex(`userphone:call:${callId}`, ttl, JSON.stringify(call));
-  await redis.expire(`userphone:channel:${call.side1.channelId}`, ttl);
-  await redis.expire(`userphone:channel:${call.side2.channelId}`, ttl);
+  cache.set(`userphone:call:${callId}`, JSON.stringify(call), ttl);
+  cache.expire(`userphone:channel:${call.side1.channelId}`, ttl);
+  cache.expire(`userphone:channel:${call.side2.channelId}`, ttl);
 
   return true;
 }
@@ -310,6 +314,10 @@ export async function relayMessage(
   targetChannel: TextChannel,
   showServerName: boolean,
 ): Promise<void> {
+  // Check if the sender is user-banned — silently drop their messages
+  const userBan = await isUserBanned(message.author.id);
+  if (userBan.banned) return;
+
   const senderConfig = await getUserphoneConfig(message.guild!.id);
   const receiverGuildId = targetChannel.guild.id;
   const receiverConfig = await getUserphoneConfig(receiverGuildId);
@@ -358,7 +366,7 @@ export async function relayMessage(
 
   // Receiver decides how messages appear to them
   if (receiverConfig.messageFormat === 'plain') {
-    // Plain text format — no embed
+    // Plain text format — no container
     let plainContent = `📞 **${senderName}:** ${message.content || ''}`;
 
     // Attach image as a file in plain mode
@@ -373,34 +381,27 @@ export async function relayMessage(
       logger.error('Failed to relay message (plain)', { error: err.message });
     });
   } else {
-    // Embed format (default)
-    const embed = new EmbedBuilder()
-      .setColor(0x9B59B6)
-      .setAuthor({
-        name: `📞 ${senderName}`,
-        iconURL: message.author.displayAvatarURL(),
-      })
-      .setTimestamp();
-
-    if (hasText) {
-      embed.setDescription(message.content);
-    }
+    // Container format (default)
+    const container = moduleContainer('userphone');
+    const messageText = hasText ? message.content : '';
+    addSectionWithThumbnail(container, `**📞 ${senderName}**\n${messageText}`, message.author.displayAvatarURL());
 
     if (senderConfig.allowAttachments && hasAttachments) {
       const firstAttachment = message.attachments.first();
       if (firstAttachment && firstAttachment.size < 8_000_000 && firstAttachment.contentType?.startsWith('image/')) {
-        embed.setImage(firstAttachment.url);
+        files.push({ attachment: firstAttachment.url, name: firstAttachment.name || 'image.png' });
       }
     }
 
-    await (targetChannel as any).send({ embeds: [embed], files }).catch((err: any) => {
+    await (targetChannel as any).send({ ...v2Payload([container]), files }).catch((err: any) => {
       logger.error('Failed to relay message', { error: err.message });
     });
   }
 
   // Increment message count
-  const redis = getRedis();
-  await redis.hincrby(`userphone:stats:${message.guild!.id}`, 'messages', 1);
+  // Using global cache;
+  const messages = cache.hget(`userphone:stats:${message.guild!.id}`, 'messages') || '0';
+  cache.hset(`userphone:stats:${message.guild!.id}`, 'messages', String(parseInt(messages, 10) + 1));
 }
 
 // ============================================
@@ -414,10 +415,10 @@ export interface UserphoneStats {
 }
 
 export async function getGuildStats(guildId: string): Promise<UserphoneStats> {
-  const redis = getRedis();
-  const calls = parseInt(await redis.hget(`userphone:stats:${guildId}`, 'calls') || '0', 10);
-  const messages = parseInt(await redis.hget(`userphone:stats:${guildId}`, 'messages') || '0', 10);
-  const totalDuration = parseInt(await redis.hget(`userphone:stats:${guildId}`, 'totalDuration') || '0', 10);
+  // Using global cache;
+  const calls = parseInt(cache.hget(`userphone:stats:${guildId}`, 'calls') || '0', 10);
+  const messages = parseInt(cache.hget(`userphone:stats:${guildId}`, 'messages') || '0', 10);
+  const totalDuration = parseInt(cache.hget(`userphone:stats:${guildId}`, 'totalDuration') || '0', 10);
 
   return { totalCalls: calls, totalMessages: messages, totalDuration };
 }
@@ -452,14 +453,14 @@ export async function getCallHistory(guildId: string, limit: number = 10): Promi
 // ============================================
 
 export async function isOnCallCooldown(guildId: string, channelId: string): Promise<boolean> {
-  const redis = getRedis();
-  return (await redis.exists(`userphone:cooldown:${channelId}`)) === 1;
+  // Using global cache;
+  return cache.has(`userphone:cooldown:${channelId}`);
 }
 
 export async function setCallCooldown(guildId: string, channelId: string): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const config = await getUserphoneConfig(guildId);
-  await redis.setex(`userphone:cooldown:${channelId}`, config.callCooldown, '1');
+  cache.set(`userphone:cooldown:${channelId}`, '1', config.callCooldown);
 }
 
 /**
@@ -493,7 +494,7 @@ export async function recordTranscriptMessage(
   callId: string,
   message: Message,
 ): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const entry: TranscriptMessage = {
     author: message.author.displayName,
     authorId: message.author.id,
@@ -503,24 +504,33 @@ export async function recordTranscriptMessage(
     timestamp: Date.now(),
     hasAttachment: message.attachments.size > 0,
   };
-  await redis.rpush(`userphone:transcript:${callId}`, JSON.stringify(entry));
-  // Keep transcript for 1 hour after call ends
-  await redis.expire(`userphone:transcript:${callId}`, 3600);
+  // Store transcript messages as a list-like structure using sadd (we'll retrieve all)
+  const key = `userphone:transcript:${callId}`;
+  const transcriptData = cache.get<string>(key) || '[]';
+  let messages: any[] = [];
+  try {
+    messages = JSON.parse(transcriptData);
+  } catch {}
+  messages.push(entry);
+  cache.set(key, JSON.stringify(messages), 3600);
 }
 
 /**
  * Get the full transcript for a call.
  */
 export async function getTranscript(callId: string): Promise<TranscriptMessage[]> {
-  const redis = getRedis();
-  const raw = await redis.lrange(`userphone:transcript:${callId}`, 0, -1);
+  // Using global cache;
+  const raw = cache.get<string>(`userphone:transcript:${callId}`);
   const messages: TranscriptMessage[] = [];
-  for (const item of raw) {
-    try {
-      messages.push(JSON.parse(item) as TranscriptMessage);
-    } catch {
-      // skip corrupt entries
+  if (!raw) return messages;
+
+  try {
+    const items = JSON.parse(raw);
+    if (Array.isArray(items)) {
+      return items as TranscriptMessage[];
     }
+  } catch {
+    // skip corrupt entries
   }
   return messages;
 }
@@ -590,6 +600,141 @@ export async function unbanServer(guildId: string): Promise<boolean> {
     [guildId],
   );
   return (result.rowCount ?? 0) > 0;
+}
+
+// ============================================
+// User-Level Bans (Bot-Owner Level)
+// ============================================
+
+/**
+ * Temporarily ban a user from userphone. After 3 temp bans, auto-escalates to permanent.
+ */
+export async function tempBanUser(
+  userId: string,
+  durationSeconds: number,
+  reason: string,
+  bannedBy: string,
+): Promise<{ permanent: boolean }> {
+  // Using global cache;
+
+  // Increment lifetime temp ban counter
+  const banCountKey = `userphone:bancount:${userId}`;
+  const banCount = cache.incr(banCountKey);
+
+  const PERMANENT_BAN_THRESHOLD = 3;
+
+  if (banCount >= PERMANENT_BAN_THRESHOLD) {
+    // 3rd temp ban → permanent
+    await permanentBanUser(userId, `Automatic: reached ${PERMANENT_BAN_THRESHOLD} temporary bans. Latest: ${reason}`, bannedBy);
+    logger.warn('User PERMANENTLY banned from userphone (escalation)', { userId, banCount, reason });
+    return { permanent: true };
+  }
+
+  cache.set(`userphone:userban:${userId}`, JSON.stringify({
+    reason,
+    bannedBy,
+    bannedAt: Date.now(),
+    expiresAt: Date.now() + (durationSeconds * 1000),
+    banNumber: banCount,
+  }), durationSeconds);
+
+  logger.info('User temp-banned from userphone', { userId, durationSeconds, reason, banNumber: banCount });
+  return { permanent: false };
+}
+
+/**
+ * Permanently ban a user from userphone. Stored in both Redis (fast lookup) and DB (persistence).
+ */
+export async function permanentBanUser(userId: string, reason: string, bannedBy: string): Promise<void> {
+  // Using global cache;
+
+  // Cache for fast lookup
+  cache.set(`userphone:permban:${userId}`, JSON.stringify({
+    reason,
+    bannedBy,
+    bannedAt: Date.now(),
+  }), 0);
+
+  // DB for persistence across Redis flushes
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO userphone_user_bans (user_id, reason, banned_by, banned_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET reason = $2, banned_by = $3, banned_at = NOW()`,
+    [userId, reason, bannedBy],
+  );
+
+  logger.warn('User PERMANENTLY banned from userphone', { userId, reason, bannedBy });
+}
+
+/**
+ * Check if a user is banned from userphone (temp or permanent).
+ */
+export async function isUserBanned(userId: string): Promise<{
+  banned: boolean;
+  permanent?: boolean;
+  reason?: string;
+  bannedBy?: string;
+  expiresAt?: number;
+  banNumber?: number;
+}> {
+  // Using global cache;
+
+  // Check permanent ban first
+  const permBan = cache.get<string>(`userphone:permban:${userId}`);
+  if (permBan) {
+    try {
+      const ban = JSON.parse(permBan);
+      return { banned: true, permanent: true, reason: ban.reason, bannedBy: ban.bannedBy };
+    } catch {
+      return { banned: true, permanent: true, reason: 'Permanently banned' };
+    }
+  }
+
+  // Check temp ban
+  const data = cache.get<string>(`userphone:userban:${userId}`);
+  if (!data) return { banned: false };
+
+  try {
+    const ban = JSON.parse(data);
+    return {
+      banned: true,
+      permanent: false,
+      reason: ban.reason,
+      bannedBy: ban.bannedBy,
+      expiresAt: ban.expiresAt,
+      banNumber: ban.banNumber,
+    };
+  } catch {
+    return { banned: false };
+  }
+}
+
+/**
+ * Unban a user from userphone (removes temp, permanent, and resets counter).
+ */
+export async function unbanUser(userId: string): Promise<void> {
+  // Using global cache;
+
+  // Remove all Redis keys
+  cache.del(`userphone:permban:${userId}`);
+  cache.del(`userphone:userban:${userId}`);
+  cache.del(`userphone:bancount:${userId}`);
+
+  // Remove from DB permanent bans table
+  const pool = getPool();
+  await pool.query('DELETE FROM userphone_user_bans WHERE user_id = $1', [userId]);
+
+  logger.info('User unbanned from userphone', { userId });
+}
+
+/**
+ * Get the lifetime number of temp bans a user has received.
+ */
+export async function getTempBanCount(userId: string): Promise<number> {
+  // Using global cache;
+  const val = cache.get<string>(`userphone:bancount:${userId}`);
+  return val ? parseInt(val, 10) : 0;
 }
 
 // ============================================
@@ -761,9 +906,9 @@ export async function storeLastCallInfo(
   otherGuildId: string,
   otherGuildName: string,
 ): Promise<void> {
-  const redis = getRedis();
+  // Using global cache;
   const data = JSON.stringify({ callId, otherGuildId, otherGuildName });
-  await redis.setex(`userphone:lastcall:${channelId}`, 600, data);
+  cache.set(`userphone:lastcall:${channelId}`, data, 600);
 }
 
 /**
@@ -772,8 +917,8 @@ export async function storeLastCallInfo(
 export async function getLastCallInfo(
   channelId: string,
 ): Promise<{ callId: string; otherGuildId: string; otherGuildName: string } | null> {
-  const redis = getRedis();
-  const data = await redis.get(`userphone:lastcall:${channelId}`);
+  // Using global cache;
+  const data = cache.get<string>(`userphone:lastcall:${channelId}`);
   if (!data) return null;
   try {
     return JSON.parse(data);
@@ -881,7 +1026,7 @@ export async function createContactRequest(
   targetGuildName: string,
   targetChannelId: string,
 ): Promise<string> {
-  const redis = getRedis();
+  // Using global cache;
   const requestId = `${requesterGuildId}_${targetGuildId}_${Date.now()}`;
   const data = JSON.stringify({
     requesterGuildId,
@@ -892,7 +1037,7 @@ export async function createContactRequest(
     targetGuildName,
     targetChannelId,
   });
-  await redis.setex(`userphone:contact_request:${requestId}`, 300, data);
+  cache.set(`userphone:contact_request:${requestId}`, data, 300);
   return requestId;
 }
 
@@ -910,8 +1055,8 @@ export interface ContactRequest {
  * Get a pending contact request.
  */
 export async function getContactRequest(requestId: string): Promise<ContactRequest | null> {
-  const redis = getRedis();
-  const data = await redis.get(`userphone:contact_request:${requestId}`);
+  // Using global cache;
+  const data = cache.get<string>(`userphone:contact_request:${requestId}`);
   if (!data) return null;
   try {
     return JSON.parse(data);
@@ -924,8 +1069,8 @@ export async function getContactRequest(requestId: string): Promise<ContactReque
  * Delete a contact request (after accept/deny).
  */
 export async function deleteContactRequest(requestId: string): Promise<void> {
-  const redis = getRedis();
-  await redis.del(`userphone:contact_request:${requestId}`);
+  // Using global cache;
+  cache.del(`userphone:contact_request:${requestId}`);
 }
 
 /**
@@ -938,7 +1083,7 @@ export async function createDirectCallRequest(
   targetGuildId: string,
   targetChannelId: string,
 ): Promise<string> {
-  const redis = getRedis();
+  // Using global cache;
   const requestId = `dc_${requesterGuildId}_${targetGuildId}_${Date.now()}`;
   const data = JSON.stringify({
     requesterGuildId,
@@ -947,7 +1092,7 @@ export async function createDirectCallRequest(
     targetGuildId,
     targetChannelId,
   });
-  await redis.setex(`userphone:directcall:${requestId}`, 120, data);
+  cache.set(`userphone:directcall:${requestId}`, data, 120);
   return requestId;
 }
 
@@ -963,8 +1108,8 @@ export interface DirectCallRequest {
  * Get a pending direct call request.
  */
 export async function getDirectCallRequest(requestId: string): Promise<DirectCallRequest | null> {
-  const redis = getRedis();
-  const data = await redis.get(`userphone:directcall:${requestId}`);
+  // Using global cache;
+  const data = cache.get<string>(`userphone:directcall:${requestId}`);
   if (!data) return null;
   try {
     return JSON.parse(data);
@@ -977,6 +1122,6 @@ export async function getDirectCallRequest(requestId: string): Promise<DirectCal
  * Delete a direct call request.
  */
 export async function deleteDirectCallRequest(requestId: string): Promise<void> {
-  const redis = getRedis();
-  await redis.del(`userphone:directcall:${requestId}`);
+  // Using global cache;
+  cache.del(`userphone:directcall:${requestId}`);
 }

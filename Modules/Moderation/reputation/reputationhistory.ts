@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { infoContainer, errorContainer, addFields, addSeparator, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -27,7 +27,7 @@ export default {
     await interaction.deferReply();
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply(v2Payload([errorContainer('Guild context required')]));
 
     const db = getDb();
     const targetUser = interaction.options.getUser('user', true);
@@ -59,22 +59,20 @@ export default {
         .orderBy(desc(modCases.createdAt))
         .limit(5);
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle(`Reputation History — ${targetUser.username}`)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-          {
-            name: 'Current Reputation',
-            value: `**${currentReputation}**`,
-            inline: true,
-          },
-          {
-            name: 'Progress',
-            value: `\`${reputationBar}\` ${clamped}/${maxBar}`,
-            inline: false,
-          }
-        );
+      const container = infoContainer(`Reputation History — ${targetUser.username}`);
+
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        {
+          name: 'Current Reputation',
+          value: `**${currentReputation}**`,
+          inline: true,
+        },
+        {
+          name: 'Progress',
+          value: `\`${reputationBar}\` ${clamped}/${maxBar}`,
+          inline: false,
+        }
+      ];
 
       // Add rep change history if any
       if (repHistory.length > 0) {
@@ -85,7 +83,7 @@ export default {
           if (entry.reason) historyText += ` — ${entry.reason}`;
           historyText += '\n';
         }
-        embed.addFields({
+        fields.push({
           name: 'Recent Rep Changes',
           value: historyText.trim(),
           inline: false,
@@ -100,17 +98,19 @@ export default {
           recentActionsText += `**#${modCase.caseNumber}** ${modCase.action.toUpperCase()} | ${date}\n`;
         }
 
-        embed.addFields({
+        fields.push({
           name: 'Recent Mod Actions',
           value: recentActionsText.trim() || 'None',
           inline: false,
         });
       }
 
-      return interaction.editReply({ embeds: [embed] });
+      addFields(container, fields);
+
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in reputationhistory command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while retrieving reputation history')] });
+      return interaction.editReply(v2Payload([errorContainer('An error occurred while retrieving reputation history')]));
     }
   },
 } as BotCommand;

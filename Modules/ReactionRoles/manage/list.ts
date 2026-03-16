@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags } from 'discord.js';
 import { getReactionRolesConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload, paginatedContainer } from '../../../Shared/src/utils/componentsV2';
 
 const BotCommand = {
   data: new SlashCommandBuilder()
@@ -32,13 +33,7 @@ const BotCommand = {
         return interaction.editReply('❌ No reaction role panels found in this server.');
       }
 
-      const embeds: EmbedBuilder[] = [];
-      let currentEmbed = new EmbedBuilder()
-        .setColor('#2F3136')
-        .setTitle('📋 Reaction Role Panels')
-        .setFooter({ text: `Total: ${config.panels.length} panel(s)` });
-
-      let fieldCount = 0;
+      const panelTexts: string[] = [];
 
       for (const panel of config.panels) {
         const channel = await interaction.guild.channels.fetch(panel.channelId).catch(() => null);
@@ -54,38 +49,17 @@ const BotCommand = {
           `[Jump to Message](https://discord.com/channels/${panel.guildId}/${panel.channelId}/${panel.messageId})`,
         ].join('\n');
 
-        currentEmbed.addFields({
-          name: panel.title,
-          value: fieldValue,
-          inline: false,
-        });
-
-        fieldCount++;
-
-        if (fieldCount === 6) {
-          embeds.push(currentEmbed);
-          currentEmbed = new EmbedBuilder()
-            .setColor('#2F3136')
-            .setTitle('📋 Reaction Role Panels (continued)');
-          fieldCount = 0;
-        }
+        panelTexts.push(`**${panel.title}**\n${fieldValue}`);
       }
 
-      if (fieldCount > 0) {
-        embeds.push(currentEmbed);
-      }
+      const { container, totalPages } = paginatedContainer(
+        panelTexts,
+        0,
+        6,
+        '📋 Reaction Role Panels'
+      );
 
-      if (embeds.length === 1) {
-        return interaction.editReply({ embeds });
-      } else {
-        // Send multiple messages
-        await interaction.editReply({ embeds: [embeds[0]] });
-        for (let i = 1; i < embeds.length; i++) {
-          await interaction.followUp({
-            embeds: [embeds[i]],
-          });
-        }
-      }
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error listing panels:', error);
       await interaction.editReply({

@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('CustomCommands');
 
 export const createCommand: BotCommand = {
@@ -138,25 +139,21 @@ export const createCommand: BotCommand = {
         }
       );
 
-      const embed_response = new EmbedBuilder()
-        .setTitle('Custom Command Created')
-        .setColor('#2f3136')
-        .addFields(
-          { name: 'Name', value: `\`${command.name}\``, inline: true },
-          { name: 'Response Type', value: embed ? 'Embed' : 'Text', inline: true },
-          { name: 'Cooldown', value: cooldown > 0 ? `${cooldown}s` : 'None', inline: true },
-          { name: 'Response Preview', value: response.substring(0, 100) + (response.length > 100 ? '...' : ''), inline: false }
-        );
+      const container = moduleContainer('custom_commands');
+      const fields = [
+        { name: 'Name', value: `\`${command.name}\``, inline: true },
+        { name: 'Response Type', value: embed ? 'Embed' : 'Text', inline: true },
+        { name: 'Cooldown', value: cooldown > 0 ? `${cooldown}s` : 'None', inline: true },
+        { name: 'Response Preview', value: response.substring(0, 100) + (response.length > 100 ? '...' : ''), inline: false }
+      ];
 
       if (requiredRole) {
-        embed_response.addFields(
-          { name: 'Required Role', value: requiredRole.toString(), inline: true }
-        );
+        fields.push({ name: 'Required Role', value: requiredRole.toString(), inline: true });
       }
 
-      await interaction.reply({
-        embeds: [embed_response]
-      });
+      addFields(container, fields);
+
+      await interaction.reply(v2Payload([container]));
 
       logger.info(`Custom command created: ${name} by ${interaction.user.id} in ${interaction.guildId!}`);
     } catch (error) {

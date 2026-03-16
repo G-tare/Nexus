@@ -1,12 +1,12 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
 import { getQueue } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { errorContainer, warningContainer, moduleContainer, addText, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Music');
 
@@ -36,16 +36,7 @@ const command: BotCommand = {
     if (!searchQuery) {
       const queue = getQueue(guildId);
       if (!queue || !queue.currentTrack) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Error)
-              .setTitle('No Track')
-              .setDescription(
-                'No song is currently playing. Provide a song title with the `/lyrics query` option.'
-              ),
-          ],
-        });
+        await interaction.editReply(v2Payload([errorContainer('No Track', 'No song is currently playing. Provide a song title with the `/lyrics query` option.')]));
         return;
       }
 
@@ -61,87 +52,57 @@ const command: BotCommand = {
       const lyrics = await fetchLyricsStub(searchQuery);
 
       if (!lyrics || !lyrics.content) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Warning)
-              .setTitle('Lyrics Not Found')
-              .setDescription(
-                `Could not find lyrics for **${searchQuery}**. Try a different search query.`
-              ),
-          ],
-        });
+        await interaction.editReply(v2Payload([warningContainer('Lyrics Not Found', `Could not find lyrics for **${searchQuery}**. Try a different search query.`)]));
         return;
       }
 
-      // Split lyrics into chunks if exceeding Discord embed limit
+      // Split lyrics into chunks if exceeding Discord container limit
       const chunks = splitLyricsIntoChunks(lyrics.content, 4096);
-      const embeds: EmbedBuilder[] = [];
+      const containers: any[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Music)
-          .setTitle(`🎵 ${lyrics.title}`)
-          .setDescription(chunks[i])
-          .setFooter({
-            text: `Page ${i + 1}/${chunks.length}${
-              lyrics.source ? ` • Source: ${lyrics.source}` : ''
-            }`,
-          });
+        const container = moduleContainer('music');
+        addText(container, `### 🎵 ${lyrics.title}\n${chunks[i]}`);
 
         if (i === 0 && lyrics.artist) {
-          embed.addFields({
-            name: 'Artist',
-            value: lyrics.artist,
-            inline: true,
-          });
+          addFields(container, [
+            {
+              name: 'Artist',
+              value: lyrics.artist,
+              inline: true,
+            },
+          ]);
         }
 
         if (i === 0 && lyrics.url) {
-          embed.addFields({
-            name: 'Link',
-            value: `[View on ${lyrics.source || 'Source'}](${lyrics.url})`,
-            inline: true,
-          });
+          addFields(container, [
+            {
+              name: 'Link',
+              value: `[View on ${lyrics.source || 'Source'}](${lyrics.url})`,
+              inline: true,
+            },
+          ]);
         }
 
-        embeds.push(embed);
+        addFooter(container, `Page ${i + 1}/${chunks.length}${lyrics.source ? ` • Source: ${lyrics.source}` : ''}`);
+        containers.push(container);
       }
 
-      // Send first embed immediately, queue others if needed
-      await interaction.editReply({
-        embeds: [embeds[0]],
-      });
+      // Send first container immediately, queue others if needed
+      await interaction.editReply(v2Payload([containers[0]]));
 
-      // Send additional embeds as follow-up messages if there are too many
-      for (let i = 1; i < Math.min(embeds.length, 5); i++) {
-        await interaction.followUp({
-          embeds: [embeds[i]],
-        });
+      // Send additional containers as follow-up messages if there are too many
+      for (let i = 1; i < Math.min(containers.length, 5); i++) {
+        await interaction.followUp(v2Payload([containers[i]]));
       }
 
-      if (embeds.length > 5) {
-        await interaction.followUp({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Info)
-              .setTitle('Lyrics Truncated')
-              .setDescription(
-                `Only the first 5 pages are displayed. Visit the source link to see the full lyrics.`
-              ),
-          ],
-        });
+      if (containers.length > 5) {
+        const truncatedContainer = warningContainer('Lyrics Truncated', 'Only the first 5 pages are displayed. Visit the source link to see the full lyrics.');
+        await interaction.followUp(v2Payload([truncatedContainer]));
       }
     } catch (error) {
       logger.error(`Error fetching lyrics for "${searchQuery}":`, error);
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Error Fetching Lyrics')
-            .setDescription('An error occurred while fetching the lyrics. Please try again later.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('Error Fetching Lyrics', 'An error occurred while fetching the lyrics. Please try again later.')]));
     }
   },
 };

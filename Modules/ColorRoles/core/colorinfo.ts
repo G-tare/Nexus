@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getColorPalette,
@@ -10,6 +13,7 @@ import {
   hexToInt,
   hexToRgb,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -71,20 +75,18 @@ const command: BotCommand = {
     const rgb = hexToRgb(color.hex);
     const memberCount = await getColorMemberCount(guild, color.roleId);
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(color.hex))
-      .setTitle(`🎨 ${color.name}`)
-      .addFields(
-        { name: 'Hex', value: `\`#${color.hex}\``, inline: true },
-        { name: 'RGB', value: `\`${rgb.r}, ${rgb.g}, ${rgb.b}\``, inline: true },
-        { name: 'Position', value: `#${color.position}`, inline: true },
-        { name: 'Members', value: `${memberCount}`, inline: true },
-        { name: 'Role', value: `<@&${color.roleId}>`, inline: true },
-        { name: 'Added By', value: color.createdBy === 'system' ? 'System' : `<@${color.createdBy}>`, inline: true },
-      )
-      .setTimestamp(new Date(color.createdAt));
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(color.hex));
+    addText(container, `### 🎨 ${color.name}`);
+    addFields(container, [
+      { name: 'Hex', value: `\`#${color.hex}\``, inline: true },
+      { name: 'RGB', value: `\`${rgb.r}, ${rgb.g}, ${rgb.b}\``, inline: true },
+      { name: 'Position', value: `#${color.position}`, inline: true },
+      { name: 'Members', value: `${memberCount}`, inline: true },
+      { name: 'Role', value: `<@&${color.roleId}>`, inline: true },
+      { name: 'Added By', value: color.createdBy === 'system' ? 'System' : `<@${color.createdBy}>`, inline: true },
+    ]);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

@@ -1,5 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getLeaderboardConfig, getLeaderboardTypeDisplay, LeaderboardType, isValidLeaderboardType } from '../helpers';
 
 
@@ -134,24 +135,22 @@ const command: BotCommand = {
 async function handleView(interaction: ChatInputCommandInteraction, guildId: string) {
   const config = await getLeaderboardConfig(guildId);
 
-  const embed = new EmbedBuilder()
-    .setColor('#FFD700')
-    .setTitle('📊 Leaderboard Configuration')
-    .addFields(
-      { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-      { name: 'Default Type', value: getLeaderboardTypeDisplay(config.defaultType).displayName, inline: true },
-      { name: 'Entries Per Page', value: config.entriesPerPage.toString(), inline: true },
-      { name: 'Show Rank Card', value: config.showRankCard ? '✅ Yes' : '❌ No', inline: true },
-      {
-        name: 'Enabled Types',
-        value: config.enabledTypes
-          .map(type => `• ${getLeaderboardTypeDisplay(type as LeaderboardType).displayName}`)
-          .join('\n'),
-        inline: false
-      }
-    );
+  const container = moduleContainer('leaderboards');
+  addFields(container, [
+    { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+    { name: 'Default Type', value: getLeaderboardTypeDisplay(config.defaultType).displayName, inline: true },
+    { name: 'Entries Per Page', value: config.entriesPerPage.toString(), inline: true },
+    { name: 'Show Rank Card', value: config.showRankCard ? '✅ Yes' : '❌ No', inline: true },
+    {
+      name: 'Enabled Types',
+      value: config.enabledTypes
+        .map(type => `• ${getLeaderboardTypeDisplay(type as LeaderboardType).displayName}`)
+        .join('\n'),
+      inline: false
+    }
+  ]);
 
-  await interaction.editReply({ embeds: [embed] });
+  await interaction.editReply(v2Payload([container]));
 }
 
 async function handleDefaultType(interaction: ChatInputCommandInteraction, guildId: string) {

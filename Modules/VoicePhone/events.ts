@@ -6,6 +6,7 @@ import {
   TextChannel,
   GuildMember,
   AuditLogEvent,
+  ContainerBuilder,
 } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
@@ -14,15 +15,16 @@ import {
   endVoiceCall,
   setCooldown,
   leaveVoiceQueue,
-  buildCallEndedEmbed,
-  buildServerBanEmbed,
+  buildCallEndedContainer,
+  buildServerBanContainer,
   getOtherSide,
   isUserBanned,
   tempBanServer,
   getVoicePhoneConfig,
 } from './helpers';
 import { activeRelays, findRelayByVoiceChannel } from './relay';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('VoicePhone:Events');
 
@@ -124,14 +126,14 @@ async function handlePossibleCircumvention(state: VoiceState, member: GuildMembe
     await setCooldown(call.side2.guildId, call.side2.voiceChannelId);
 
     // Notify both sides
-    const endEmbed = buildCallEndedEmbed(duration, 'Safety violation — call terminated');
-    notifyGuild(state.client, call.side1.guildId, endEmbed);
-    notifyGuild(state.client, call.side2.guildId, endEmbed);
+    const endContainer = buildCallEndedContainer(duration, 'Safety violation — call terminated');
+    notifyGuild(state.client, call.side1.guildId, endContainer);
+    notifyGuild(state.client, call.side2.guildId, endContainer);
   }
 
   // Notify the offending server about the server ban
-  const banEmbed = buildServerBanEmbed(BAN_DURATION, 'Staff attempted to circumvent Voice Phone safety enforcement (unmuting a banned user)');
-  notifyGuild(state.client, state.guild.id, banEmbed);
+  const banContainer = buildServerBanContainer(BAN_DURATION, 'Staff attempted to circumvent Voice Phone safety enforcement (unmuting a banned user)');
+  notifyGuild(state.client, state.guild.id, banContainer);
 }
 
 /**
@@ -245,9 +247,9 @@ async function handleUserLeftVC(channelId: string, userId: string, client: Clien
         await setCooldown(call.side2.guildId, call.side2.voiceChannelId);
 
         // Notify both sides
-        const endEmbed = buildCallEndedEmbed(duration, 'Voice channel emptied');
-        notifyGuild(client, call.side1.guildId, endEmbed);
-        notifyGuild(client, call.side2.guildId, endEmbed);
+        const endContainer = buildCallEndedContainer(duration, 'Voice channel emptied');
+        notifyGuild(client, call.side1.guildId, endContainer);
+        notifyGuild(client, call.side2.guildId, endContainer);
       }
     }, 30_000);
 
@@ -261,7 +263,7 @@ async function handleUserLeftVC(channelId: string, userId: string, client: Clien
 function notifyGuild(
   client: Client,
   guildId: string,
-  embed: import('discord.js').EmbedBuilder,
+  container: ContainerBuilder,
 ): void {
   try {
     const guild = client.guilds.cache.get(guildId);
@@ -276,7 +278,7 @@ function notifyGuild(
       .first() as TextChannel | undefined;
 
     if (textChannel) {
-      textChannel.send({ embeds: [embed] }).catch(() => {});
+      textChannel.send(v2Payload([container])).catch(() => {});
     }
   } catch {
     // Non-critical
@@ -294,35 +296,12 @@ const clientReadyEvent: ModuleEvent = {
   async handler(client: Client) {
     logger.info('[VoicePhone] Cleaning up orphaned call keys...');
 
-    const redis = getRedis();
-    let cursor = '0';
-    let cleaned = 0;
+    // Cache cleanup using deleteByPrefix
+    const cleanedCalls = cache.deleteByPrefix('voicephone:call:');
+    const cleanedChannels = cache.deleteByPrefix('voicephone:channel:');
+    cache.del('voicephone:queue');
 
-    do {
-      const [newCursor, keys] = await redis.scan(cursor, 'MATCH', 'voicephone:call:*', 'COUNT', 100);
-      cursor = newCursor;
-
-      for (const key of keys) {
-        await redis.del(key);
-        cleaned++;
-      }
-    } while (cursor !== '0');
-
-    // Also clean up channel mappings
-    cursor = '0';
-    do {
-      const [newCursor, keys] = await redis.scan(cursor, 'MATCH', 'voicephone:channel:*', 'COUNT', 100);
-      cursor = newCursor;
-
-      for (const key of keys) {
-        await redis.del(key);
-        cleaned++;
-      }
-    } while (cursor !== '0');
-
-    // Clean up queue entries
-    await redis.del('voicephone:queue');
-
+    const cleaned = cleanedCalls + cleanedChannels;
     if (cleaned > 0) {
       logger.info(`[VoicePhone] Cleaned up ${cleaned} orphaned keys`);
     }

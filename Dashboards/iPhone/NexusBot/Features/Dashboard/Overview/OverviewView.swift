@@ -63,7 +63,7 @@ struct OverviewView: View {
                     VStack(spacing: NexusSpacing.sm) {
                         ForEach(quickModules, id: \.self) { moduleKey in
                             if let info = ModuleRegistry.info(for: moduleKey) {
-                                let isEnabled = guildCache.modules[moduleKey]?.enabled ?? true
+                                let isEnabled = guildCache.modules[moduleKey]?.enabled ?? false
                                 QuickToggleRow(
                                     name: info.name,
                                     icon: info.icon,

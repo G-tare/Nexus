@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getConfessionConfig, setConfessionConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'confessions',
@@ -132,25 +133,23 @@ const command: BotCommand = {
 
     try {
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor(config.embedColor as any)
-          .setTitle('Confession Configuration')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
-            { name: 'Confession Channel', value: config.channelId ? `<#${config.channelId}>` : 'Not set', inline: true },
-            { name: 'Moderation', value: config.moderationEnabled ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Moderation Channel', value: config.moderationChannelId ? `<#${config.moderationChannelId}>` : 'Not set', inline: true },
-            { name: 'Full Anonymity', value: config.fullAnonymity ? 'Yes' : 'No', inline: true },
-            { name: 'Cooldown', value: `${config.cooldownSeconds}s`, inline: true },
-            { name: 'Images Allowed', value: config.allowImages ? 'Yes' : 'No', inline: true },
-            { name: 'Embed Color', value: config.embedColor, inline: true },
-            { name: 'Blacklisted Words', value: config.blacklistedWords.length > 0 ? config.blacklistedWords.join(', ') : 'None', inline: false },
-            { name: 'Banned Users', value: `${config.bannedHashes.length} user(s)`, inline: true },
-            { name: 'Total Confessions', value: `${config.confessionCounter}`, inline: true },
-          )
-          .setTimestamp();
+        const container = moduleContainer('confessions');
+        addText(container, '### Confession Configuration');
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
+          { name: 'Confession Channel', value: config.channelId ? `<#${config.channelId}>` : 'Not set', inline: true },
+          { name: 'Moderation', value: config.moderationEnabled ? 'Enabled' : 'Disabled', inline: true },
+          { name: 'Moderation Channel', value: config.moderationChannelId ? `<#${config.moderationChannelId}>` : 'Not set', inline: true },
+          { name: 'Full Anonymity', value: config.fullAnonymity ? 'Yes' : 'No', inline: true },
+          { name: 'Cooldown', value: `${config.cooldownSeconds}s`, inline: true },
+          { name: 'Images Allowed', value: config.allowImages ? 'Yes' : 'No', inline: true },
+          { name: 'Embed Color', value: config.embedColor, inline: true },
+          { name: 'Blacklisted Words', value: config.blacklistedWords.length > 0 ? config.blacklistedWords.join(', ') : 'None', inline: false },
+          { name: 'Banned Users', value: `${config.bannedHashes.length} user(s)`, inline: true },
+          { name: 'Total Confessions', value: `${config.confessionCounter}`, inline: true },
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'channel') {
         const channel = interaction.options.getChannel('channel', true);
         config.channelId = channel.id;

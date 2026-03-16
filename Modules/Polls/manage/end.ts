@@ -6,7 +6,7 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getPoll,
   endPoll,
-  buildResultsEmbed,
+  buildResultsContainer,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -55,11 +55,11 @@ const command: BotCommand = {
         });
       }
 
-      // Build and send results embed
-      const resultsEmbed = buildResultsEmbed(result.poll!);
+      // Build and send results container
+      const resultsContainer = buildResultsContainer(result.poll!);
 
       await interaction.editReply({
-        embeds: [resultsEmbed],
+        components: [resultsContainer],
       });
 
       // Try to edit the original message with final results
@@ -69,8 +69,7 @@ const command: BotCommand = {
           const message = await channel.messages.fetch(poll.messageId);
           if (message) {
             await message.edit({
-              embeds: [resultsEmbed],
-              components: [], // Remove buttons
+              components: [resultsContainer], // Remove buttons
             });
           }
         }

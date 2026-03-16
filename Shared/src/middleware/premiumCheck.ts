@@ -1,5 +1,5 @@
 import { getDb } from '../database/connection';
-import { getRedis } from '../database/connection';
+import { cache } from '../cache/cacheManager';
 import { guilds } from '../database/models/schema';
 import { eq } from 'drizzle-orm';
 import { config } from '../config';
@@ -7,12 +7,12 @@ import { createModuleLogger } from '../utils/logger';
 
 const logger = createModuleLogger('Premium');
 
-export type PremiumTier = 'free' | 'premium' | 'ultimate';
+export type PremiumTier = 'free' | 'pro' | 'plus' | 'premium';
 
 // Feature → minimum tier required
 // When PREMIUM_ENABLED=false, ALL features are accessible (for testing)
 const featureTiers: Record<string, PremiumTier> = {
-  // Free features
+  // ── Free features ──
   'moderation.basic': 'free',
   'welcome.text': 'free',
   'leveling.basic': 'free',
@@ -26,47 +26,75 @@ const featureTiers: Record<string, PremiumTier> = {
   'reputation': 'free',
   'polls.basic': 'free',
 
-  // Premium features
-  'welcome.images': 'premium',
-  'welcome.dm': 'premium',
-  'logging.full': 'premium',
-  'confessions': 'premium',
-  'tickets': 'premium',
-  'giveaways': 'premium',
-  'boards': 'premium',
-  'invite_tracker': 'premium',
-  'music': 'premium',
-  'currency.multi': 'premium',
-  'shop': 'premium',
-  'color_roles': 'premium',
-  'ai_chatbot': 'premium',
-  'forms': 'premium',
-  'suggestions': 'premium',
-  'scheduled_messages': 'premium',
-  'translation': 'premium',
-  'custom_commands': 'premium',
-  'leaderboards.auto': 'premium',
-  'temp_voice': 'premium',
-  'sticky_messages': 'premium',
-  'userphone': 'premium',
-  'message_tracking': 'premium',
+  // ── Pro features ──
+  'welcome.images': 'pro',
+  'welcome.dm': 'pro',
+  'logging.full': 'pro',
+  'confessions': 'pro',
+  'tickets': 'pro',
+  'giveaways': 'pro',
+  'boards': 'pro',
+  'invite_tracker': 'pro',
+  'music': 'pro',
+  'currency.multi': 'pro',
+  'shop': 'pro',
+  'color_roles': 'pro',
+  'forms': 'pro',
+  'suggestions': 'pro',
+  'scheduled_messages': 'pro',
+  'translation': 'pro',
+  'custom_commands': 'pro',
+  'leaderboards.auto': 'pro',
+  'temp_voice': 'pro',
+  'sticky_messages': 'pro',
+  'userphone': 'pro',
+  'message_tracking': 'pro',
 
-  // Ultimate features
-  'backup': 'ultimate',
-  'anti_raid': 'ultimate',
-  'anti_nuke': 'ultimate',
-  'stats_channels': 'ultimate',
-  'music.247': 'ultimate',
-  'custom_branding': 'ultimate',
-  'advanced_analytics': 'ultimate',
-  'priority_support': 'ultimate',
+  // ── Plus features ──
+  'ai_chatbot': 'plus',
+  'voicephone': 'plus',
+  'advanced_analytics': 'plus',
+  'soundboard': 'plus',
+  'backup': 'plus',
+  'anti_raid': 'plus',
+  'stats_channels': 'plus',
+  'profile': 'plus',
+  'family': 'plus',
+  'birthdays': 'plus',
+  'donation_tracking': 'plus',
+  'casino': 'plus',
+  'music.247': 'plus',
+
+  // ── Premium features ──
+  'anti_nuke': 'premium',
+  'custom_branding': 'premium',
+  'priority_support': 'premium',
+  'higher_rate_limits': 'premium',
+  'early_access': 'premium',
 };
 
 const tierPriority: Record<PremiumTier, number> = {
   free: 0,
-  premium: 1,
-  ultimate: 2,
+  pro: 1,
+  plus: 2,
+  premium: 3,
 };
+
+/** Get the display name for a tier. */
+export function getTierDisplayName(tier: PremiumTier): string {
+  const names: Record<PremiumTier, string> = {
+    free: 'Free',
+    pro: 'Pro',
+    plus: 'Plus',
+    premium: 'Premium',
+  };
+  return names[tier] ?? 'Free';
+}
+
+/** Get the numeric priority for a tier. Higher = more features. */
+export function getTierPriority(tier: PremiumTier): number {
+  return tierPriority[tier] ?? 0;
+}
 
 export class PremiumManager {
   /**
@@ -92,14 +120,11 @@ export class PremiumManager {
    * Get a guild's premium tier.
    */
   async getGuildTier(guildId: string): Promise<PremiumTier> {
-    const redis = getRedis();
     const cacheKey = `premium:${guildId}`;
 
-    // Try cache
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) return cached as PremiumTier;
-    } catch { /* fall through */ }
+    // Try in-memory cache
+    const cached = cache.get<PremiumTier>(cacheKey);
+    if (cached !== null) return cached;
 
     // Query DB
     const db = getDb();
@@ -123,10 +148,8 @@ export class PremiumManager {
         .where(eq(guilds.id, guildId));
     }
 
-    // Cache for 5 minutes
-    try {
-      await redis.setex(cacheKey, 300, tier);
-    } catch { /* ignore */ }
+    // Cache for 5 minutes in memory
+    cache.set(cacheKey, tier, 300);
 
     return tier;
   }

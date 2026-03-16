@@ -1,4 +1,4 @@
-import { 
+import {
   Client,
   Events,
   Interaction,
@@ -6,8 +6,10 @@ import {
   StringSelectMenuInteraction,
   ChannelType,
   TextChannel,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags,
+  ContainerBuilder,
+} from 'discord.js';
 import type { ModuleEvent } from '../../Shared/src/types/command';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import {
@@ -21,8 +23,12 @@ import {
 import { getDb } from '../../Shared/src/database/connection';
 import { tickets } from '../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
-import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Tickets');
 
@@ -54,14 +60,11 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
       );
 
       if (result) {
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Success)
-          .setTitle('Ticket Created')
-          .setDescription(`Your ticket has been created: ${result.channel.toString()}`);
+        const successContainer = moduleContainer('tickets');
+        addText(successContainer, '### ✅ Ticket Created');
+        addText(successContainer, `Your ticket has been created: ${result.channel.toString()}`);
 
-        return interaction.editReply({
-          embeds: [embed],
-        });
+        return interaction.editReply(v2Payload([successContainer]));
       } else {
         return interaction.editReply({
           content: '❌ Failed to create ticket. Please check if you have reached the maximum number of open tickets.',
@@ -136,12 +139,11 @@ const buttonHandler: ModuleEvent = { event: Events.InteractionCreate,
         .set({ claimedBy: interaction.user.id })
         .where(eq(tickets.channelId, interaction.channel.id));
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('Ticket Claimed')
-        .setDescription(`${interaction.user.toString()} has claimed this ticket.`);
+      const claimedContainer = moduleContainer('tickets');
+      addText(claimedContainer, '### ✅ Ticket Claimed');
+      addText(claimedContainer, `${interaction.user.toString()} has claimed this ticket.`);
 
-      await (interaction.channel as TextChannel).send({ embeds: [embed] });
+      await (interaction.channel as TextChannel).send(v2Payload([claimedContainer]));
 
       return interaction.reply({
         content: '✅ You have claimed this ticket.',
@@ -250,14 +252,11 @@ const selectMenuHandler: ModuleEvent = { event: Events.InteractionCreate,
       );
 
       if (result) {
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Success)
-          .setTitle('Ticket Created')
-          .setDescription(`Your ticket has been created: ${result.channel.toString()}`);
+        const successContainer = moduleContainer('tickets');
+        addText(successContainer, '### ✅ Ticket Created');
+        addText(successContainer, `Your ticket has been created: ${result.channel.toString()}`);
 
-        return interaction.editReply({
-          embeds: [embed],
-        });
+        return interaction.editReply(v2Payload([successContainer]));
       } else {
         return interaction.editReply({
           content: '❌ Failed to create ticket.',
@@ -336,16 +335,16 @@ const autoCloseChecker: ModuleEvent = { event: Events.ClientReady,
             inactiveHours >= config.autoCloseHours - config.autoCloseWarningHours &&
             inactiveHours < config.autoCloseHours
           ) {
-            const warnEmbed = new EmbedBuilder()
-              .setColor(Colors.Warning)
-              .setTitle('Inactivity Warning')
-              .setDescription(
-                `This ticket will be automatically closed in ${Math.round(
-                  config.autoCloseHours - inactiveHours
-                )} hours due to inactivity.`
-              );
+            const warnContainer = moduleContainer('tickets');
+            addText(warnContainer, '### ⚠️ Inactivity Warning');
+            addText(
+              warnContainer,
+              `This ticket will be automatically closed in ${Math.round(
+                config.autoCloseHours - inactiveHours
+              )} hours due to inactivity.`
+            );
 
-            await (channel as any).send({ embeds: [warnEmbed] }).catch(() => {});
+            await (channel as any).send(v2Payload([warnContainer])).catch(() => {});
           }
 
           // Close if past threshold

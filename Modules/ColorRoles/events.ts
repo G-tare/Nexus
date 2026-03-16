@@ -9,7 +9,7 @@ import {
   Message,
 } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import {

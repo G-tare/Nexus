@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('resetxp')
     .setDescription('Reset a user\'s XP and level to 0')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addUserOption(option =>
       option
         .setName('user')

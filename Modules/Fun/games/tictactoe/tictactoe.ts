@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
@@ -6,9 +6,10 @@ import {
   ButtonStyle,
   ButtonInteraction,
   User,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 type Cell = 0 | 1 | 2;
@@ -193,19 +194,13 @@ export default {
     const playerName = vsBot ? 'You' : opponent!.username;
     const opponentName = vsBot ? 'Bot' : interaction.user.username;
 
-    const embed = new EmbedBuilder()
-      .setTitle('❌⭕ Tic Tac Toe')
-      .setDescription(
-        `${interaction.user.username} (❌) vs ${vsBot ? 'Bot' : opponent!.username} (⭕)\n\n` +
-          boardToString(board) +
-          `\n**Current Turn:** ${
-            currentPlayer === 1 ? interaction.user.username : opponentName
-          }`
-      );
+    const container = moduleContainer('fun');
+    addText(container, '### ❌⭕ Tic Tac Toe');
+    addText(container, `${interaction.user.username} (❌) vs ${vsBot ? 'Bot' : opponent!.username} (⭕)\n\n${boardToString(board)}\n\n**Current Turn:** ${currentPlayer === 1 ? interaction.user.username : opponentName}`);
+    container.addActionRowComponents(...createButtons());
 
     const message = await interaction.reply({
-      embeds: [embed],
-      components: createButtons(),
+      ...v2Payload([container]),
       fetchReply: true,
     });
 
@@ -258,30 +253,19 @@ export default {
       if (checkWin(board, currentPlayer)) {
         const winner = currentPlayer === 1 ? interaction.user.username : opponentName;
 
-        const winEmbed = new EmbedBuilder()
-          .setColor(0x00ff00)
-          .setTitle('🎉 Game Over!')
-          .setDescription(
-            `${winner} (${currentPlayer === 1 ? '❌' : '⭕'}) wins!\n\n` +
-              boardToString(board)
-          );
+        const winContainer = moduleContainer('fun');
+        addText(winContainer, '### 🎉 Game Over!');
+        addText(winContainer, `${winner} (${currentPlayer === 1 ? '❌' : '⭕'}) wins!\n\n${boardToString(board)}`);
 
-        await buttonInteraction.update({
-          embeds: [winEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([winContainer]));
         collector.stop();
         gameOver = true;
       } else if (isBoardFull(board)) {
-        const drawEmbed = new EmbedBuilder()
-          .setColor(0xffff00)
-          .setTitle('🤝 Draw!')
-          .setDescription(`The board is full!\n\n${boardToString(board)}`);
+        const drawContainer = moduleContainer('fun');
+        addText(drawContainer, '### 🤝 Draw!');
+        addText(drawContainer, `The board is full!\n\n${boardToString(board)}`);
 
-        await buttonInteraction.update({
-          embeds: [drawEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([drawContainer]));
         collector.stop();
         gameOver = true;
       } else {
@@ -298,30 +282,20 @@ export default {
             board[bi][bj] = 2;
 
             if (checkWin(board, 2)) {
-              const botWinEmbed = new EmbedBuilder()
-                .setColor(0xff0000)
-                .setTitle('🎉 Game Over!')
-                .setDescription(
-                  `Bot (⭕) wins!\n\n${boardToString(board)}`
-                );
+              const botWinContainer = moduleContainer('fun');
+              addText(botWinContainer, '### 🎉 Game Over!');
+              addText(botWinContainer, `Bot (⭕) wins!\n\n${boardToString(board)}`);
 
-              await message.edit({
-                embeds: [botWinEmbed],
-                components: [],
-              });
+              await message.edit(v2Payload([botWinContainer]));
               collector.stop();
               gameOver = true;
               return;
             } else if (isBoardFull(board)) {
-              const botDrawEmbed = new EmbedBuilder()
-                .setColor(0xffff00)
-                .setTitle('🤝 Draw!')
-                .setDescription(`The board is full!\n\n${boardToString(board)}`);
+              const botDrawContainer = moduleContainer('fun');
+              addText(botDrawContainer, '### 🤝 Draw!');
+              addText(botDrawContainer, `The board is full!\n\n${boardToString(board)}`);
 
-              await message.edit({
-                embeds: [botDrawEmbed],
-                components: [],
-              });
+              await message.edit(v2Payload([botDrawContainer]));
               collector.stop();
               gameOver = true;
               return;
@@ -331,20 +305,12 @@ export default {
           currentPlayer = 1;
         }
 
-        const nextEmbed = new EmbedBuilder()
-          .setTitle('❌⭕ Tic Tac Toe')
-          .setDescription(
-            `${interaction.user.username} (❌) vs ${vsBot ? 'Bot' : opponent!.username} (⭕)\n\n` +
-              boardToString(board) +
-              `\n**Current Turn:** ${
-                currentPlayer === 1 ? interaction.user.username : opponentName
-              }`
-          );
+        const nextContainer = moduleContainer('fun');
+        addText(nextContainer, '### ❌⭕ Tic Tac Toe');
+        addText(nextContainer, `${interaction.user.username} (❌) vs ${vsBot ? 'Bot' : opponent!.username} (⭕)\n\n${boardToString(board)}\n\n**Current Turn:** ${currentPlayer === 1 ? interaction.user.username : opponentName}`);
+        nextContainer.addActionRowComponents(...createButtons());
 
-        await buttonInteraction.update({
-          embeds: [nextEmbed],
-          components: createButtons(),
-        });
+        await buttonInteraction.update(v2Payload([nextContainer]));
       }
     });
 

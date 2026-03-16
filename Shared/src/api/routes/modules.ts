@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { moduleConfig } from '../../middleware/moduleConfig';
+import { getPool } from '../../database/connection';
 import { createModuleLogger } from '../../utils/logger';
 
 const logger = createModuleLogger('ModulesAPI');
@@ -160,7 +161,8 @@ const DISABLED_BY_DEFAULT = new Set([
  */
 router.get('/:guildId', async (req: Request, res: Response) => {
   try {
-    const configs = await moduleConfig.getAllConfigs(req.params.guildId as string);
+    const guildId = req.params.guildId as string;
+    const configs = await moduleConfig.getAllConfigs(guildId);
 
     // Merge defaults for any modules that don't have a DB row yet
     for (const [mod, defaults] of Object.entries(MODULE_DEFAULTS)) {
@@ -169,7 +171,40 @@ router.get('/:guildId', async (req: Request, res: Response) => {
       }
     }
 
-    res.json(configs);
+    // Fetch global toggles and server bans to overlay on module configs
+    const pool = getPool();
+    const [globalToggles, serverBans] = await Promise.all([
+      pool.query('SELECT module_name, enabled, reason, reason_detail FROM global_module_toggles'),
+      pool.query('SELECT module_name, reason, reason_detail FROM server_module_bans WHERE guild_id = $1', [guildId]),
+    ]);
+
+    const globalMap: Record<string, { enabled: boolean; reason: string | null; reason_detail: string | null }> = {};
+    for (const row of globalToggles.rows) {
+      globalMap[row.module_name] = row;
+    }
+
+    const banMap: Record<string, { reason: string | null; reason_detail: string | null }> = {};
+    for (const row of serverBans.rows) {
+      banMap[row.module_name] = row;
+    }
+
+    // Attach override info to each module config
+    const result: Record<string, any> = {};
+    for (const [mod, cfg] of Object.entries(configs)) {
+      result[mod] = { ...cfg };
+      if (globalMap[mod] && !globalMap[mod].enabled) {
+        result[mod].globallyDisabled = true;
+        result[mod].globalReason = globalMap[mod].reason;
+        result[mod].globalReasonDetail = globalMap[mod].reason_detail;
+      }
+      if (banMap[mod]) {
+        result[mod].serverBanned = true;
+        result[mod].banReason = banMap[mod].reason;
+        result[mod].banReasonDetail = banMap[mod].reason_detail;
+      }
+    }
+
+    res.json(result);
   } catch (err: any) {
     logger.error('Get modules error', { error: err.message });
     res.status(500).json({ error: 'Internal error' });
@@ -209,7 +244,11 @@ router.patch('/:guildId/:moduleName/toggle', async (req: Request, res: Response)
       return;
     }
 
-    await moduleConfig.setEnabled(req.params.guildId as string, req.params.moduleName as string, enabled);
+    const gid = req.params.guildId as string;
+    const mod = req.params.moduleName as string;
+    await moduleConfig.setEnabled(gid, mod, enabled);
+    const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
+    await CacheInvalidator.publish(`modcfg:${gid}:${mod.toLowerCase()}`);
     res.json({ success: true, enabled });
   } catch (err: any) {
     logger.error('Toggle module error', { error: err.message });
@@ -229,10 +268,85 @@ router.put('/:guildId/:moduleName/config', async (req: Request, res: Response) =
       return;
     }
 
-    await moduleConfig.updateConfig(req.params.guildId as string, req.params.moduleName as string, newConfig);
+    const gid2 = req.params.guildId as string;
+    const mod2 = req.params.moduleName as string;
+    await moduleConfig.updateConfig(gid2, mod2, newConfig);
+    const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
+    await CacheInvalidator.publish(`modcfg:${gid2}:${mod2.toLowerCase()}`);
     res.json({ success: true });
   } catch (err: any) {
     logger.error('Update module config error', { error: err.message });
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * PATCH /api/modules/:guildId/:moduleName/commands/:commandName/toggle
+ * Enable or disable a specific command within a module.
+ */
+router.patch('/:guildId/:moduleName/commands/:commandName/toggle', async (req: Request, res: Response) => {
+  try {
+    const guildId = req.params.guildId as string;
+    const moduleName = req.params.moduleName as string;
+    const commandName = req.params.commandName as string;
+    const { disabled } = req.body;
+    if (typeof disabled !== 'boolean') {
+      res.status(400).json({ error: 'disabled must be a boolean' });
+      return;
+    }
+
+    await moduleConfig.setCommandDisabled(guildId, moduleName, commandName, disabled);
+    const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
+    await CacheInvalidator.publish(`modcfg:${guildId}:${moduleName.toLowerCase()}`);
+    res.json({ success: true, disabled });
+  } catch (err: any) {
+    logger.error('Toggle command error', { error: err.message });
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * GET /api/modules/:guildId/:moduleName/history
+ * Get recent command usage for a specific module in a guild.
+ */
+router.get('/:guildId/:moduleName/history', async (req: Request, res: Response) => {
+  try {
+    const { guildId, moduleName } = req.params;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+
+    const pool = getPool();
+    const result = await pool.query(
+      `SELECT cu.command_name, cu.subcommand_name, cu.user_id, cu.execution_ms, cu.success, cu.timestamp,
+              COALESCE(u.global_name, u.username, cu.user_id) as display_name
+       FROM command_usage cu
+       LEFT JOIN users u ON u.id = cu.user_id
+       WHERE cu.guild_id = $1 AND cu.module_name = $2
+       ORDER BY cu.timestamp DESC
+       LIMIT $3`,
+      [guildId, moduleName, limit],
+    );
+
+    // Also get aggregate stats
+    const stats = await pool.query(
+      `SELECT
+         COUNT(*) as total_uses,
+         COUNT(*) FILTER (WHERE success = true) as successful,
+         COUNT(*) FILTER (WHERE success = false) as failed,
+         ROUND(AVG(execution_ms)) as avg_latency,
+         COUNT(DISTINCT user_id) as unique_users,
+         COUNT(DISTINCT command_name) as unique_commands
+       FROM command_usage
+       WHERE guild_id = $1 AND module_name = $2
+         AND timestamp > NOW() - INTERVAL '30 days'`,
+      [guildId, moduleName],
+    );
+
+    res.json({
+      history: result.rows,
+      stats: stats.rows[0] || {},
+    });
+  } catch (err: any) {
+    logger.error('Get module history error', { error: err.message });
     res.status(500).json({ error: 'Internal error' });
   }
 });

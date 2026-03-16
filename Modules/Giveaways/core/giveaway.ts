@@ -1,10 +1,10 @@
-import { 
-  SlashCommandBuilder, ChannelType, TextChannel, EmbedBuilder,
+import {
+  SlashCommandBuilder, ChannelType, TextChannel,
   ButtonBuilder, ActionRowBuilder, ButtonStyle, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
-import { createGiveaway, getActiveGiveaways, getGiveawayConfig, buildGiveawayEmbed, buildGiveawayComponents } from '../helpers';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { createGiveaway, getActiveGiveaways, getGiveawayConfig, buildGiveawayContainer, buildGiveawayComponents } from '../helpers';
+import { moduleContainer, addText, addFields, addSeparator, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   data: new SlashCommandBuilder()
@@ -57,26 +57,29 @@ export default {
         endsAt: endTime,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Primary)
-        .setTitle(`🎉 ${prize}`)
-        .setDescription(
-          `**Winners:** ${winnerCount}\n${description ? `**Description:** ${description}\n` : ''}**Ends:** <t:${Math.floor(endTime.getTime() / 1000)}:R>`
-        )
-        .addFields(
-          { name: 'Entries', value: '0', inline: true },
-          { name: 'Status', value: 'Active', inline: true },
-          { name: 'Giveaway ID', value: String(giveaway.id), inline: true }
-        )
-        .setTimestamp();
+      const container = moduleContainer('giveaways');
+      addText(container, `### 🎉 ${prize}`);
+      const descriptionLines = [
+        `**Winners:** ${winnerCount}`,
+        description ? `**Description:** ${description}` : null,
+        `**Ends:** <t:${Math.floor(endTime.getTime() / 1000)}:R>`,
+      ].filter(Boolean);
+      addText(container, descriptionLines.join('\n'));
+      addSeparator(container, 'small');
+      addFields(container, [
+        { name: 'Entries', value: '0', inline: true },
+        { name: 'Status', value: 'Active', inline: true },
+        { name: 'Giveaway ID', value: String(giveaway.id), inline: true },
+      ]);
 
       const enterButton = new ButtonBuilder()
         .setCustomId(`giveaway_enter_${giveaway.id}`)
         .setLabel('🎁 Enter Giveaway')
         .setStyle(ButtonStyle.Primary);
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(enterButton);
-      const message = await (targetChannel as any).send({ embeds: [embed], components: [row] });
+      addButtons(container, [enterButton]);
+
+      const message = await (targetChannel as any).send(v2Payload([container]));
 
       const config = await getGiveawayConfig(interaction.guild.id);
       if ((config as any).pingRoleId) {

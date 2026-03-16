@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { getAntiRaidConfig, getJoinVelocity, isInLockdown, checkRaidCondition } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AntiRaid');
 
@@ -33,32 +34,32 @@ const command: BotCommand = {
       const raidCheck = await checkRaidCondition(guildId);
       const isLocked = await isInLockdown(guildId);
 
-      const embed = new EmbedBuilder()
-        .setColor(isLocked ? '#FF0000' : raidCheck.isRaid ? '#FF9900' : '#00FF00')
-        .setTitle('📊 Raid Detection Status')
-        .setDescription(`Real-time raid monitoring for ${interaction.guild.name}`)
-        .addFields(
-          { name: 'System Status', value: config.enabled ? '✅ Active' : '❌ Inactive', inline: true },
-          { name: 'Lockdown Status', value: isLocked ? '🔒 Active' : '🔓 Inactive', inline: true },
-          { name: 'Raid Detected', value: raidCheck.isRaid ? '⚠️ YES' : '✅ NO', inline: true },
-          { name: 'Recent Joins (window)', value: `${velocity.totalJoins} / ${config.joinThreshold}`, inline: true },
-          { name: 'New Account Joins', value: `${velocity.newAccountJoins}`, inline: true },
-          { name: 'Join Window', value: `${config.joinWindow}s`, inline: true },
-          { name: 'Min Account Age', value: `${config.minAccountAge}h`, inline: true },
-          { name: 'Lockdown Duration', value: `${config.lockdownDuration}s`, inline: true },
-          { name: 'Response Action', value: config.action.toUpperCase(), inline: true }
-        )
-        .setFooter({ text: 'AntiRaid System' })
-        .setTimestamp();
+      const container = moduleContainer('anti_raid');
+      addText(container, '### 📊 Raid Detection Status');
+      addText(container, `Real-time raid monitoring for ${interaction.guild.name}`);
+
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        { name: 'System Status', value: config.enabled ? '✅ Active' : '❌ Inactive', inline: true },
+        { name: 'Lockdown Status', value: isLocked ? '🔒 Active' : '🔓 Inactive', inline: true },
+        { name: 'Raid Detected', value: raidCheck.isRaid ? '⚠️ YES' : '✅ NO', inline: true },
+        { name: 'Recent Joins (window)', value: `${velocity.totalJoins} / ${config.joinThreshold}`, inline: true },
+        { name: 'New Account Joins', value: `${velocity.newAccountJoins}`, inline: true },
+        { name: 'Join Window', value: `${config.joinWindow}s`, inline: true },
+        { name: 'Min Account Age', value: `${config.minAccountAge}h`, inline: true },
+        { name: 'Lockdown Duration', value: `${config.lockdownDuration}s`, inline: true },
+        { name: 'Response Action', value: config.action.toUpperCase(), inline: true }
+      ];
 
       if (raidCheck.isRaid) {
-        embed.addFields({
+        fields.push({
           name: '⚠️ Action Required',
           value: 'Raid detected! Consider running `/lockdown` if auto-lockdown is disabled.',
         });
       }
 
-      await interaction.reply({ embeds: [embed] });
+      addFields(container, fields);
+
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in raidstatus command:', error);
       await interaction.reply({ content: '❌ An error occurred while fetching raid status.' });

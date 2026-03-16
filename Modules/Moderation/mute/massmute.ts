@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModCase, ensureGuild, ensureGuildMember } from '../helpers';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -73,19 +73,17 @@ const command: BotCommand = {
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Moderation)
-      .setTitle('Mass Mute Complete')
-      .addFields(
-        { name: 'Muted', value: `${results.success.length} users`, inline: true },
-        { name: 'Failed', value: `${results.failed.length} users`, inline: true },
-        { name: 'Duration', value: formatDuration(durationMs), inline: true },
-        { name: 'Reason', value: reason },
-      )
-      .setFooter({ text: `Executed by ${interaction.user.tag}` })
-      .setTimestamp();
+    const container = moduleContainer('moderation');
+    addText(container, '### Mass Mute Complete');
+    addFields(container, [
+      { name: 'Muted', value: `${results.success.length} users`, inline: true },
+      { name: 'Failed', value: `${results.failed.length} users`, inline: true },
+      { name: 'Duration', value: formatDuration(durationMs), inline: true },
+      { name: 'Reason', value: reason },
+    ]);
+    addFooter(container, `Executed by ${interaction.user.tag}`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

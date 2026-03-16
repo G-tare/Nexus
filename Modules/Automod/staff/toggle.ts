@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -28,6 +28,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('automod-toggle')
     .setDescription('Enable or disable individual automod features')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption((opt) =>
       opt
         .setName('feature')
@@ -60,11 +61,7 @@ const command: BotCommand = {
 
       // Validate feature exists in config
       if (!(feature in config)) {
-        const embed = errorEmbed(
-          'Invalid Feature',
-          'The specified automod feature does not exist.'
-        );
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(errorReply('Invalid Feature', 'The specified automod feature does not exist.'));
         return;
       }
 
@@ -77,11 +74,7 @@ const command: BotCommand = {
         featureConfig === null ||
         !('enabled' in featureConfig)
       ) {
-        const embed = errorEmbed(
-          'Invalid Feature',
-          'The specified automod feature cannot be toggled.'
-        );
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(errorReply('Invalid Feature', 'The specified automod feature cannot be toggled.'));
         return;
       }
 
@@ -91,21 +84,15 @@ const command: BotCommand = {
       // Save the config
       await moduleConfig.setConfig(guildId, 'automod', config);
 
-      // Create response embed
+      // Create response
       const displayName = featureDisplayNames[feature];
-      const responseEmbed = successEmbed(
+      await interaction.editReply(successReply(
         `${displayName} ${enabled ? 'Enabled' : 'Disabled'}`,
         `${displayName} is now **${enabled ? 'enabled' : 'disabled'}**.`
-      );
-
-      await interaction.editReply({ embeds: [responseEmbed] });
+      ));
     } catch (error) {
       console.error('Error in automod-toggle command:', error);
-      const embed = errorEmbed(
-        'Command Error',
-        'An error occurred while processing your request.'
-      );
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Command Error', 'An error occurred while processing your request.'));
     }
   },
 };

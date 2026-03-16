@@ -1,12 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   Role,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import {
   getReactionRolesConfig,
   saveReactionRolesConfig,

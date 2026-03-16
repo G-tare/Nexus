@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId, auditLog, lockChannel, unlockChannel, updateTempVC } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vclock')
@@ -63,26 +64,22 @@ export const vclock: BotCommand = {
 
         await auditLog(guild, 'temp_vc_locked', voiceChannel.id, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#ff6600')
-          .setTitle('Channel Locked')
-          .setDescription('Your temporary voice channel is now locked. Only the owner can join.');
+        const container = moduleContainer('temp_voice').setAccentColor(0xff6600);
+        addText(container, '### Channel Locked\nYour temporary voice channel is now locked. Only the owner can join.');
 
         logger.info('[TempVoice] User locked temp VC:', voiceChannel.id);
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } else {
         await unlockChannel(voiceChannel);
         await updateTempVC(voiceChannel.id, { lockedBy: [] });
 
         await auditLog(guild, 'temp_vc_unlocked', voiceChannel.id, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#00ff00')
-          .setTitle('Channel Unlocked')
-          .setDescription('Your temporary voice channel is now unlocked. Anyone can join.');
+        const container = moduleContainer('temp_voice').setAccentColor(0x00ff00);
+        addText(container, '### Channel Unlocked\nYour temporary voice channel is now unlocked. Anyone can join.');
 
         logger.info('[TempVoice] User unlocked temp VC:', voiceChannel.id);
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       logger.error('[TempVoice] Error executing /vclock command:', error);

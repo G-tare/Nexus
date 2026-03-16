@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('CustomCommands');
 
 export const editCommand: BotCommand = {
@@ -136,17 +137,13 @@ export const editCommand: BotCommand = {
 
       const updated = await helper.updateCommand(command.id, updates);
 
-      const embed_response = new EmbedBuilder()
-        .setTitle('Custom Command Updated')
-        .setColor('#2f3136')
-        .addFields(
-          { name: 'Name', value: `\`${updated.name}\``, inline: true },
-          { name: 'Changes', value: Object.keys(updates).join(', '), inline: false }
-        );
+      const container = moduleContainer('custom_commands');
+      addFields(container, [
+        { name: 'Name', value: `\`${updated.name}\``, inline: true },
+        { name: 'Changes', value: Object.keys(updates).join(', '), inline: false }
+      ]);
 
-      await interaction.reply({
-        embeds: [embed_response]
-      });
+      await interaction.reply(v2Payload([container]));
 
       logger.info(`Custom command edited: ${name} by ${interaction.user.id} in ${interaction.guildId!}`);
     } catch (error) {

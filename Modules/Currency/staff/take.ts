@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer, addText, addSeparator, addSectionWithThumbnail } from '../../../Shared/src/utils/componentsV2';
 import { getCurrencyConfig, getBalance, removeCurrency, ensureMember, formatCurrency, CurrencyType } from '../helpers';
 
 export default {
@@ -55,25 +55,29 @@ export default {
 
       if (!result.success) {
         return interaction.editReply({
-          embeds: [errorEmbed(`Insufficient funds. User has ${oldAmount} ${config.currencies[type].name}.`)],
+          components: [errorContainer('Insufficient Funds', `User has ${oldAmount} ${config.currencies[type].name}.`)],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
       const currencyInfo = config.currencies[type];
-      const embed = successEmbed(`Currency Removed`)
-        .addFields(
-          { name: 'User', value: user.toString(), inline: true },
-          { name: 'Amount Removed', value: formatCurrency(amount, currencyInfo), inline: true },
-          { name: 'Old Balance', value: formatCurrency(oldAmount, currencyInfo), inline: true },
-          { name: 'New Balance', value: formatCurrency(result.newBalance, currencyInfo), inline: true }
-        )
-        .setThumbnail(user.avatarURL());
+      const container = successContainer('Currency Removed');
+      addText(container, `**User:** ${user.toString()}`);
+      addText(container, `**Amount Removed:** ${formatCurrency(amount, currencyInfo)}`);
+      addText(container, `**Old Balance:** ${formatCurrency(oldAmount, currencyInfo)}`);
+      addText(container, `**New Balance:** ${formatCurrency(result.newBalance, currencyInfo)}`);
+      addSeparator(container);
+      addSectionWithThumbnail(container, `${user.username}`, user.displayAvatarURL({ size: 256 }));
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Error in take command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while removing currency.')],
+        components: [errorContainer('Error', 'An error occurred while removing currency.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

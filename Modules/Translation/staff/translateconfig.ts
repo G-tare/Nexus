@@ -1,8 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import {
@@ -13,6 +15,7 @@ import {
   isValidLanguage,
   findLanguageByName,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -89,20 +92,17 @@ const command: BotCommand = {
         ? channels.map(c => `<#${c.channelId}> → ${getLanguageName(c.targetLang)}`).join('\n')
         : 'None configured';
 
-      const embed = new EmbedBuilder()
-        .setColor(0x4285F4)
-        .setTitle('🌐 Translation Settings')
-        .addFields(
-          { name: 'Provider', value: config.provider === 'google' ? 'Google Translate' : `LibreTranslate (${config.libreUrl})`, inline: true },
-          { name: 'Default Language', value: `${getLanguageName(config.defaultLanguage)} (\`${config.defaultLanguage}\`)`, inline: true },
-          { name: 'Flag Reactions', value: config.flagReactions ? '✅ Enabled' : '❌ Disabled', inline: true },
-          { name: 'Webhooks', value: config.useWebhooks ? '✅ Enabled' : '❌ Disabled', inline: true },
-          { name: 'User Cooldown', value: `${config.userCooldown}s`, inline: true },
-          { name: 'Total Translations', value: `${totalTranslations.toLocaleString()}`, inline: true },
-          { name: `Auto-Translate Channels (${channels.length})`, value: channelLines },
-        );
+      const container = new ContainerBuilder().setAccentColor(0x4285F4);
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent('### 🌐 Translation Settings'));
+      addText(container, `**Provider**\n${config.provider === 'google' ? 'Google Translate' : `LibreTranslate (${config.libreUrl})`}`);
+      addText(container, `**Default Language**\n${getLanguageName(config.defaultLanguage)} (\`${config.defaultLanguage}\`)`);
+      addText(container, `**Flag Reactions**\n${config.flagReactions ? '✅ Enabled' : '❌ Disabled'}`);
+      addText(container, `**Webhooks**\n${config.useWebhooks ? '✅ Enabled' : '❌ Disabled'}`);
+      addText(container, `**User Cooldown**\n${config.userCooldown}s`);
+      addText(container, `**Total Translations**\n${totalTranslations.toLocaleString()}`);
+      addText(container, `**Auto-Translate Channels (${channels.length})**\n${channelLines}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 

@@ -1,4 +1,4 @@
-import { Client, TextChannel, ChannelType, EmbedBuilder } from 'discord.js';
+import { Client, TextChannel, ChannelType } from 'discord.js';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
 import { getNextFireTime, buildEmbed, ScheduledMessage } from './helpers';
@@ -125,12 +125,24 @@ export class ScheduledMessageScheduler {
         content.content = message.content;
       }
 
-      if (message.embedData) {
+      // Note: embedData is stored as plain object for V2 compatibility
+      // Components V2 doesn't support classic embeds, so we'll just include content
+      if (message.embedData && !message.content) {
         try {
-          const embed = buildEmbed(message.embedData);
-          content.embeds = [embed];
+          const embedData = message.embedData;
+          const parts = [];
+          if (embedData.title) parts.push(`**${embedData.title}**`);
+          if (embedData.description) parts.push(embedData.description);
+          if (embedData.fields && Array.isArray(embedData.fields)) {
+            for (const field of embedData.fields) {
+              parts.push(`**${field.name}**\n${field.value}`);
+            }
+          }
+          if (parts.length > 0) {
+            content.content = parts.join('\n\n');
+          }
         } catch (error) {
-          logger.error('[ScheduledMessages] Failed to build embed:', error);
+          logger.error('[ScheduledMessages] Failed to parse embed data:', error);
         }
       }
 

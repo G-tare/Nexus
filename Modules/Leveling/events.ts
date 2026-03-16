@@ -1,5 +1,6 @@
-import { Client, Events, Message, VoiceState, EmbedBuilder, TextChannel, ChannelType } from 'discord.js';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { Client, Events, Message, VoiceState, TextChannel, ChannelType } from 'discord.js';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { guildMembers } from '../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import {
@@ -14,8 +15,8 @@ import {
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { Colors } from '../../Shared/src/utils/embed';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addText, addFields, addSeparator, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Leveling:Events');
 
@@ -55,17 +56,16 @@ const messageXpHandler: ModuleEvent = { event: Events.MessageCreate,
         return;
       }
 
-      // Check cooldown in Redis
-      const redis = getRedis();
+      // Check cooldown in cache
       const cooldownKey = `xpcd:${guildId}:${userId}`;
-      const cooldownExists = await redis.exists(cooldownKey);
+      const cooldownExists = cache.has(cooldownKey);
 
       if (cooldownExists) {
         return;
       }
 
       // Set cooldown
-      await redis.setex(cooldownKey, config.xpCooldownSeconds, '1');
+      cache.set(cooldownKey, '1', config.xpCooldownSeconds);
 
       // Calculate XP
       const baseXp = randomXp(config);
@@ -95,22 +95,21 @@ const messageXpHandler: ModuleEvent = { event: Events.MessageCreate,
           .replace('{level}', newLevel.toString())
           .replace('{role}', 'Member'); // TODO: Replace with actual role name if levelRoles include one
 
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Leveling)
-          .setTitle('Level Up!')
-          .setDescription(announceMessage)
-          .setThumbnail(message.author.displayAvatarURL())
-          .addFields(
-            { name: 'Level', value: `${oldLevel} → ${newLevel}`, inline: true },
-            { name: 'Total XP', value: result.totalXp.toLocaleString(), inline: true }
-          )
-          .setTimestamp();
+        const container = moduleContainer('leveling');
+        addText(container, `### 🎉 Level Up!\n${announceMessage}`);
+        addSeparator(container, 'small');
+        addFields(container, [
+          { name: 'Level', value: `${oldLevel} → ${newLevel}`, inline: true },
+          { name: 'Total XP', value: result.totalXp.toLocaleString(), inline: true }
+        ]);
+
+        const payload = v2Payload([container]);
 
         switch (config.announceType) {
           case 'current':
             // Reply in same channel
             try {
-              await message.reply({ embeds: [embed] });
+              await message.reply(payload);
             } catch (err: any) {
               logger.warn('Failed to send level-up message in channel', { error: err.message });
             }
@@ -122,7 +121,7 @@ const messageXpHandler: ModuleEvent = { event: Events.MessageCreate,
               try {
                 const channel = await message.guild!.channels.fetch(config.announceChannelId);
                 if (channel && channel.type === ChannelType.GuildText) {
-                  await (channel as TextChannel).send({ embeds: [embed] });
+                  await (channel as TextChannel).send(payload);
                 }
               } catch (err: any) {
                 logger.warn('Failed to send level-up to announcement channel', { error: err.message });
@@ -133,7 +132,7 @@ const messageXpHandler: ModuleEvent = { event: Events.MessageCreate,
           case 'dm':
             // DM the user
             try {
-              await message.author.send({ embeds: [embed] });
+              await message.author.send(payload);
             } catch (err: any) {
               logger.warn('Failed to DM level-up message', { error: err.message });
             }
@@ -168,18 +167,18 @@ const voiceXpHandler: ModuleEvent = { event: Events.VoiceStateUpdate,
     if (!guildId || !userId) return;
 
     try {
-      const redis = getRedis();
       const joinKey = `voicejoin:${guildId}:${userId}`;
 
       // User joined a voice channel
       if (!oldState.channel && newState.channel) {
-        await redis.setex(joinKey, 24 * 60 * 60, Date.now().toString()); // 24h max session
+        cache.set(joinKey, Date.now().toString(), 24 * 60 * 60); // 24h max session
         return;
       }
 
       // User left or switched channels
       if (oldState.channel && (!newState.channel || oldState.channelId !== newState.channelId)) {
-        const joinTimeStr = await redis.getdel(joinKey);
+        const joinTimeStr = cache.get<string>(joinKey);
+        cache.del(joinKey);
         if (!joinTimeStr) return;
 
         const joinTime = parseInt(joinTimeStr);
@@ -230,23 +229,22 @@ const voiceXpHandler: ModuleEvent = { event: Events.VoiceStateUpdate,
             .replace('{level}', newLevel.toString())
             .replace('{role}', 'Member');
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Leveling)
-            .setTitle('Level Up!')
-            .setDescription(announceMessage)
-            .setThumbnail(member.user.displayAvatarURL())
-            .addFields(
-              { name: 'Level', value: `${oldLevel} → ${newLevel}`, inline: true },
-              { name: 'Total XP', value: result.totalXp.toLocaleString(), inline: true }
-            )
-            .setTimestamp();
+          const container = moduleContainer('leveling');
+          addText(container, `### 🎉 Level Up!\n${announceMessage}`);
+          addSeparator(container, 'small');
+          addFields(container, [
+            { name: 'Level', value: `${oldLevel} → ${newLevel}`, inline: true },
+            { name: 'Total XP', value: result.totalXp.toLocaleString(), inline: true }
+          ]);
+
+          const payload = v2Payload([container]);
 
           switch (config.announceType) {
             case 'current':
               // Use voice channel if still valid
               if (oldState.channel) {
                 try {
-                  await (oldState.channel as any).send({ embeds: [embed] });
+                  await (oldState.channel as any).send(payload);
                 } catch (err: any) {
                   logger.warn('Failed to send level-up to voice channel', { error: err.message });
                 }
@@ -258,7 +256,7 @@ const voiceXpHandler: ModuleEvent = { event: Events.VoiceStateUpdate,
                 try {
                   const channel = await newState.guild.channels.fetch(config.announceChannelId);
                   if (channel && channel.type === ChannelType.GuildText) {
-                    await (channel as TextChannel).send({ embeds: [embed] });
+                    await (channel as TextChannel).send(payload);
                   }
                 } catch (err: any) {
                   logger.warn('Failed to send level-up to announcement channel', { error: err.message });
@@ -268,7 +266,7 @@ const voiceXpHandler: ModuleEvent = { event: Events.VoiceStateUpdate,
 
             case 'dm':
               try {
-                await member.user.send({ embeds: [embed] });
+                await member.user.send(payload);
               } catch (err: any) {
                 logger.warn('Failed to DM level-up message', { error: err.message });
               }
@@ -327,14 +325,12 @@ const doubleXpExpiryChecker: ModuleEvent = { event: Events.ClientReady,
               if (guild) {
                 const systemChannel = guild.systemChannel;
                 if (systemChannel) {
-                  const embed = new EmbedBuilder()
-                    .setColor(Colors.Warning)
-                    .setTitle('Double XP Event Ended')
-                    .setDescription('The double XP event has expired.')
-                    .setTimestamp();
+                  const container = moduleContainer('leveling');
+                  addText(container, '### ⏰ Double XP Event Ended\nThe double XP event has expired.');
+                  const payload = v2Payload([container]);
 
                   try {
-                    await systemChannel.send({ embeds: [embed] });
+                    await systemChannel.send(payload);
                   } catch (err: any) {
                     logger.warn('Failed to notify guild of expired double XP', { error: err.message });
                   }

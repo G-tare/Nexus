@@ -1,11 +1,19 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  successContainer,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../../Shared/src/database/connection';
 import { tickets } from '../../../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -84,16 +92,14 @@ async function handleToggle(
   config.feedbackEnabled = enabled;
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Feedback System',
     enabled
       ? '✅ Feedback system enabled. Users will receive feedback requests after their tickets close.'
       : '❌ Feedback system disabled.'
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleView(
@@ -138,21 +144,21 @@ async function handleView(
       )
       .groupBy((tickets as any).feedbackRating);
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Primary)
-      .setTitle('Ticket Feedback Statistics')
-      .addFields(
-        {
-          name: 'Total Feedback Responses',
-          value: totalFeedback.toString(),
-          inline: true,
-        },
-        {
-          name: 'Average Rating',
-          value: totalFeedback > 0 ? `${avgRating}/5 ⭐` : 'No ratings yet',
-          inline: true,
-        }
-      );
+    const container = moduleContainer('tickets');
+    addText(container, '### Ticket Feedback Statistics');
+
+    const fields = [
+      {
+        name: 'Total Feedback Responses',
+        value: totalFeedback.toString(),
+        inline: true,
+      },
+      {
+        name: 'Average Rating',
+        value: totalFeedback > 0 ? `${avgRating}/5 ⭐` : 'No ratings yet',
+        inline: true,
+      },
+    ];
 
     if (ratingBreakdown.length > 0) {
       const breakdown = ratingBreakdown
@@ -160,16 +166,16 @@ async function handleView(
         .map((r) => `${r.rating}⭐: ${r.count} response${r.count !== 1 ? 's' : ''}`)
         .join('\n');
 
-      embed.addFields({
+      fields.push({
         name: 'Rating Breakdown',
         value: breakdown,
         inline: false,
       });
     }
 
-    return interaction.editReply({
-      embeds: [embed],
-    });
+    addFields(container, fields);
+
+    return interaction.editReply(v2Payload([container]));
   } catch (error) {
     console.error('[Tickets] Error fetching feedback stats:', error);
     return interaction.editReply({

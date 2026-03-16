@@ -10,7 +10,7 @@ import {
   MessageFlags,
   TextChannel } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import {
   getConfessionConfig,
   getNextConfessionNumber,
@@ -18,13 +18,14 @@ import {
   isConfessionBanned,
   checkBlacklist,
   storeConfession,
-  buildConfessionEmbed,
+  buildConfessionContainer,
   buildConfessionButtons,
-  buildModerationEmbed,
+  buildModerationContainer,
   storePendingConfession,
   checkCooldown,
   setCooldown,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 
 const command: BotCommand = {
@@ -142,12 +143,9 @@ const command: BotCommand = {
       if (isInConfessionThread && currentChannel?.isThread()) {
         await storeConfession(guildId, confessionNumber, userHash, message, userId, imageUrl);
 
-        const embed = buildConfessionEmbed(confessionNumber, message, config);
-        if (imageUrl) {
-          embed.setImage(imageUrl);
-        }
+        const container = buildConfessionContainer(confessionNumber, message, config);
 
-        await currentChannel.send({ embeds: [embed] });
+        await currentChannel.send(v2Payload([container]));
 
         await interaction.reply({
           content: `Confession #${confessionNumber} posted in this thread!`,
@@ -165,10 +163,7 @@ const command: BotCommand = {
         // Send to moderation channel
         const modChannel = await interaction.client.channels.fetch(config.moderationChannelId).catch(() => null);
         if (modChannel && modChannel.isTextBased()) {
-          const embed = buildModerationEmbed(confessionNumber, message, config);
-          if (imageUrl) {
-            embed.setImage(imageUrl);
-          }
+          const container = buildModerationContainer(confessionNumber, message, config);
 
           const buttons = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(
@@ -182,7 +177,8 @@ const command: BotCommand = {
                 .setStyle(ButtonStyle.Danger)
             );
 
-          await (modChannel as any).send({ embeds: [embed], components: [buttons] });
+          container.addActionRowComponents(buttons);
+          await (modChannel as any).send(v2Payload([container]));
         }
 
         await interaction.reply({
@@ -193,16 +189,12 @@ const command: BotCommand = {
         // Post directly
         await storeConfession(guildId, confessionNumber, userHash, message, userId, imageUrl);
 
-        const embed = buildConfessionEmbed(confessionNumber, message, config);
-        if (imageUrl) {
-          embed.setImage(imageUrl);
-        }
+        const container = buildConfessionContainer(confessionNumber, message, config);
 
         const buttons = buildConfessionButtons(confessionNumber);
 
         // Remove buttons from the previous confession (if any)
-        const redis = getRedis();
-        const lastMsgId = await redis.get(`confession_last_msg:${guildId}`);
+        const lastMsgId = cache.get<string>(`confession_last_msg:${guildId}`);
         if (lastMsgId) {
           try {
             const oldMsg = await (channel as TextChannel).messages.fetch(lastMsgId);
@@ -214,10 +206,11 @@ const command: BotCommand = {
           }
         }
 
-        const sentMsg = await (channel as any).send({ embeds: [embed], components: [buttons] });
+        container.addActionRowComponents(buttons);
+        const sentMsg = await (channel as any).send(v2Payload([container]));
 
         // Track this message as the latest confession for button removal
-        await redis.set(`confession_last_msg:${guildId}`, sentMsg.id);
+        cache.set(`confession_last_msg:${guildId}`, sentMsg.id);
 
         await interaction.reply({
           content: `Confession #${confessionNumber} submitted!`,

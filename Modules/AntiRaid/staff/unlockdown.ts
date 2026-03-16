@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { endLockdown, isInLockdown, logRaidAction } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload, warningContainer } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AntiRaid');
 
@@ -30,15 +31,8 @@ const command: BotCommand = {
       const isLocked = await isInLockdown(interaction.guild.id);
 
       if (!isLocked) {
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#FF9900')
-              .setTitle('⚠️ Not Locked Down')
-              .setDescription('The server is not currently in lockdown mode')
-              .setTimestamp(),
-          ],
-        });
+        const warningCont = warningContainer('Not Locked Down', 'The server is not currently in lockdown mode');
+        await interaction.reply(v2Payload([warningCont]));
         return;
       }
 
@@ -47,17 +41,14 @@ const command: BotCommand = {
       await endLockdown(interaction.guild);
       await logRaidAction(interaction.guild, 'MANUAL_LOCKDOWN_ENDED', { initiator: interaction.user.id });
 
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle('🔓 Lockdown Ended')
-            .setDescription('Server lockdown has been manually ended')
-            .addFields({ name: 'Effect', value: 'Members can now send messages and join voice channels', inline: false })
-            .setFooter({ text: 'AntiRaid System' })
-            .setTimestamp(),
-        ],
-      });
+      const container = moduleContainer('anti_raid');
+      addText(container, '### 🔓 Lockdown Ended');
+      addText(container, 'Server lockdown has been manually ended');
+      addFields(container, [
+        { name: 'Effect', value: 'Members can now send messages and join voice channels', inline: false }
+      ]);
+
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in unlockdown command:', error);
       if (interaction.deferred) {

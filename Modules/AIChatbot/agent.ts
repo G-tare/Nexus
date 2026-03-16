@@ -8,13 +8,13 @@
 import {
   Message,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
   GuildMember,
 } from 'discord.js';
+import { errorContainer, addButtons, v2Payload } from '../../Shared/src/utils/componentsV2';
 import { createProvider, ProviderName } from './providers/adapter';
 import {
   ConversationMessage,
@@ -196,13 +196,9 @@ async function confirmDestructiveAction(
   toolName: string,
   description: string,
 ): Promise<boolean> {
-  const embed = new EmbedBuilder()
-    .setColor('#FF6B6B')
-    .setTitle('⚠️ Confirm Destructive Action')
-    .setDescription(`I need to **${description}** to complete your request.\n\nThis action cannot be undone.`)
-    .setFooter({ text: `Tool: ${toolName} • Expires in 30s` });
+  const container = errorContainer('Confirm Destructive Action', `I need to **${description}** to complete your request.\n\nThis action cannot be undone.\n\nTool: ${toolName} • Expires in 30s`);
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const buttons = [
     new ButtonBuilder()
       .setCustomId('ai_confirm_yes')
       .setLabel('Confirm')
@@ -211,13 +207,12 @@ async function confirmDestructiveAction(
       .setCustomId('ai_confirm_no')
       .setLabel('Cancel')
       .setStyle(ButtonStyle.Secondary),
-  );
+  ];
+  addButtons(container, buttons);
 
-  const confirmMsg = await message.reply({
-    embeds: [embed],
-    components: [row],
-    allowedMentions: { repliedUser: false },
-  });
+  const confirmMsg = await message.reply(
+    v2Payload([container])
+  ).catch(err => { throw err; });
 
   try {
     const interaction = await confirmMsg.awaitMessageComponent({

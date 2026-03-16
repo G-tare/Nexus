@@ -1,13 +1,17 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   importPalette,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -45,15 +49,14 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle('📥 Palette Imported')
-      .setDescription(
-        `Successfully imported **${count}** colors!\n` +
-        `Use \`/colorlist\` to see the full palette.`
-      );
+    const container = moduleContainer('color_roles').setAccentColor(0x2ECC71);
+    addText(container, `### 📥 Palette Imported`);
+    addText(container,
+      `Successfully imported **${count}** colors!\n` +
+      `Use \`/colorlist\` to see the full palette.`
+    );
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

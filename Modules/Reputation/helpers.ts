@@ -1,10 +1,9 @@
 import {
   Guild,
   GuildMember,
-  EmbedBuilder,
 } from 'discord.js';
 import { getDb } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
@@ -76,11 +75,10 @@ export async function getRepConfig(guildId: string): Promise<ReputationConfig> {
  * Get a user's reputation in a guild.
  */
 export async function getUserRep(guildId: string, userId: string): Promise<number> {
-  const redis = getRedis();
   const cacheKey = `rep:${guildId}:${userId}`;
 
-  const cached = await redis.get(cacheKey);
-  if (cached !== null) return parseInt(cached, 10);
+  const cached = await cache.get<number>(cacheKey);
+  if (cached !== null) return cached;
 
   const db = getDb();
   const result = await db.execute(sql`
@@ -93,7 +91,7 @@ export async function getUserRep(guildId: string, userId: string): Promise<numbe
   const config = await getRepConfig(guildId);
   const rep = row ? row.reputation : config.defaultRep;
 
-  await redis.setex(cacheKey, 600, rep.toString());
+  await cache.set(cacheKey, rep, 600);
   return rep;
 }
 
@@ -102,7 +100,6 @@ export async function getUserRep(guildId: string, userId: string): Promise<numbe
  */
 export async function setUserRep(guildId: string, userId: string, amount: number): Promise<void> {
   const db = getDb();
-  const redis = getRedis();
 
   await db.execute(sql`
     INSERT INTO reputation_users (guild_id, user_id, reputation, last_active)
@@ -111,7 +108,7 @@ export async function setUserRep(guildId: string, userId: string, amount: number
     DO UPDATE SET reputation = ${amount}, last_active = ${Date.now()}
   `);
 
-  await redis.setex(`rep:${guildId}:${userId}`, 600, amount.toString());
+  await cache.set(`rep:${guildId}:${userId}`, amount, 600);
 }
 
 /**
@@ -125,7 +122,6 @@ export async function adjustRep(
   reason?: string,
 ): Promise<{ newRep: number; oldRep: number }> {
   const db = getDb();
-  const redis = getRedis();
   const config = await getRepConfig(guildId);
 
   const oldRep = await getUserRep(guildId, userId);
@@ -154,7 +150,7 @@ export async function adjustRep(
     VALUES (${guildId}, ${userId}, ${givenBy}, ${delta}, ${reason || null}, ${Date.now()})
   `);
 
-  await redis.setex(`rep:${guildId}:${userId}`, 600, newRep.toString());
+  await cache.set(`rep:${guildId}:${userId}`, newRep, 600);
 
   // Sync to guild_members table so moderation rep stays consistent
   try {
@@ -275,28 +271,27 @@ export async function getRepHistory(guildId: string, userId: string, limit: numb
  * Check if a user can give rep (respects both target-specific and global cooldowns).
  */
 export async function canGiveRep(guildId: string, giverId: string, targetId: string): Promise<{ allowed: boolean; remaining?: number }> {
-  const redis = getRedis();
   const config = await getRepConfig(guildId);
 
   // Check target-specific cooldown
   const targetKey = `rep:cd:${guildId}:${giverId}:${targetId}`;
-  const targetTtl = await redis.ttl(targetKey);
-  if (targetTtl > 0) {
-    return { allowed: false, remaining: targetTtl };
+  const hasTarget = await cache.has(targetKey);
+  if (hasTarget) {
+    return { allowed: false, remaining: 0 };
   }
 
   // Check global cooldown
   const globalKey = `rep:cd:${guildId}:${giverId}:global`;
-  const globalTtl = await redis.ttl(globalKey);
-  if (globalTtl > 0) {
-    return { allowed: false, remaining: globalTtl };
+  const hasGlobal = await cache.has(globalKey);
+  if (hasGlobal) {
+    return { allowed: false, remaining: 0 };
   }
 
   // Check daily limit
   const dailyKey = `rep:daily:${guildId}:${giverId}`;
-  const dailyCount = parseInt(await redis.get(dailyKey) || '0', 10);
+  const dailyCount = parseInt((await cache.get<string>(dailyKey)) || '0', 10);
   if (dailyCount >= config.dailyLimit) {
-    return { allowed: false, remaining: await redis.ttl(dailyKey) };
+    return { allowed: false, remaining: 0 };
   }
 
   return { allowed: true };
@@ -306,28 +301,27 @@ export async function canGiveRep(guildId: string, giverId: string, targetId: str
  * Set cooldowns after giving rep.
  */
 export async function setRepCooldowns(guildId: string, giverId: string, targetId: string): Promise<void> {
-  const redis = getRedis();
   const config = await getRepConfig(guildId);
 
   // Target-specific cooldown
-  await redis.setex(`rep:cd:${guildId}:${giverId}:${targetId}`, config.giveCooldown, '1');
+  await cache.set(`rep:cd:${guildId}:${giverId}:${targetId}`, '1', config.giveCooldown);
 
   // Global cooldown
   if (config.globalCooldown > 0) {
-    await redis.setex(`rep:cd:${guildId}:${giverId}:global`, config.globalCooldown, '1');
+    await cache.set(`rep:cd:${guildId}:${giverId}:global`, '1', config.globalCooldown);
   }
 
   // Daily counter
   const dailyKey = `rep:daily:${guildId}:${giverId}`;
-  const exists = await redis.exists(dailyKey);
-  await redis.incr(dailyKey);
+  const exists = await cache.has(dailyKey);
+  await cache.incr(dailyKey);
   if (!exists) {
     // Expire at midnight UTC
     const now = new Date();
     const midnight = new Date(now);
     midnight.setUTCHours(24, 0, 0, 0);
     const ttl = Math.ceil((midnight.getTime() - now.getTime()) / 1000);
-    await redis.expire(dailyKey, ttl);
+    await cache.expire(dailyKey, ttl);
   }
 }
 
@@ -464,8 +458,7 @@ export async function processDecay(guild: Guild): Promise<number> {
   // Update rep roles for decayed users
   for (const row of rows) {
     await updateRepRoles(guild, row.userId, row.reputation);
-    const redis = getRedis();
-    await redis.setex(`rep:${guild.id}:${row.userId}`, 600, row.reputation.toString());
+    await cache.set(`rep:${guild.id}:${row.userId}`, row.reputation, 600);
   }
 
   return rows.length;

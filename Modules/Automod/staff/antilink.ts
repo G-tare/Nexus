@@ -1,12 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 const DOMAIN_REGEX = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
@@ -23,6 +24,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('antilink')
     .setDescription('Configure link filtering settings')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('toggle')
@@ -121,8 +123,7 @@ export default {
         const domain = interaction.options.getString('domain', true).toLowerCase();
 
         if (!isValidDomain(domain)) {
-          const embed = errorEmbed('Invalid domain format. Use format like: `discord.com`');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Invalid Domain', 'Invalid domain format. Use format like: `discord.com`'));
           return;
         }
 
@@ -134,8 +135,7 @@ export default {
         const whitelistedDomains = (config.antilink.whitelistedDomains || []).filter((d: any) => d !== domain);
 
         if (whitelistedDomains.length === (config.antilink.whitelistedDomains || []).length) {
-          const embed = errorEmbed(`Domain **${domain}** not found in whitelist`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Domain Not Found', `Domain **${domain}** not found in whitelist`));
           return;
         }
 
@@ -145,8 +145,7 @@ export default {
         const domain = interaction.options.getString('domain', true).toLowerCase();
 
         if (!isValidDomain(domain)) {
-          const embed = errorEmbed('Invalid domain format. Use format like: `example.com`');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Invalid Domain', 'Invalid domain format. Use format like: `example.com`'));
           return;
         }
 
@@ -158,8 +157,7 @@ export default {
         const blacklistedDomains = (config.antilink.blacklistedDomains || []).filter((d: any) => d !== domain);
 
         if (blacklistedDomains.length === (config.antilink.blacklistedDomains || []).length) {
-          const embed = errorEmbed(`Domain **${domain}** not found in blacklist`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Domain Not Found', `Domain **${domain}** not found in blacklist`));
           return;
         }
 
@@ -205,11 +203,9 @@ export default {
 
       await moduleConfig.setConfig(guildId, 'automod', updatedConfig);
 
-      const embed = successEmbed(`Link Filter Updated\n${message}`);
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(successReply('Link Filter Updated', message));
     } catch (error) {
-      const embed = errorEmbed('Failed to update link filter settings');
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Configuration Error', 'Failed to update link filter settings'));
       console.error('[Automod] Antilink command error:', error);
     }
   }

@@ -3,11 +3,11 @@ import {
   GuildMember,
   VoiceChannel,
   StageChannel,
-  EmbedBuilder,
+  ContainerBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedField,
+  MessageFlags,
   ChannelType,
 } from 'discord.js';
 import {
@@ -17,11 +17,22 @@ import {
   entersState,
 } from '@discordjs/voice';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { playlists } from '../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { Colors } from '../../Shared/src/utils/embed';
+import {
+  V2Colors,
+  moduleContainer,
+  addSectionWithThumbnail,
+  addText,
+  addFields,
+  addSeparator,
+  addButtons,
+  addFooter,
+} from '../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { getActiveFilterLabels } from './effects/filterEngine';
 
 const logger = createModuleLogger('Music');
 
@@ -470,97 +481,102 @@ function getSourceIcon(sourceName: string): string {
 }
 
 // ============================================================================
-// EMBED BUILDERS
+// CONTAINER BUILDERS (V2)
 // ============================================================================
 
 /**
- * Build "Now Playing" embed
+ * Build "Now Playing" container
  */
-export function buildNowPlayingEmbed(
+export function buildNowPlayingContainer(
   track: Track,
   queue: GuildQueue
-): EmbedBuilder {
+): ContainerBuilder {
   const progressBar = buildProgressBar(queue.position, track.duration, 15);
   const currentTime = formatDuration(queue.position);
   const totalTime = formatDuration(track.duration);
   const sourceIcon = getSourceIcon(track.sourceName);
 
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary as number)
-    .setTitle(`${sourceIcon} Now Playing`)
-    .setDescription(
-      `**[${track.title}](${track.uri})**\nby ${track.author}`
-    )
-    .addFields(
-      {
-        name: 'Progress',
-        value: `${progressBar}\n${currentTime} / ${totalTime}`,
-        inline: false,
-      },
-      {
-        name: 'Requested by',
-        value: `<@${track.requestedBy}>`,
-        inline: true,
-      },
-      {
-        name: 'Volume',
-        value: `${queue.volume}%`,
-        inline: true,
-      },
-      {
-        name: 'Loop',
-        value: queue.loop === 'off' ? 'Off' : queue.loop.charAt(0).toUpperCase() + queue.loop.slice(1),
-        inline: true,
-      }
+  const container = moduleContainer('music');
+
+  // Title section with thumbnail if available
+  if (track.artworkUrl) {
+    addSectionWithThumbnail(
+      container,
+      `### ${sourceIcon} Now Playing\n**[${track.title}](${track.uri})**\nby ${track.author}`,
+      track.artworkUrl
     );
+  } else {
+    addText(
+      container,
+      `### ${sourceIcon} Now Playing\n**[${track.title}](${track.uri})**\nby ${track.author}`
+    );
+  }
+
+  addSeparator(container, 'small');
+
+  // Progress and playback info
+  const progressText = `${progressBar}\n${currentTime} / ${totalTime}`;
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    { name: 'Progress', value: progressText, inline: false },
+    { name: 'Requested by', value: `<@${track.requestedBy}>`, inline: true },
+    { name: 'Volume', value: `${queue.volume}%`, inline: true },
+    {
+      name: 'Loop',
+      value: queue.loop === 'off' ? 'Off' : queue.loop.charAt(0).toUpperCase() + queue.loop.slice(1),
+      inline: true,
+    },
+  ];
 
   // Add filters if active
   if (queue.filters.length > 0) {
-    embed.addFields({
+    fields.push({
       name: 'Filters',
-      value: queue.filters.join(', '),
+      value: getActiveFilterLabels(queue.filters),
       inline: false,
     });
   }
 
-  // Add artwork if available
-  if (track.artworkUrl) {
-    embed.setThumbnail(track.artworkUrl);
-  }
+  addFields(container, fields);
 
-  return embed;
+  return container;
 }
 
 /**
- * Build queue embed with pagination
+ * Build queue container with pagination
  */
-export function buildQueueEmbed(queue: GuildQueue, page: number = 1): EmbedBuilder {
+export function buildQueueContainer(queue: GuildQueue, page: number = 1): ContainerBuilder {
   const itemsPerPage = 10;
   const totalPages = Math.ceil(queue.tracks.length / itemsPerPage);
   const validPage = Math.max(1, Math.min(page, totalPages || 1));
 
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary as number)
-    .setTitle('🎵 Queue');
+  const container = moduleContainer('music');
 
-  // Add now playing
+  // Title
+  addText(container, '### 🎵 Queue');
+  addSeparator(container, 'small');
+
+  // Now playing section
   if (queue.currentTrack) {
     const currentTime = formatDuration(queue.position);
     const totalTime = formatDuration(queue.currentTrack.duration);
-    embed.addFields({
-      name: '▶️ Now Playing',
-      value: `**[${queue.currentTrack.title}](${queue.currentTrack.uri})**\nby ${queue.currentTrack.author}\n\`${currentTime} / ${totalTime}\``,
-      inline: false,
-    });
+    addFields(container, [
+      {
+        name: '▶️ Now Playing',
+        value: `**[${queue.currentTrack.title}](${queue.currentTrack.uri})**\nby ${queue.currentTrack.author}\n\`${currentTime} / ${totalTime}\``,
+        inline: false,
+      },
+    ]);
   }
 
-  // Add queue tracks
+  // Queue tracks section
   if (queue.tracks.length === 0) {
-    embed.addFields({
-      name: 'Queue (Empty)',
-      value: 'No tracks in queue',
-      inline: false,
-    });
+    addFields(container, [
+      {
+        name: 'Queue (Empty)',
+        value: 'No tracks in queue',
+        inline: false,
+      },
+    ]);
   } else {
     const startIdx = (validPage - 1) * itemsPerPage;
     const endIdx = startIdx + itemsPerPage;
@@ -574,60 +590,59 @@ export function buildQueueEmbed(queue: GuildQueue, page: number = 1): EmbedBuild
       })
       .join('\n\n');
 
-    embed.addFields({
-      name: `Queue (${queue.tracks.length} track${queue.tracks.length !== 1 ? 's' : ''})`,
-      value: queueText || 'Queue is empty',
-      inline: false,
-    });
+    addFields(container, [
+      {
+        name: `Queue (${queue.tracks.length} track${queue.tracks.length !== 1 ? 's' : ''})`,
+        value: queueText || 'Queue is empty',
+        inline: false,
+      },
+    ]);
   }
 
-  // Calculate total queue duration
+  // Footer with pagination info
   const totalDuration = queue.tracks.reduce((acc, track) => acc + track.duration, 0);
   const totalDurationStr = formatDuration(totalDuration);
+  addFooter(
+    container,
+    `Page ${validPage}/${Math.max(1, totalPages)} • Total duration: ${totalDurationStr} • Loop: ${queue.loop}`
+  );
 
-  embed.setFooter({
-    text: `Page ${validPage}/${Math.max(1, totalPages)} • Total duration: ${totalDurationStr} • Loop: ${queue.loop}`,
-  });
-
-  return embed;
+  return container;
 }
 
 /**
- * Build "Track Added" embed
+ * Build "Track Added" container
  */
-export function buildTrackAddedEmbed(track: Track, position: number): EmbedBuilder {
+export function buildTrackAddedContainer(track: Track, position: number): ContainerBuilder {
   const sourceIcon = getSourceIcon(track.sourceName);
   const duration = formatDuration(track.duration);
 
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Success as number)
-    .setTitle(`${sourceIcon} Track Added to Queue`)
-    .setDescription(
-      `**[${track.title}](${track.uri})**\nby ${track.author}`
-    )
-    .addFields(
-      {
-        name: 'Position',
-        value: `#${position}`,
-        inline: true,
-      },
-      {
-        name: 'Duration',
-        value: duration,
-        inline: true,
-      },
-      {
-        name: 'Requested by',
-        value: `<@${track.requestedBy}>`,
-        inline: true,
-      }
-    );
+  const container = moduleContainer('music');
 
+  // Title section with thumbnail if available
   if (track.artworkUrl) {
-    embed.setThumbnail(track.artworkUrl);
+    addSectionWithThumbnail(
+      container,
+      `### ${sourceIcon} Track Added to Queue\n**[${track.title}](${track.uri})**\nby ${track.author}`,
+      track.artworkUrl
+    );
+  } else {
+    addText(
+      container,
+      `### ${sourceIcon} Track Added to Queue\n**[${track.title}](${track.uri})**\nby ${track.author}`
+    );
   }
 
-  return embed;
+  addSeparator(container, 'small');
+
+  // Track details
+  addFields(container, [
+    { name: 'Position', value: `#${position}`, inline: true },
+    { name: 'Duration', value: duration, inline: true },
+    { name: 'Requested by', value: `<@${track.requestedBy}>`, inline: true },
+  ]);
+
+  return container;
 }
 
 // ============================================================================
@@ -953,19 +968,17 @@ export async function deleteServerPlaylist(
 // FAVORITES HELPERS
 // ============================================================================
 
-const REDIS_FAVORITES_PREFIX = 'music:favorites:';
+const CACHE_FAVORITES_PREFIX = 'music:favorites:';
 
 /**
  * Save a track to user's favorites
  */
 export async function saveFavorite(userId: string, track: Track): Promise<void> {
   try {
-    const redis = await getRedis();
-    const key = `${REDIS_FAVORITES_PREFIX}${userId}`;
-    const encoded = JSON.stringify(track);
-
-    await redis.hset(key, track.uri, encoded);
-    await redis.expire(key, 86400 * 30); // 30 days
+    const key = `${CACHE_FAVORITES_PREFIX}${userId}`;
+    const favorites = cache.get<Record<string, Track>>(key) || {};
+    favorites[track.uri] = track;
+    cache.set(key, favorites, 86400 * 30); // 30 days
 
     logger.debug(`Saved favorite track for user ${userId}: ${track.title}`);
   } catch (error) {
@@ -982,10 +995,10 @@ export async function removeFavorite(
   trackUri: string
 ): Promise<void> {
   try {
-    const redis = await getRedis();
-    const key = `${REDIS_FAVORITES_PREFIX}${userId}`;
-
-    await redis.hdel(key, trackUri);
+    const key = `${CACHE_FAVORITES_PREFIX}${userId}`;
+    const favorites = cache.get<Record<string, Track>>(key) || {};
+    delete favorites[trackUri];
+    cache.set(key, favorites, 86400 * 30);
 
     logger.debug(`Removed favorite track for user ${userId}: ${trackUri}`);
   } catch (error) {
@@ -999,24 +1012,15 @@ export async function removeFavorite(
  */
 export async function getFavorites(userId: string): Promise<Track[]> {
   try {
-    const redis = await getRedis();
-    const key = `${REDIS_FAVORITES_PREFIX}${userId}`;
-
-    const favorites = await redis.hgetall(key);
+    const key = `${CACHE_FAVORITES_PREFIX}${userId}`;
+    const favorites = cache.get<Record<string, Track>>(key);
 
     if (!favorites || Object.keys(favorites).length === 0) {
       return [];
     }
 
     return Object.values(favorites)
-      .map((json) => {
-        try {
-          return JSON.parse(json as string) as Track;
-        } catch {
-          return null;
-        }
-      })
-      .filter((track) => track !== null) as Track[];
+      .filter((track) => track !== null && track !== undefined) as Track[];
   } catch (error) {
     logger.error(`Failed to get favorites: ${error}`);
     return [];

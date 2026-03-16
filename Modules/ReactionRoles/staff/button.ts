@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   TextChannel,
   Role,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   createPanel,
   getReactionRolesConfig,
@@ -16,7 +17,7 @@ const BotCommand = {
   data: new SlashCommandBuilder()
     .setName('rr-button')
     .setDescription('Create a quick button-based reaction role panel')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption(option =>
       option
         .setName('channel')
@@ -143,16 +144,15 @@ const BotCommand = {
       config.panels.push(panel);
       await saveReactionRolesConfig(interaction.guildId!, config);
 
-      const embed = new EmbedBuilder()
-        .setColor('#2F3136')
-        .setTitle('✅ Button Panel Created')
-        .addFields(
-          { name: 'Panel ID', value: panel.id, inline: true },
-          { name: 'Channel', value: `<#${panel.channelId}>`, inline: true },
-          { name: 'Roles', value: roles.length.toString(), inline: true },
-        );
+      const container = moduleContainer('reaction_roles');
+      addText(container, `### ✅ Button Panel Created`);
+      addFields(container, [
+        { name: 'Panel ID', value: panel.id, inline: true },
+        { name: 'Channel', value: `<#${panel.channelId}>`, inline: true },
+        { name: 'Roles', value: roles.length.toString(), inline: true },
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error creating button panel:', error);
       await interaction.editReply({

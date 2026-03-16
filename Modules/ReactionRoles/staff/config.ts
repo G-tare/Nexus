@@ -1,9 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  TextChannel, MessageFlags } from 'discord.js';
+  TextChannel,
+  MessageFlags } from 'discord.js';
 import {
   getReactionRolesConfig,
   saveReactionRolesConfig,
@@ -11,6 +11,7 @@ import {
   RRMode,
   RRType,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const BotCommand = {
   data: new SlashCommandBuilder()
@@ -100,19 +101,18 @@ const BotCommand = {
           ? `<#${config.logChannelId}>`
           : 'Not set';
 
-        const embed = new EmbedBuilder()
-          .setColor('#2F3136')
-          .setTitle('⚙️ Reaction Role Settings')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
-            { name: 'Default Mode', value: config.defaultMode, inline: true },
-            { name: 'Default Type', value: config.defaultType, inline: true },
-            { name: 'DM Confirmation', value: config.dmConfirmation ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Log Channel', value: logChannel, inline: true },
-            { name: 'Total Panels', value: config.panels.length.toString(), inline: true },
-          );
+        const container = moduleContainer('reaction_roles');
+        addText(container, `### ⚙️ Reaction Role Settings`);
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
+          { name: 'Default Mode', value: config.defaultMode, inline: true },
+          { name: 'Default Type', value: config.defaultType, inline: true },
+          { name: 'DM Confirmation', value: config.dmConfirmation ? 'Enabled' : 'Disabled', inline: true },
+          { name: 'Log Channel', value: logChannel, inline: true },
+          { name: 'Total Panels', value: config.panels.length.toString(), inline: true },
+        ]);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } else if (subcommand === 'default-mode') {
         const mode = interaction.options.getString('mode') as RRMode;
         config.defaultMode = mode;

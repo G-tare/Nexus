@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   getStatsChannels,
   STAT_TYPE_LABELS,
@@ -38,13 +39,11 @@ const command: BotCommand = {
       return `${emoji} **${typeName}** — <#${c.channelId}> — ID: \`${c.id}\`\n   Label: \`${c.labelTemplate}\``;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('📊 Stats Channels')
-      .setDescription(lines.join('\n\n'))
-      .setFooter({ text: `${channels.length}/10 stats channels • Use /statsdelete <id> to remove` });
+    const container = moduleContainer('stats_channels');
+    addText(container, `### 📊 Stats Channels\n${lines.join('\n\n')}`);
+    addFooter(container, `${channels.length}/10 stats channels • Use /statsdelete <id> to remove`);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

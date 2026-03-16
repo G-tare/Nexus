@@ -1,10 +1,7 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-
-// TODO: Implement getRandomGif helper
-const getRandomGif = (action: string): string => {
-  return 'https://media.giphy.com/media/placeholder.gif';
-};
+import { moduleContainer, addText, addMediaGallery, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { getInteractionGif } from './gifProvider';
 
 export default {
   module: 'fun',
@@ -23,13 +20,13 @@ export default {
   async execute(interaction) {
     try {
       const targetUser = interaction.options.getUser('user', true);
+      const gifUrl = await getInteractionGif('hug');
 
-      const embed = new EmbedBuilder()
-        .setDescription(`${interaction.user.username} hugged ${targetUser.username}! 🤗`)
-        .setImage(getRandomGif('hug'))
-        .setColor('#FF69B4');
+      const container = moduleContainer('fun');
+      addText(container, `### ${interaction.user.username} hugged ${targetUser.username}! 🤗`);
+      addMediaGallery(container, [{ url: gifUrl }]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Hug command error:', error);
       await interaction.reply({

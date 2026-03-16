@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addSeparator, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers, transactions } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
@@ -54,48 +54,24 @@ export default {
 				));
 
 			const transactionCount = transactionsToday[0]?.count ?? 0;
-			const richestUserDisplay = richestUser.length > 0 
-				? `<@${richestUser[0].userId}> (${richestUser[0].coins.toLocaleString()})` 
+			const richestUserDisplay = richestUser.length > 0
+				? `<@${richestUser[0].userId}> (${richestUser[0].coins.toLocaleString()})`
 				: 'N/A';
 
-			const embed = new EmbedBuilder()
-				.setTitle('Server Economy Overview')
-				.setColor(Colors.Economy)
-				.addFields(
-					{
-						name: 'Total Coins in Circulation',
-						value: stats.totalCoins.toLocaleString(),
-						inline: true
-					},
-					{
-						name: 'Total Gems in Circulation',
-						value: stats.totalGems.toLocaleString(),
-						inline: true
-					},
-					{
-						name: 'Average Coin Balance',
-						value: Math.round(stats.averageCoins).toLocaleString(),
-						inline: true
-					},
-					{
-						name: 'Richest User',
-						value: richestUserDisplay,
-						inline: true
-					},
-					{
-						name: 'Transactions Today',
-						value: transactionCount.toLocaleString(),
-						inline: true
-					},
-					{
-						name: 'Members with Currency',
-						value: stats.membersWithCurrency.toLocaleString(),
-						inline: true
-					}
-				)
-				.setTimestamp();
+			const container = moduleContainer('currency');
+			addText(container, `### Server Economy Overview`);
+			addSeparator(container, 'small');
 
-			return await interaction.reply({ embeds: [embed] });
+			addText(container, `**Total Coins in Circulation:** ${stats.totalCoins.toLocaleString()}`);
+			addText(container, `**Total Gems in Circulation:** ${stats.totalGems.toLocaleString()}`);
+			addText(container, `**Average Coin Balance:** ${Math.round(stats.averageCoins).toLocaleString()}`);
+			addText(container, `**Richest User:** ${richestUserDisplay}`);
+			addText(container, `**Transactions Today:** ${transactionCount.toLocaleString()}`);
+			addText(container, `**Members with Currency:** ${stats.membersWithCurrency.toLocaleString()}`);
+
+			addFooter(container, `Last updated: Now`);
+
+			return await interaction.reply(v2Payload([container]));
 		} catch (error) {
 			console.error('Error fetching economy stats:', error);
 			return await interaction.reply({

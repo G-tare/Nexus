@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
@@ -7,7 +7,7 @@ import {
   createModCase,
   sendModDM,
   canModerate,
-  modActionEmbed,
+  buildModActionContainer,
   getModConfig,
   ensureGuild,
   ensureGuildMember,
@@ -40,7 +40,8 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('user', true);
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const rawReason = interaction.options.getString('reason');
+    const reason = rawReason || 'No reason provided';
     const deleteDays = interaction.options.getInteger('delete_days') || 0;
     const guild = interaction.guild!;
     const moderator = interaction.user;
@@ -68,6 +69,12 @@ const command: BotCommand = {
 
     // Get config
     const config = await getModConfig(guild.id);
+
+    // Enforce requireReason
+    if (config.requireReason && !rawReason) {
+      await interaction.editReply({ content: '❌ This server requires a reason for moderation actions. Please provide a reason.' });
+      return;
+    }
 
     // Ensure records
     await ensureGuild(guild);
@@ -103,11 +110,11 @@ const command: BotCommand = {
 
     // Adjust reputation
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.ban, 'Ban');
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.ban, 'Ban', moderator.id);
     }
 
     // Reply
-    const embed = modActionEmbed({
+    const container = buildModActionContainer({
       action: 'Ban',
       target,
       moderator,
@@ -116,7 +123,7 @@ const command: BotCommand = {
       dmSent,
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

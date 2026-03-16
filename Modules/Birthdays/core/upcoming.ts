@@ -6,8 +6,9 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBirthdayConfig,
   getUpcomingBirthdays,
-  buildUpcomingEmbed,
+  buildUpcomingContainer,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'birthdays',
@@ -40,8 +41,8 @@ const command: BotCommand = {
       const days = interaction.options.getInteger('days') || 30;
       const upcoming = await getUpcomingBirthdays(interaction.guildId!, days);
 
-      const embed = buildUpcomingEmbed(upcoming, `🎂 Upcoming Birthdays (Next ${days} Days)`);
-      await interaction.editReply({ embeds: [embed] });
+      const container = buildUpcomingContainer(upcoming, `🎂 Upcoming Birthdays (Next ${days} Days)`);
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Birthdays] /birthdayupcoming error:', error);
       await interaction.editReply({

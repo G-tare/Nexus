@@ -1,14 +1,18 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   exportPalette,
   getColorPalette,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -37,17 +41,16 @@ const command: BotCommand = {
 
     const code = await exportPalette(guild.id);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('📤 Color Palette Export')
-      .setDescription(
-        `Exporting **${colors.length}** colors.\n\n` +
-        `Share this code with another server that has the bot. They can use \`/colorimport\` to import it.\n\n` +
-        `**Export Code:**\n\`\`\`\n${code}\n\`\`\``
-      )
-      .setFooter({ text: 'This code contains color names and hex values only — no roles are transferred' });
+    const container = moduleContainer('color_roles').setAccentColor(0x3498DB);
+    addText(container, `### 📤 Color Palette Export`);
+    addText(container,
+      `Exporting **${colors.length}** colors.\n\n` +
+      `Share this code with another server that has the bot. They can use \`/colorimport\` to import it.\n\n` +
+      `**Export Code:**\n\`\`\`\n${code}\n\`\`\``
+    );
+    addFooter(container, 'This code contains color names and hex values only — no roles are transferred');
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   editStatsChannel,
   getStatsChannels,
@@ -82,16 +83,13 @@ const command: BotCommand = {
     const emoji = STAT_TYPE_EMOJIS[updated.statType as keyof typeof STAT_TYPE_EMOJIS] || '📊';
     const typeName = STAT_TYPE_LABELS[updated.statType as keyof typeof STAT_TYPE_LABELS] || updated.statType;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setDescription(
-        `✅ Stats channel updated!\n\n` +
-        `${emoji} **Type:** ${typeName}\n` +
-        `**Label:** \`${updated.labelTemplate}\`\n` +
-        `**Channel:** <#${updated.channelId}>`
-      );
+    const container = successContainer('Stats Channel Updated',
+      `${emoji} **Type:** ${typeName}\n` +
+      `**Label:** \`${updated.labelTemplate}\`\n` +
+      `**Channel:** <#${updated.channelId}>`
+    );
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

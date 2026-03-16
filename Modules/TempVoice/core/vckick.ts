@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId, auditLog } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vckick')
@@ -74,13 +75,11 @@ export const vckick: BotCommand = {
         targetUser: targetUser.id,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor('#ff6600')
-        .setTitle('User Kicked')
-        .setDescription(`${targetUser.username} has been kicked from your voice channel.`);
+      const container = moduleContainer('temp_voice').setAccentColor(0xff6600);
+      addText(container, `### User Kicked\n${targetUser.username} has been kicked from your voice channel.`);
 
       logger.info('[TempVoice] User kicked from temp VC:', targetUser.id, 'channel:', voiceChannel.id);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vckick command:', error);
       return interaction.editReply('An error occurred while kicking the user.');

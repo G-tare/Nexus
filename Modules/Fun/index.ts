@@ -1,20 +1,33 @@
 import { BotModule } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
-// Game commands
+// Game commands (existing)
 import trivia from './games/trivia/trivia';
 import rps from './games/rps/rps';
-import coinflip from './games/coinflip/coinflip';
 import eightball from './games/8ball/8ball';
 import roll from './games/roll/roll';
-import slots from './games/slots/slots';
-import blackjack from './games/blackjack/blackjack';
 import connect4 from './games/connect4/connect4';
 import tictactoe from './games/tictactoe/tictactoe';
 import wordle from './games/wordle/wordle';
 import wouldyourather from './games/wouldyourather/wouldyourather';
 
-// Random commands
+// Game commands (new)
+import guess from './games/guess/guess';
+import hangman from './games/hangman/hangman';
+import tord from './games/tord/tord';
+import wordchain from './games/wordchain/wordchain';
+import snake from './games/snake/snake';
+import reaction from './games/reaction/reaction';
+import fasttype from './games/fasttype/fasttype';
+import memory from './games/memory/memory';
+import mathrace from './games/mathrace/mathrace';
+import scramble from './games/scramble/scramble';
+import quizbowl from './games/quizbowl/quizbowl';
+import puzzle from './games/puzzle/puzzle';
+import duel from './games/duel/duel';
+import activity from './games/activity/activity';
+
+// Random commands (existing)
 import meme from './random/meme/meme';
 import joke from './random/joke/joke';
 import fact from './random/fact/fact';
@@ -23,6 +36,18 @@ import dog from './random/dog/dog';
 import cat from './random/cat/cat';
 import roast from './random/roast/roast';
 import compliment from './random/compliment/compliment';
+
+// Random commands (new)
+import ascii from './random/ascii/ascii';
+import say from './random/say/say';
+import reverse from './random/reverse/reverse';
+import emojify from './random/emojify/emojify';
+import rate from './random/rate/rate';
+import ship from './random/ship/ship';
+import hack from './random/hack/hack';
+import birdfact from './random/birdfact/birdfact';
+import pandafact from './random/pandafact/pandafact';
+import fox from './random/fox/fox';
 
 // Interaction commands
 import hug from './interact/hug';
@@ -62,20 +87,34 @@ export const funModule: BotModule = {
   enabled: true,
 
   commands: [
-    // Games (11)
+    // Games (22 total — blackjack, slots, coinflip, highlow are in Casino with betting)
+    // Existing (7 — blackjack, slots, coinflip, highlow moved to Casino module)
     trivia,
     rps,
-    coinflip,
     eightball,
     roll,
-    slots,
-    blackjack,
     connect4,
     tictactoe,
     wordle,
     wouldyourather,
+    // New (14)
+    guess,
+    hangman,
+    tord,
+    wordchain,
+    snake,
+    reaction,
+    fasttype,
+    memory,
+    mathrace,
+    scramble,
+    quizbowl,
+    puzzle,
+    duel,
+    activity,
 
-    // Random (8)
+    // Random (18 total)
+    // Existing (8)
     meme,
     joke,
     fact,
@@ -84,6 +123,17 @@ export const funModule: BotModule = {
     cat,
     roast,
     compliment,
+    // New (10)
+    ascii,
+    say,
+    reverse,
+    emojify,
+    rate,
+    ship,
+    hack,
+    birdfact,
+    pandafact,
+    fox,
 
     // Interactions (16)
     hug,

@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { removeAFK } from '../helpers';
+import { successContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'afk',
@@ -44,29 +45,26 @@ const command: BotCommand = {
         }
       }
 
-      const embed = new EmbedBuilder()
-        .setColor('#2ECC71')
-        .setTitle('✅ AFK Status Removed')
-        .addFields(
-          {
-            name: 'User',
-            value: `${targetUser.tag} (${targetUser.id})`,
-            inline: false,
-          },
-          {
-            name: 'Was AFK For',
-            value: `<t:${Math.floor(afkData.setAt.getTime() / 1000)}:R>`,
-            inline: false,
-          },
-          {
-            name: 'Message',
-            value: afkData.message,
-            inline: false,
-          }
-        )
-        .setTimestamp();
+      const container = successContainer('✅ AFK Status Removed');
+      addFields(container, [
+        {
+          name: 'User',
+          value: `${targetUser.tag} (${targetUser.id})`,
+          inline: false,
+        },
+        {
+          name: 'Was AFK For',
+          value: `<t:${Math.floor(afkData.setAt.getTime() / 1000)}:R>`,
+          inline: false,
+        },
+        {
+          name: 'Message',
+          value: afkData.message,
+          inline: false,
+        }
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in /afk-remove command:', error);
       await interaction.editReply({

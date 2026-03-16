@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
@@ -6,6 +6,7 @@ import {
   ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Shop');
 
@@ -46,7 +47,7 @@ const command: BotCommand = {
       );
 
       await interaction.editReply({
-        embeds: [embed],
+        ...v2Payload([embed]),
         components: [buttons],
       });
     } catch (error) {

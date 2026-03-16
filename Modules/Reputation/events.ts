@@ -3,7 +3,7 @@ import { ModuleEvent } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { getDb } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import {
   getRepConfig,
@@ -144,7 +144,6 @@ const passiveGainScheduler: ModuleEvent = { event: Events.ClientReady,
 
     const runPassiveGain = async () => {
       const db = getDb();
-      const redis = getRedis();
 
       for (const guild of client.guilds.cache.values()) {
         try {
@@ -165,8 +164,8 @@ const passiveGainScheduler: ModuleEvent = { event: Events.ClientReady,
 
             // Check if we already gave passive rep this week
             const passiveKey = `rep:passive:${guild.id}:${row.user_id}`;
-            const lastGrant = await redis.get(passiveKey);
-            if (lastGrant) continue; // Already granted this week
+            const hasGrant = await cache.has(passiveKey);
+            if (hasGrant) continue; // Already granted this week
 
             // Determine gain rate based on how long they've been in the server
             const joinedAt = row.joined_at ? new Date(row.joined_at).getTime() : Date.now();
@@ -200,11 +199,11 @@ const passiveGainScheduler: ModuleEvent = { event: Events.ClientReady,
               VALUES (${guild.id}, ${row.user_id}, ${'system'}, ${actualGain}, ${'Weekly passive reputation gain'}, ${Date.now()})
             `);
 
-            // Invalidate Redis cache
-            await redis.del(`rep:${guild.id}:${row.user_id}`);
+            // Invalidate cache
+            await cache.del(`rep:${guild.id}:${row.user_id}`);
 
             // Set cooldown — expires in 7 days so we don't grant again this week
-            await redis.setex(passiveKey, Math.floor(WEEK_MS / 1000), '1');
+            await cache.set(passiveKey, '1', Math.floor(WEEK_MS / 1000));
 
             // Update rep-gated roles
             await updateRepRoles(guild, row.user_id, newRep);

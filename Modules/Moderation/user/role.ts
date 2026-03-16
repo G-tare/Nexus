@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, Role, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, Role, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 import { ensureGuild, ensureGuildMember } from '../helpers';
 
 export default {
@@ -52,7 +52,8 @@ export default {
       const botMember = await guild.members.fetchMe();
       if (botMember.roles.highest.position <= role.position) {
         await interaction.editReply({
-          embeds: [errorEmbed('I cannot manage this role - it is equal to or higher than my highest role')]
+          components: [errorContainer('I cannot manage this role', 'It is equal to or higher than my highest role')],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -60,28 +61,29 @@ export default {
       if (action === 'add') {
         if (targetMember.roles.cache.has(role.id)) {
           await interaction.editReply({
-            embeds: [errorEmbed(`${targetUser.tag} already has the ${role.name} role`)]
+            components: [errorContainer(`${targetUser.tag} already has the ${role.name} role`)],
+            flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
         await targetMember.roles.add(role);
-        const embed = successEmbed(`Added ${role.name} to ${targetUser.tag}`);
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ components: [successContainer(`Added ${role.name} to ${targetUser.tag}`)], flags: MessageFlags.IsComponentsV2 });
       } else {
         if (!targetMember.roles.cache.has(role.id)) {
           await interaction.editReply({
-            embeds: [errorEmbed(`${targetUser.tag} does not have the ${role.name} role`)]
+            components: [errorContainer(`${targetUser.tag} does not have the ${role.name} role`)],
+            flags: MessageFlags.IsComponentsV2,
           });
           return;
         }
         await targetMember.roles.remove(role);
-        const embed = successEmbed(`Removed ${role.name} from ${targetUser.tag}`);
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ components: [successContainer(`Removed ${role.name} from ${targetUser.tag}`)], flags: MessageFlags.IsComponentsV2 });
       }
     } catch (error) {
       console.error('Error in role command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while modifying the role')]
+        components: [errorContainer('An error occurred while modifying the role')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

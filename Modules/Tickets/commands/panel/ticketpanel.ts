@@ -117,7 +117,7 @@ const command: BotCommand = {
     }
 
     try {
-      // Build panel embed
+      // Build panel container
       const panelObj = {
         title,
         description,
@@ -127,16 +127,13 @@ const command: BotCommand = {
         channelId: (targetChannel as any).id,
         categoryIds: config.categories?.map((c: any) => c.id) || []
       };
-      const { embed, components } = buildPanelEmbed(
+      const panelPayload = buildPanelEmbed(
         panelObj as any,
         config.categories || []
       );
 
       // Send panel to target channel
-      const panelMessage = await (targetChannel as any).send({
-        embeds: [embed],
-        components,
-      });
+      const panelMessage = await (targetChannel as any).send(panelPayload);
 
       // Save panel to config
       if (!config.panels) {

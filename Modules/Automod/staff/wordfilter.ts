@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFooter, successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 function isValidRegex(pattern: string): boolean {
   try {
@@ -17,7 +17,7 @@ function isValidRegex(pattern: string): boolean {
   }
 }
 
-function createFilterEmbed(title: string, words: string[], wildcards: string[], regexes: string[], page: number = 1): EmbedBuilder {
+function createFilterContainer(title: string, words: string[], wildcards: string[], regexes: string[], page: number = 1) {
   const itemsPerPage = 5;
   const totalPages = Math.max(1, Math.ceil((words.length + wildcards.length + regexes.length) / itemsPerPage));
   const validPage = Math.max(1, Math.min(page, totalPages));
@@ -62,11 +62,11 @@ function createFilterEmbed(title: string, words: string[], wildcards: string[], 
     description = '(no filters configured)';
   }
 
-  return new EmbedBuilder()
-    .setColor(Colors.Primary)
-    .setTitle(title)
-    .setDescription(description)
-    .setFooter({ text: `Page ${validPage}/${totalPages} • Total filters: ${count}` });
+  const container = moduleContainer('automod');
+  addText(container, `### ${title}`);
+  addText(container, description);
+  addFooter(container, `Page ${validPage}/${totalPages} • Total filters: ${count}`);
+  return container;
 }
 
 export default {
@@ -78,6 +78,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('wordfilter')
     .setDescription('Manage the word filter')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('add')
@@ -182,16 +183,14 @@ export default {
         const word = interaction.options.getString('word', true).toLowerCase();
 
         if (word.length === 0 || word.length > 100) {
-          const embed = errorEmbed('Word must be between 1 and 100 characters');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Word Filter Error', 'Word must be between 1 and 100 characters'));
           return;
         }
 
         const words = [...new Set([...(config.wordfilter.words || []), word])];
 
         if (words.length === (config.wordfilter.words || []).length) {
-          const embed = errorEmbed(`Word **${word}** is already in the filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Word Already Exists', `Word **${word}** is already in the filter`));
           return;
         }
 
@@ -202,8 +201,7 @@ export default {
         const words = (config.wordfilter.words || []).filter(w => w !== word);
 
         if (words.length === (config.wordfilter.words || []).length) {
-          const embed = errorEmbed(`Word **${word}** not found in filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Word Not Found', `Word **${word}** not found in filter`));
           return;
         }
 
@@ -213,16 +211,14 @@ export default {
         const pattern = interaction.options.getString('pattern', true).toLowerCase();
 
         if (pattern.length === 0 || pattern.length > 100) {
-          const embed = errorEmbed('Pattern must be between 1 and 100 characters');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Error', 'Pattern must be between 1 and 100 characters'));
           return;
         }
 
         const wildcards = [...new Set([...(config.wordfilter.wildcards || []), pattern])];
 
         if (wildcards.length === (config.wordfilter.wildcards || []).length) {
-          const embed = errorEmbed(`Pattern **${pattern}** is already in the filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Already Exists', `Pattern **${pattern}** is already in the filter`));
           return;
         }
 
@@ -233,8 +229,7 @@ export default {
         const wildcards = (config.wordfilter.wildcards || []).filter(w => w !== pattern);
 
         if (wildcards.length === (config.wordfilter.wildcards || []).length) {
-          const embed = errorEmbed(`Pattern **${pattern}** not found in filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Not Found', `Pattern **${pattern}** not found in filter`));
           return;
         }
 
@@ -244,22 +239,19 @@ export default {
         const pattern = interaction.options.getString('pattern', true);
 
         if (!isValidRegex(pattern)) {
-          const embed = errorEmbed('Invalid regex pattern. Please check your syntax');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Invalid Regex', 'Invalid regex pattern. Please check your syntax'));
           return;
         }
 
         if (pattern.length === 0 || pattern.length > 200) {
-          const embed = errorEmbed('Pattern must be between 1 and 200 characters');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Error', 'Pattern must be between 1 and 200 characters'));
           return;
         }
 
         const regexPatterns = [...new Set([...(config.wordfilter.regexPatterns || []), pattern])];
 
         if (regexPatterns.length === (config.wordfilter.regexPatterns || []).length) {
-          const embed = errorEmbed(`Pattern **${pattern}** is already in the filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Already Exists', `Pattern **${pattern}** is already in the filter`));
           return;
         }
 
@@ -270,8 +262,7 @@ export default {
         const regexPatterns = (config.wordfilter.regexPatterns || []).filter((w: any) => w !== pattern);
 
         if (regexPatterns.length === (config.wordfilter.regexPatterns || []).length) {
-          const embed = errorEmbed(`Pattern **${pattern}** not found in filter`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Pattern Not Found', `Pattern **${pattern}** not found in filter`));
           return;
         }
 
@@ -279,14 +270,14 @@ export default {
         message = `Regex pattern **${pattern}** removed from filter`;
       } else if (subcommand === 'list') {
         const page = interaction.options.getInteger('page') || 1;
-        const embed = createFilterEmbed(
+        const container = createFilterContainer(
           'Word Filter Configuration',
           config.wordfilter.words || [],
           config.wordfilter.wildcards || [],
           config.wordfilter.regexPatterns || [],
           page
         );
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         return;
       } else if (subcommand === 'import') {
         const input = interaction.options.getString('words', true);
@@ -296,8 +287,7 @@ export default {
           .filter(w => w.length > 0 && w.length <= 100);
 
         if (newWords.length === 0) {
-          const embed = errorEmbed('No valid words provided');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Import Error', 'No valid words provided'));
           return;
         }
 
@@ -312,12 +302,10 @@ export default {
       if (subcommand !== 'list') {
         await moduleConfig.setConfig(guildId, 'automod', updatedConfig);
 
-        const embed = successEmbed(`Word Filter Updated\n${message}`);
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(successReply('Word Filter Updated', message));
       }
     } catch (error) {
-      const embed = errorEmbed('Failed to update word filter settings');
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Configuration Error', 'Failed to update word filter settings'));
       console.error('[Automod] Wordfilter command error:', error);
     }
   }

@@ -1,16 +1,17 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutoRoleRules, CONDITION_LABELS } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('autorolelist')
     .setDescription('List all auto-role rules')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autorolelist',
@@ -38,13 +39,12 @@ const command: BotCommand = {
       return `${status} \`#${rule.id}\` — ${roleName} • ${CONDITION_LABELS[rule.condition]}${condVal}${delay}`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle(`🏷️ Auto-Role Rules (${rules.length})`)
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: 'Use /autoroleadd to add • /autoroledelete to remove' });
+    const container = moduleContainer('auto_roles');
+    addText(container, `### 🏷️ Auto-Role Rules (${rules.length})`);
+    addText(container, lines.join('\n'));
+    addFooter(container, 'Use /autoroleadd to add • /autoroledelete to remove');
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

@@ -1,13 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  Colors,
   PermissionFlagsBits,
   AutocompleteInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, v2Payload, successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -222,19 +221,17 @@ const command: BotCommand = {
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Item Updated')
-        .setColor(Colors.Green)
-        .addFields(
-          { name: 'Item', value: updatedItem.name, inline: true },
-          { name: 'Price', value: updatedItem.price.toString(), inline: true },
-          { name: 'Stock', value: updatedItem.stock === null ? 'Unlimited' : updatedItem.stock.toString(), inline: true },
-          {
-            name: 'Description',
-            value: updatedItem.description || 'No description',
-            inline: false,
-          }
-        );
+      const container = successContainer('Item Updated');
+      addFields(container, [
+        { name: 'Item', value: updatedItem.name, inline: true },
+        { name: 'Price', value: updatedItem.price.toString(), inline: true },
+        { name: 'Stock', value: updatedItem.stock === null ? 'Unlimited' : updatedItem.stock.toString(), inline: true },
+        {
+          name: 'Description',
+          value: updatedItem.description || 'No description',
+          inline: false,
+        }
+      ]);
 
       const guild = interaction.guild;
       if (guild) {
@@ -248,7 +245,7 @@ const command: BotCommand = {
         );
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[Shop] /shop-edit command error:', error);
       await interaction.editReply({

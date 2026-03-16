@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getQueue, formatDuration } from '../helpers';
+import { errorContainer, moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -24,34 +25,25 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
     // Check if user is in the same voice channel as the bot
     if (queue.voiceChannelId !== member.voice.channel.id) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to use this command.')])
+      );
     }
 
     // Parse position string to milliseconds
@@ -61,24 +53,18 @@ const command: BotCommand = {
       // Format: MM:SS
       const parts = positionStr.split(':');
       if (parts.length !== 2) {
-        const embed = new EmbedBuilder()
-          .setDescription('Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')
-          .setColor(0xff0000);
-        return interaction.editReply({
-          embeds: [embed],
-        });
+        return interaction.editReply(
+          v2Payload([errorContainer('Invalid Format', 'Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')])
+        );
       }
 
       const minutes = parseInt(parts[0], 10);
       const seconds = parseInt(parts[1], 10);
 
       if (isNaN(minutes) || isNaN(seconds) || seconds >= 60) {
-        const embed = new EmbedBuilder()
-          .setDescription('Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')
-          .setColor(0xff0000);
-        return interaction.editReply({
-          embeds: [embed],
-        });
+        return interaction.editReply(
+          v2Payload([errorContainer('Invalid Format', 'Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')])
+        );
       }
 
       positionMs = (minutes * 60 + seconds) * 1000;
@@ -87,37 +73,28 @@ const command: BotCommand = {
       const seconds = parseInt(positionStr, 10);
 
       if (isNaN(seconds)) {
-        const embed = new EmbedBuilder()
-          .setDescription('Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')
-          .setColor(0xff0000);
-        return interaction.editReply({
-          embeds: [embed],
-        });
+        return interaction.editReply(
+          v2Payload([errorContainer('Invalid Format', 'Invalid position format. Use MM:SS (e.g., "1:30") or seconds (e.g., "90").')])
+        );
       }
 
       positionMs = seconds * 1000;
     }
 
     // Get current track
-    const currentTrack = queue.tracks[0];
+    const currentTrack = queue.currentTrack;
 
     // Validate position is within track length
-    if (positionMs > (currentTrack as any).info.length) {
-      const embed = new EmbedBuilder()
-        .setDescription(`Position cannot exceed track duration (${formatDuration(currentTrack.duration)}).`)
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (positionMs > currentTrack.duration) {
+      return interaction.editReply(
+        v2Payload([errorContainer('Position Too Long', `Position cannot exceed track duration (${formatDuration(currentTrack.duration)}).`)])
+      );
     }
 
     if (positionMs < 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('Position cannot be negative.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Invalid Position', 'Position cannot be negative.')])
+      );
     }
 
     // Lavalink: player.seek(positionMs);
@@ -127,19 +104,20 @@ const command: BotCommand = {
     const seconds = Math.floor((positionMs % 60000) / 1000);
     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-    const embed = new EmbedBuilder()
-      .setTitle('Track Seeked')
-      .setDescription(`Seeked to **${timeStr}**`)
-      .addFields([
-        {
-          name: 'Track',
-          value: `**${currentTrack.title}**\nby ${currentTrack.author}`,
-          inline: false,
-        },
-      ])
-      .setColor(0x51cf66);
+    const container = moduleContainer('music');
+    addText(container, `### Track Seeked\nSeeked to **${timeStr}**`);
+    addFields(container, [
+      {
+        name: 'Track',
+        value: `**${currentTrack.title}**\nby ${currentTrack.author}`,
+        inline: false,
+      },
+    ]);
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

@@ -6,7 +6,7 @@ import {
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import premiumCheck from '../../../Shared/src/middleware/premiumCheck';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import {
   getSuggestionConfig,
   getNextSuggestionNumber,
@@ -15,8 +15,9 @@ import {
   addVoteReactions,
   storeSuggestionThread,
 } from '../helpers';
+import { addMediaGallery, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
-const redis = getRedis();
+// Using global cache;
 
 const suggest: BotCommand = {
   module: 'suggestions',
@@ -72,12 +73,11 @@ const suggest: BotCommand = {
 
       // Cooldown check (60s)
       const cooldownKey = `suggestions:cooldown:${interaction.guildId!}:${interaction.user.id}`;
-      const onCooldown = await redis.get(cooldownKey);
+      const onCooldown = cache.get<string>(cooldownKey);
 
       if (onCooldown) {
-        const ttl = await redis.ttl(cooldownKey);
         await interaction.reply({
-          content: `You're on cooldown! Try again in ${ttl}s.`,
+          content: 'You\'re on cooldown! Try again in a few seconds.',
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -99,10 +99,10 @@ const suggest: BotCommand = {
 
       // Build embed
       const authorName = config.anonymous ? 'Anonymous' : interaction.user.username;
-      const embed = buildSuggestionEmbed(suggestNumber, suggestion, authorName, config, 'pending');
+      const container = buildSuggestionEmbed(suggestNumber, suggestion, authorName, config, 'pending');
 
       if (imageAttachment && imageAttachment.contentType?.startsWith('image')) {
-        embed.setImage(imageAttachment.url);
+        addMediaGallery(container, [{ url: imageAttachment.url }]);
       }
 
       // Get suggestion channel
@@ -116,7 +116,7 @@ const suggest: BotCommand = {
       }
 
       // Send suggestion to channel
-      const message = await (channel as any).send({ embeds: [embed] });
+      const message = await (channel as any).send(v2Payload([container]));
 
       // Add vote reactions
       await addVoteReactions(message, config);
@@ -145,7 +145,7 @@ const suggest: BotCommand = {
       );
 
       // Set cooldown
-      await redis.setex(cooldownKey, 60, '1');
+      cache.set(cooldownKey, '1', 60);
 
       // Reply to user
       await interaction.reply({

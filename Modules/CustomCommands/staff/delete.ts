@@ -1,8 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
@@ -10,6 +9,8 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, errorContainer, addText, addFields, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { ContainerBuilder } from 'discord.js';
 const logger = createModuleLogger('CustomCommands');
 
 export const deleteCommand: BotCommand = {
@@ -56,15 +57,12 @@ export const deleteCommand: BotCommand = {
         return;
       }
 
-      // Confirmation embed
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('Confirm Deletion')
-        .setDescription(`Are you sure you want to delete the custom command **${command.name}**?`)
-        .setColor('#ff4444')
-        .addFields(
-          { name: 'Uses', value: String(command.useCount || 0), inline: true },
-          { name: 'Created', value: command.createdAt?.toLocaleDateString() || 'Unknown', inline: true }
-        );
+      // Confirmation container
+      const container = errorContainer('Confirm Deletion', `Are you sure you want to delete the custom command **${command.name}**?`);
+      addFields(container, [
+        { name: 'Uses', value: String(command.useCount || 0), inline: true },
+        { name: 'Created', value: command.createdAt?.toLocaleDateString() || 'Unknown', inline: true }
+      ]);
 
       const confirmButton = new ButtonBuilder()
         .setCustomId('confirm_delete')
@@ -76,13 +74,9 @@ export const deleteCommand: BotCommand = {
         .setLabel('Cancel')
         .setStyle(ButtonStyle.Secondary);
 
-      const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(confirmButton, cancelButton);
+      addButtons(container, [confirmButton, cancelButton]);
 
-      const response = await interaction.reply({
-        embeds: [confirmEmbed],
-        components: [row]
-      });
+      const response = await interaction.reply(v2Payload([container]));
 
       // Wait for button click
       const collector = response.createMessageComponentCollector({
@@ -104,27 +98,17 @@ export const deleteCommand: BotCommand = {
           confirmed = true;
           await helper.deleteCommand(command.id);
 
-          const successEmbed = new EmbedBuilder()
-            .setTitle('Command Deleted')
-            .setDescription(`Custom command **${command.name}** has been deleted.`)
-            .setColor('#2f3136');
+          const successContainer = moduleContainer('custom_commands');
+          addText(successContainer, `### Command Deleted\nCustom command **${command.name}** has been deleted.`);
 
-          await buttonInteraction.update({
-            embeds: [successEmbed],
-            components: []
-          });
+          await buttonInteraction.update(v2Payload([successContainer]));
 
           logger.info(`Custom command deleted: ${name} by ${interaction.user.id} in ${interaction.guildId!}`);
         } else if (buttonInteraction.customId === 'cancel_delete') {
-          const cancelEmbed = new EmbedBuilder()
-            .setTitle('Deletion Cancelled')
-            .setDescription('The custom command was not deleted.')
-            .setColor('#2f3136');
+          const cancelContainer = moduleContainer('custom_commands');
+          addText(cancelContainer, `### Deletion Cancelled\nThe custom command was not deleted.`);
 
-          await buttonInteraction.update({
-            embeds: [cancelEmbed],
-            components: []
-          });
+          await buttonInteraction.update(v2Payload([cancelContainer]));
         }
 
         collector.stop();
@@ -133,9 +117,7 @@ export const deleteCommand: BotCommand = {
       collector.on('end', async () => {
         if (!confirmed) {
           try {
-            await response.edit({
-              components: []
-            });
+            await response.edit(v2Payload([container]));
           } catch (error) {
             logger.warn('Failed to remove buttons after timeout', error);
           }

@@ -1,9 +1,10 @@
-import { GuildMember, Message, EmbedBuilder, TextChannel, Guild, PermissionFlagsBits } from 'discord.js';
+import { GuildMember, Message, TextChannel, Guild, PermissionFlagsBits } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { automodLogs } from '../../Shared/src/database/models/schema';
-import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { moduleContainer, addFields, addFooter, addSeparator, addText, v2Payload } from '../../Shared/src/utils/componentsV2';
 import crypto from 'crypto';
 
 const logger = createModuleLogger('Automod');
@@ -16,6 +17,9 @@ export interface AutomodConfig {
   // Anti-spam
   antispam: {
     enabled: boolean;
+    emojiEnabled: boolean;
+    capsEnabled: boolean;
+    mentionEnabled: boolean;
     maxMessages: number;
     timeframeSeconds: number;
     duplicateThreshold: number;
@@ -23,6 +27,8 @@ export interface AutomodConfig {
     maxCaps: number;
     maxMentions: number;
     minMessageLength: number;
+    action: 'delete' | 'warn' | 'mute' | 'kick' | 'ban';
+    mentionAction: 'delete' | 'warn' | 'mute' | 'kick' | 'ban';
   };
 
   // Anti-raid
@@ -42,6 +48,8 @@ export interface AutomodConfig {
     blacklistedDomains: string[];
     allowedChannels: string[];
     allowedRoles: string[];
+    allowImages: boolean;
+    action: 'delete' | 'warn' | 'mute' | 'kick' | 'ban';
   };
 
   // Anti-invite
@@ -49,6 +57,8 @@ export interface AutomodConfig {
     enabled: boolean;
     allowedServers: string[];
     allowedRoles: string[];
+    allowOwnServer: boolean;
+    action: 'delete' | 'warn' | 'mute' | 'kick' | 'ban';
   };
 
   // Word filter
@@ -57,6 +67,8 @@ export interface AutomodConfig {
     words: string[];
     wildcards: string[];
     regexPatterns: string[];
+    filterNicknames: boolean;
+    action: 'delete' | 'warn' | 'mute' | 'kick' | 'ban';
   };
 
   // Anti-nuke
@@ -97,6 +109,9 @@ export type AutomodAction =
 export const DEFAULT_AUTOMOD_CONFIG: AutomodConfig = {
   antispam: {
     enabled: true,
+    emojiEnabled: true,
+    capsEnabled: true,
+    mentionEnabled: true,
     maxMessages: 5,
     timeframeSeconds: 5,
     duplicateThreshold: 3,
@@ -104,6 +119,8 @@ export const DEFAULT_AUTOMOD_CONFIG: AutomodConfig = {
     maxCaps: 80,
     maxMentions: 5,
     minMessageLength: 1,
+    action: 'delete',
+    mentionAction: 'delete',
   },
   antiraid: {
     enabled: false,
@@ -119,17 +136,23 @@ export const DEFAULT_AUTOMOD_CONFIG: AutomodConfig = {
     blacklistedDomains: [],
     allowedChannels: [],
     allowedRoles: [],
+    allowImages: false,
+    action: 'delete',
   },
   antiinvite: {
     enabled: false,
     allowedServers: [],
     allowedRoles: [],
+    allowOwnServer: true,
+    action: 'delete',
   },
   wordfilter: {
     enabled: false,
     words: [],
     wildcards: [],
     regexPatterns: [],
+    filterNicknames: false,
+    action: 'delete',
   },
   antinuke: {
     enabled: false,
@@ -162,7 +185,21 @@ export async function getAutomodConfig(guildId: string): Promise<AutomodConfig> 
   try {
     const result = await moduleConfig.getModuleConfig<AutomodConfig>(guildId, 'automod');
     if (!result) return { ...DEFAULT_AUTOMOD_CONFIG };
-    return { ...DEFAULT_AUTOMOD_CONFIG, ...result.config };
+
+    // Deep merge: spread defaults for each nested object so new fields have sensible defaults
+    // even if the stored config predates them
+    const stored = result.config;
+    return {
+      ...DEFAULT_AUTOMOD_CONFIG,
+      ...stored,
+      antispam: { ...DEFAULT_AUTOMOD_CONFIG.antispam, ...(stored.antispam || {}) },
+      antiraid: { ...DEFAULT_AUTOMOD_CONFIG.antiraid, ...(stored.antiraid || {}) },
+      antilink: { ...DEFAULT_AUTOMOD_CONFIG.antilink, ...(stored.antilink || {}) },
+      antiinvite: { ...DEFAULT_AUTOMOD_CONFIG.antiinvite, ...(stored.antiinvite || {}) },
+      wordfilter: { ...DEFAULT_AUTOMOD_CONFIG.wordfilter, ...(stored.wordfilter || {}) },
+      antinuke: { ...DEFAULT_AUTOMOD_CONFIG.antinuke, ...(stored.antinuke || {}) },
+      punishments: { ...DEFAULT_AUTOMOD_CONFIG.punishments, ...(stored.punishments || {}) },
+    };
   } catch (error) {
     logger.error(`Failed to get automod config for guild ${guildId}:`, error);
     return DEFAULT_AUTOMOD_CONFIG;
@@ -216,27 +253,26 @@ export async function checkSpamRate(
 ): Promise<boolean> {
   if (!config.antispam.enabled) return false;
 
-  const redis = await getRedis();
   const key = `automod:spam:${guildId}:${userId}`;
   const now = Date.now();
   const windowStart = now - config.antispam.timeframeSeconds * 1000;
 
   try {
     // Remove old entries outside the window
-    await redis.zremrangebyscore(key, '-inf', windowStart);
+    cache.zremrangebyscore(key, 0, windowStart);
 
     // Get count of messages in current window
-    const count = await redis.zcard(key);
+    const count = cache.zcard(key);
 
     if (count >= config.antispam.maxMessages) {
       return true; // Spam detected
     }
 
     // Add current timestamp
-    await redis.zadd(key, now, `${now}-${Math.random()}`);
+    cache.zadd(key, now, `${now}-${Math.random()}`);
 
-    // Set expiry
-    await redis.expire(key, config.antispam.timeframeSeconds + 1);
+    // Set expiry on the sorted set
+    cache.expire(key, config.antispam.timeframeSeconds + 1);
 
     return false;
   } catch (error) {
@@ -258,13 +294,12 @@ export async function checkDuplicates(
     return false;
   }
 
-  const redis = await getRedis();
   const key = `automod:dup:${guildId}:${userId}`;
   const hash = crypto.createHash('md5').update(content).digest('hex');
 
   try {
-    // Get list of recent hashes
-    const recent = await redis.lrange(key, 0, -1);
+    // Get list of recent hashes from in-memory cache
+    let recent = cache.get<string[]>(key) || [];
 
     // Count how many times this hash appears
     const duplicateCount = recent.filter((h) => h === hash).length;
@@ -273,10 +308,9 @@ export async function checkDuplicates(
       return true; // Duplicate spam detected
     }
 
-    // Add hash to list
-    await redis.lpush(key, hash);
-    await redis.ltrim(key, 0, 10); // Keep only last 10 messages
-    await redis.expire(key, 60); // 1 minute window
+    // Add hash to front, keep only last 10
+    recent = [hash, ...recent].slice(0, 11);
+    cache.set(key, recent, 60); // 1 minute window
 
     return false;
   } catch (error) {
@@ -434,33 +468,17 @@ export function checkWordFilter(
  * Get number of offenses for a user (with 24h expiry)
  */
 export async function getUserOffenseCount(guildId: string, userId: string): Promise<number> {
-  const redis = await getRedis();
   const key = `automod:offenses:${guildId}:${userId}`;
-
-  try {
-    const count = await redis.get(key);
-    return count ? parseInt(count, 10) : 0;
-  } catch (error) {
-    logger.error(`Error getting offense count for ${userId}:`, error);
-    return 0;
-  }
+  const count = cache.get<number>(key);
+  return count ?? 0;
 }
 
 /**
  * Increment offense count and return new count (with 24h expiry)
  */
 export async function incrementOffense(guildId: string, userId: string): Promise<number> {
-  const redis = await getRedis();
   const key = `automod:offenses:${guildId}:${userId}`;
-
-  try {
-    const newCount = await redis.incr(key);
-    await redis.expire(key, 86400); // 24 hours
-    return newCount;
-  } catch (error) {
-    logger.error(`Error incrementing offense for ${userId}:`, error);
-    return 0;
-  }
+  return cache.incr(key, 86400); // 24 hours
 }
 
 /**
@@ -580,21 +598,25 @@ export async function logAutomodAction(
     const channel = (await guild.channels.fetch(config.logChannelId)) as TextChannel;
     if (!channel || !channel.isTextBased()) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle('Automod Action')
-      .setColor(Colors.Warning)
-      .addFields(
-        { name: 'User ID', value: userId, inline: true },
-        { name: 'Action', value: action, inline: true },
-        { name: 'Reason', value: reason },
-        { name: 'Timestamp', value: new Date().toISOString(), inline: true }
-      );
+    const container = moduleContainer('automod');
+    addText(container, '### ⚠️ Automod Action');
+    addSeparator(container, 'small');
+
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'User ID', value: userId, inline: true },
+      { name: 'Action', value: action, inline: true },
+      { name: 'Reason', value: reason },
+      { name: 'Timestamp', value: new Date().toISOString(), inline: true }
+    ];
 
     if (details) {
-      embed.addFields({ name: 'Details', value: details });
+      fields.push({ name: 'Details', value: details });
     }
 
-    await channel.send({ embeds: [embed] }).catch((error: any) => {
+    addFields(container, fields);
+    addFooter(container, `Guild: ${guild.id}`);
+
+    await channel.send(v2Payload([container])).catch((error: any) => {
       logger.warn(`Failed to log automod action:`, error);
     });
   } catch (error) {
@@ -610,15 +632,6 @@ export async function logAutomodAction(
  * Check and increment nuke action counter (with 60s TTL per action type)
  */
 export async function checkNukeAction(guildId: string, actionType: string): Promise<number> {
-  const redis = await getRedis();
   const key = `automod:nuke:${guildId}:${actionType}`;
-
-  try {
-    const count = await redis.incr(key);
-    await redis.expire(key, 60); // 60 second window
-    return count;
-  } catch (error) {
-    logger.error(`Error checking nuke action for ${actionType}:`, error);
-    return 0;
-  }
+  return cache.incr(key, 60); // 60 second window
 }

@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('xpmultiplier')
     .setDescription('Manage role-based XP multipliers')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('set')

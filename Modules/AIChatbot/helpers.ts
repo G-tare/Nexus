@@ -1,5 +1,5 @@
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { config as globalConfig } from '../../Shared/src/config';
 import { decryptOrPassthrough } from '../../Shared/src/utils/encryption';
@@ -120,10 +120,9 @@ export async function getConversationHistory(
   limit: number = 10,
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   try {
-    const redis = getRedis();
     const historyKey = `aichat:history:${guildId}:${channelId}`;
-    const history = await redis.lrange(historyKey, -limit, -1);
-    return history.map(item => JSON.parse(item));
+    const history = cache.get<Array<{ role: 'user' | 'assistant'; content: string }>>(historyKey) || [];
+    return history.slice(-limit);
   } catch (error) {
     logger.error(`Error getting conversation history for ${guildId}/${channelId}`, error);
     return [];
@@ -140,13 +139,13 @@ export async function addToHistory(
   content: string,
 ): Promise<void> {
   try {
-    const redis = getRedis();
     const historyKey = `aichat:history:${guildId}:${channelId}`;
     const maxHistory = (await getAIConfig(guildId)).maxHistory;
 
-    await redis.rpush(historyKey, JSON.stringify({ role, content }));
-    await redis.ltrim(historyKey, -maxHistory, -1);
-    await redis.expire(historyKey, 86400);
+    const history = cache.get<Array<{ role: 'user' | 'assistant'; content: string }>>(historyKey) || [];
+    history.push({ role, content });
+    const trimmed = history.slice(-maxHistory);
+    cache.set(historyKey, trimmed, 86400);
   } catch (error) {
     logger.error(`Error adding to history for ${guildId}/${channelId}`, error);
   }
@@ -157,9 +156,8 @@ export async function addToHistory(
  */
 export async function clearHistory(guildId: string, channelId: string): Promise<void> {
   try {
-    const redis = getRedis();
     const historyKey = `aichat:history:${guildId}:${channelId}`;
-    await redis.del(historyKey);
+    cache.del(historyKey);
   } catch (error) {
     logger.error(`Error clearing history for ${guildId}/${channelId}`, error);
   }
@@ -174,9 +172,8 @@ export async function clearHistory(guildId: string, channelId: string): Promise<
  */
 export async function getPersona(guildId: string): Promise<string> {
   try {
-    const redis = getRedis();
     const personaKey = `aichat:persona:${guildId}`;
-    const persona = await redis.get(personaKey);
+    const persona = cache.get<string>(personaKey);
     return persona || (await getAIConfig(guildId)).systemPrompt;
   } catch (error) {
     logger.error(`Error getting persona for ${guildId}`, error);
@@ -189,9 +186,8 @@ export async function getPersona(guildId: string): Promise<string> {
  */
 export async function setPersona(guildId: string, persona: string): Promise<void> {
   try {
-    const redis = getRedis();
     const personaKey = `aichat:persona:${guildId}`;
-    await redis.setex(personaKey, 2592000, persona); // 30 days
+    cache.set(personaKey, persona, 2592000); // 30 days
   } catch (error) {
     logger.error(`Error setting persona for ${guildId}`, error);
     throw error;
@@ -207,10 +203,12 @@ export async function setPersona(guildId: string, persona: string): Promise<void
  */
 export async function checkAICooldown(guildId: string, userId: string): Promise<number> {
   try {
-    const redis = getRedis();
     const cooldownKey = `aichat:cooldown:${guildId}:${userId}`;
-    const ttl = await redis.ttl(cooldownKey);
-    return ttl > 0 ? ttl : 0;
+    if (!cache.has(cooldownKey)) return 0;
+    const data = cache.get<{ timestamp: number }>(cooldownKey);
+    if (!data) return 0;
+    const remaining = Math.max(0, Math.ceil((data.timestamp - Date.now()) / 1000));
+    return remaining;
   } catch (error) {
     logger.error(`Error checking AI cooldown for ${userId}`, error);
     return 0;
@@ -226,9 +224,8 @@ export async function setAICooldown(
   seconds: number,
 ): Promise<void> {
   try {
-    const redis = getRedis();
     const cooldownKey = `aichat:cooldown:${guildId}:${userId}`;
-    await redis.setex(cooldownKey, seconds, '1');
+    cache.set(cooldownKey, { timestamp: Date.now() + seconds * 1000 }, seconds);
   } catch (error) {
     logger.error(`Error setting AI cooldown for ${userId}`, error);
   }

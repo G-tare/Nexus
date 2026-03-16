@@ -4,7 +4,6 @@ import {
   GuildMember,
   ChannelType,
   TextChannel,
-  EmbedBuilder,
   MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
@@ -23,10 +22,10 @@ import {
   startVoiceCall,
   endVoiceCall,
   setCooldown,
-  buildConnectedEmbed,
-  buildSearchingEmbed,
-  buildCallEndedEmbed,
-  buildAppealEmbed,
+  buildConnectedContainer,
+  buildSearchingContainer,
+  buildCallEndedContainer,
+  buildAppealContainer,
   formatDuration,
   hasActiveAppeal,
   getAppeal,
@@ -34,6 +33,7 @@ import {
   extendClipRetention,
 } from '../helpers';
 import { VoiceRelay, activeRelays, findRelayByVoiceChannel } from '../relay';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -212,14 +212,15 @@ async function handleStart(interaction: ChatInputCommandInteraction): Promise<vo
       return;
     }
 
-    // Send connected embed to this side
+    // Send connected container to this side
     const maxDurText = call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited';
-    const embed1 = buildConnectedEmbed(
+    const container1 = buildConnectedContainer(
       config.showServerName ? match.guildName : 'another server',
       true,
-    ).setFooter({ text: `Max duration: ${maxDurText}` });
+    );
+    addText(container1, `-# Max duration: ${maxDurText}`);
 
-    await interaction.editReply({ embeds: [embed1] });
+    await interaction.editReply(v2Payload([container1]));
 
     // Notify the other side via text channel
     try {
@@ -227,12 +228,13 @@ async function handleStart(interaction: ChatInputCommandInteraction): Promise<vo
       if (otherGuild) {
         const textChannel = findTextChannel(otherGuild);
         if (textChannel) {
-          const embed2 = buildConnectedEmbed(
+          const container2 = buildConnectedContainer(
             otherConfig.showServerName ? guild.name : 'another server',
             true,
-          ).setFooter({ text: `Max duration: ${maxDurText}` });
+          );
+          addText(container2, `-# Max duration: ${maxDurText}`);
 
-          await textChannel.send({ embeds: [embed2] });
+          await textChannel.send(v2Payload([container2]));
         }
       }
     } catch {
@@ -252,16 +254,16 @@ async function handleStart(interaction: ChatInputCommandInteraction): Promise<vo
           await helpers.setCooldown(match.guildId, match.voiceChannelId);
 
           // Notify both sides
-          const endEmbed = helpers.buildCallEndedEmbed(call.maxDuration, 'Maximum duration reached');
+          const endContainer = helpers.buildCallEndedContainer(call.maxDuration, 'Maximum duration reached');
           try {
             const ch = interaction.channel;
-            if (ch && 'send' in ch) await (ch as TextChannel).send({ embeds: [endEmbed] });
+            if (ch && 'send' in ch) await (ch as TextChannel).send(v2Payload([endContainer]));
           } catch {}
           try {
             const otherGuild = interaction.client.guilds.cache.get(match.guildId);
             if (otherGuild) {
               const textCh = findTextChannel(otherGuild);
-              if (textCh) await textCh.send({ embeds: [endEmbed] });
+              if (textCh) await textCh.send(v2Payload([endContainer]));
             }
           } catch {}
         }
@@ -271,8 +273,8 @@ async function handleStart(interaction: ChatInputCommandInteraction): Promise<vo
     // No match — join the queue
     await joinVoiceQueue(guild.id, voiceChannel.id, guild.name);
 
-    const embed = buildSearchingEmbed();
-    await interaction.editReply({ embeds: [embed] });
+    const container = buildSearchingContainer();
+    await interaction.editReply(v2Payload([container]));
   }
 }
 
@@ -321,9 +323,9 @@ async function handleHangup(interaction: ChatInputCommandInteraction): Promise<v
   await setCooldown(call.side1.guildId, call.side1.voiceChannelId);
   await setCooldown(call.side2.guildId, call.side2.voiceChannelId);
 
-  // Send "Call Ended" embed
-  const embed = buildCallEndedEmbed(duration, 'Hung up');
-  await interaction.editReply({ embeds: [embed] });
+  // Send "Call Ended" container
+  const container = buildCallEndedContainer(duration, 'Hung up');
+  await interaction.editReply(v2Payload([container]));
 
   // Notify the other side
   const otherSide = getOtherSide(call, voiceChannel.id);
@@ -340,8 +342,8 @@ async function handleHangup(interaction: ChatInputCommandInteraction): Promise<v
           .first() as TextChannel | undefined;
 
         if (textChannel) {
-          const otherEmbed = buildCallEndedEmbed(duration, 'The other server hung up');
-          await textChannel.send({ embeds: [otherEmbed] });
+          const otherContainer = buildCallEndedContainer(duration, 'The other server hung up');
+          await textChannel.send(v2Payload([otherContainer]));
         }
       }
     } catch {
@@ -382,30 +384,28 @@ async function handleStatus(interaction: ChatInputCommandInteraction): Promise<v
   const elapsed = Math.floor((Date.now() - call.startedAt) / 1000);
   const remaining = call.maxDuration > 0 ? Math.max(0, call.maxDuration - elapsed) : 0;
 
-  const embed = new EmbedBuilder()
-    .setColor(0x2ECC71)
-    .setTitle('📞 Voice Call Status')
-    .addFields(
-      {
-        name: 'Connected To',
-        value: config.showServerName && otherSide
-          ? `**${otherSide.guildName}**`
-          : 'Another server',
-        inline: true,
-      },
-      {
-        name: 'Duration',
-        value: `**${formatDuration(elapsed)}**`,
-        inline: true,
-      },
-      {
-        name: 'Time Remaining',
-        value: call.maxDuration > 0
-          ? `**${formatDuration(remaining)}**`
-          : '**Unlimited**',
-        inline: true,
-      },
-    );
+  const container = moduleContainer('voicephone');
+  const fields: any[] = [
+    {
+      name: 'Connected To',
+      value: config.showServerName && otherSide
+        ? `**${otherSide.guildName}**`
+        : 'Another server',
+      inline: true,
+    },
+    {
+      name: 'Duration',
+      value: `**${formatDuration(elapsed)}**`,
+      inline: true,
+    },
+    {
+      name: 'Time Remaining',
+      value: call.maxDuration > 0
+        ? `**${formatDuration(remaining)}**`
+        : '**Unlimited**',
+      inline: true,
+    },
+  ];
 
   if (relay) {
     const side1Speakers = relay.getSpeakerCount('side1');
@@ -413,7 +413,7 @@ async function handleStatus(interaction: ChatInputCommandInteraction): Promise<v
     const mySide = relay.side1.voiceChannelId === voiceChannel.id ? 'side1' : 'side2';
     const theirSide = mySide === 'side1' ? 'side2' : 'side1';
 
-    embed.addFields(
+    fields.push(
       {
         name: 'Your Side — Active Speakers',
         value: `**${mySide === 'side1' ? side1Speakers : side2Speakers}** / ${config.maxSpeakersPerSide}`,
@@ -432,11 +432,11 @@ async function handleStatus(interaction: ChatInputCommandInteraction): Promise<v
     );
   }
 
-  embed
-    .setFooter({ text: `Call ID: ${call.callId}` })
-    .setTimestamp();
+  addText(container, '### 📞 Voice Call Status');
+  addFields(container, fields);
+  addText(container, `-# Call ID: ${call.callId}`);
 
-  await interaction.reply({ embeds: [embed] });
+  await interaction.reply(v2Payload([container]));
 }
 
 // ===========================
@@ -489,8 +489,8 @@ async function handleAppeal(interaction: ChatInputCommandInteraction): Promise<v
     await extendClipRetention(appeal.audioClipIds);
   }
 
-  const embed = buildAppealEmbed(appeal.appealId, appeal.audioClipIds.length);
-  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+  const container = buildAppealContainer(appeal.appealId, appeal.audioClipIds.length);
+  await interaction.reply({ ...v2Payload([container]), flags: MessageFlags.Ephemeral });
 }
 
 // ===========================

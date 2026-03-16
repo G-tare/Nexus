@@ -25,6 +25,7 @@ import {
   CachedRole,
   CachedMember,
 } from '../../Shared/src/cache/guildCacheSync';
+import { registerTicketDmListener } from '../../Shared/src/handlers/botTicketDmHandler';
 
 const logger = createModuleLogger('Bot');
 
@@ -296,10 +297,12 @@ function setupEventHandlers() {
           await db.insert(guilds).values({
             id: guild.id,
             name: guild.name,
+            icon: guild.icon,
             ownerId: guild.ownerId,
+            memberCount: guild.memberCount,
           }).onConflictDoUpdate({
             target: guilds.id,
-            set: { name: guild.name, ownerId: guild.ownerId, isActive: true, leftAt: null },
+            set: { name: guild.name, icon: guild.icon, ownerId: guild.ownerId, memberCount: guild.memberCount, isActive: true, leftAt: null },
           });
           synced++;
         }
@@ -314,6 +317,13 @@ function setupEventHandlers() {
       } catch (err: any) {
         logger.error('Failed to sync guild cache to Redis', { error: err.message });
       }
+
+      // Register ticket DM listener for bot-level ticket responses
+      try {
+        await registerTicketDmListener(readyClient);
+      } catch (err: any) {
+        logger.error('Failed to register ticket DM listener', { error: err.message });
+      }
     });
   });
 
@@ -325,10 +335,12 @@ function setupEventHandlers() {
       await db.insert(guilds).values({
         id: guild.id,
         name: guild.name,
+        icon: guild.icon,
         ownerId: guild.ownerId,
+        memberCount: guild.memberCount,
       }).onConflictDoUpdate({
         target: guilds.id,
-        set: { name: guild.name, ownerId: guild.ownerId, isActive: true, leftAt: null },
+        set: { name: guild.name, icon: guild.icon, ownerId: guild.ownerId, memberCount: guild.memberCount, isActive: true, leftAt: null },
       });
       logger.info(`Guild ${guild.name} (${guild.id}) saved to database`);
     } catch (err: any) {
@@ -372,6 +384,21 @@ function setupEventHandlers() {
     }
     // Clear Redis cache for the guild we left
     await clearGuildCache(guild.id);
+  });
+
+  client.on(Events.GuildUpdate, async (oldGuild, newGuild) => {
+    // Sync name, icon, owner, and member count changes to database
+    if (oldGuild.name !== newGuild.name || oldGuild.icon !== newGuild.icon || oldGuild.ownerId !== newGuild.ownerId || oldGuild.memberCount !== newGuild.memberCount) {
+      try {
+        const db = getDb();
+        await db.update(guilds)
+          .set({ name: newGuild.name, icon: newGuild.icon, ownerId: newGuild.ownerId, memberCount: newGuild.memberCount })
+          .where(eq(guilds.id, newGuild.id));
+        logger.info(`Guild updated: ${newGuild.name} (${newGuild.id})`);
+      } catch (err: any) {
+        logger.error('Failed to update guild in database', { error: err.message });
+      }
+    }
   });
 
   // ── Role events: keep Redis in sync when roles change ──

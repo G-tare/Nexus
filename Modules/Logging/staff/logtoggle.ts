@@ -1,11 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   inlineCode,
   bold,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, errorContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const EVENT_TYPES = {
   messages: [
@@ -187,13 +189,12 @@ const command: BotCommand = {
       config.enabledEvents[eventType] = enabled;
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const status = enabled ? '✓ Enabled' : '✗ Disabled';
-      const embed = new EmbedBuilder()
-        .setTitle(status)
-        .setDescription(`Event type ${inlineCode(eventTypeKebab)} is now ${enabled ? 'enabled' : 'disabled'}`)
-        .setColor(enabled ? 'Green' : 'Red');
+      const container = enabled
+        ? successContainer('Event Type Updated')
+        : errorContainer('Event Type Updated');
+      addText(container, `Event type ${inlineCode(eventTypeKebab)} is now ${enabled ? 'enabled' : 'disabled'}`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'category') {
@@ -206,13 +207,12 @@ const command: BotCommand = {
       });
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const status = enabled ? '✓ Enabled' : '✗ Disabled';
-      const embed = new EmbedBuilder()
-        .setTitle(status)
-        .setDescription(`Category ${inlineCode(categoryName)} is now ${enabled ? 'enabled' : 'disabled'} (${eventTypes.length} events)`)
-        .setColor(enabled ? 'Green' : 'Red');
+      const container = enabled
+        ? successContainer('Category Updated')
+        : errorContainer('Category Updated');
+      addText(container, `Category ${inlineCode(categoryName)} is now ${enabled ? 'enabled' : 'disabled'} (${eventTypes.length} events)`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'all') {
@@ -225,14 +225,13 @@ const command: BotCommand = {
       });
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const status = enabled ? '✓ Enabled' : '✗ Disabled';
+      const container = enabled
+        ? successContainer('All Events Updated')
+        : errorContainer('All Events Updated');
       const totalEvents = Object.values(EVENT_TYPES).flat().length;
-      const embed = new EmbedBuilder()
-        .setTitle(status)
-        .setDescription(`All logging is now ${enabled ? 'enabled' : 'disabled'} (${totalEvents} events)`)
-        .setColor(enabled ? 'Green' : 'Red');
+      addText(container, `All logging is now ${enabled ? 'enabled' : 'disabled'} (${totalEvents} events)`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
   },
 };

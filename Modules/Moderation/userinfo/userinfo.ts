@@ -1,8 +1,8 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, infoContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq } from 'drizzle-orm';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
@@ -49,9 +49,8 @@ export default {
       const memberData = dbData[0] || null;
 
       // Check if on watchlist
-      const redis = await getRedis();
       const watchlistSetKey = `watchlist:${guild.id}`;
-      const watchlistEntries = await redis.smembers(watchlistSetKey);
+      const watchlistEntries = cache.smembers(watchlistSetKey);
       let isWatchlisted = false;
 
       for (const entry of watchlistEntries) {
@@ -62,21 +61,21 @@ export default {
         }
       }
 
-      // Build embed
-      const embed = new EmbedBuilder()
-        .setColor(isWatchlisted ? Colors.Error : Colors.Info)
-        .setTitle(`User Info - ${targetUser.tag}`)
-        .setThumbnail(targetUser.displayAvatarURL({ size: 512 }))
-        .addFields(
-          { name: 'Username', value: targetUser.username, inline: true },
-          { name: 'Display Name', value: targetMember.displayName || 'None', inline: true },
-          { name: 'User ID', value: targetUser.id, inline: false },
-          { name: 'Account Created', value: discordTimestamp(new Date(targetUser.createdTimestamp)), inline: true },
-          { name: 'Joined Server', value: targetMember.joinedAt ? discordTimestamp(new Date(targetMember.joinedTimestamp!)) : 'Unknown', inline: true }
-        );
+      // Build container
+      const container = isWatchlisted
+        ? errorContainer(`User Info - ${targetUser.tag}`)
+        : infoContainer(`User Info - ${targetUser.tag}`);
+
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        { name: 'Username', value: targetUser.username, inline: true },
+        { name: 'Display Name', value: targetMember.displayName || 'None', inline: true },
+        { name: 'User ID', value: targetUser.id, inline: false },
+        { name: 'Account Created', value: discordTimestamp(new Date(targetUser.createdTimestamp)), inline: true },
+        { name: 'Joined Server', value: targetMember.joinedAt ? discordTimestamp(new Date(targetMember.joinedTimestamp!)) : 'Unknown', inline: true }
+      ];
 
       if (isWatchlisted) {
-        embed.addFields({ name: '⚠️ Watchlist Status', value: 'This user is on the server watchlist', inline: false });
+        fields.push({ name: '⚠️ Watchlist Status', value: 'This user is on the server watchlist', inline: false });
       }
 
       // Roles
@@ -87,32 +86,32 @@ export default {
 
       if (roles.length > 0) {
         const rolesText = roles.length > 10 ? roles.slice(0, 10).join(', ') + `\n+${roles.length - 10} more` : roles.join(', ');
-        embed.addFields({ name: `Roles (${roles.length})`, value: rolesText, inline: false });
+        fields.push({ name: `Roles (${roles.length})`, value: rolesText, inline: false });
       } else {
-        embed.addFields({ name: 'Roles', value: 'No roles', inline: false });
+        fields.push({ name: 'Roles', value: 'No roles', inline: false });
       }
 
       // Highest role
       const highestRole = targetMember.roles.highest;
       if (highestRole.id !== guild.id) {
-        embed.addFields({ name: 'Highest Role', value: `<@&${highestRole.id}>`, inline: true });
+        fields.push({ name: 'Highest Role', value: `<@&${highestRole.id}>`, inline: true });
       }
 
       // Boosting status
       const isBoosting = targetMember.premiumSince !== null;
-      embed.addFields({ name: 'Server Booster', value: isBoosting ? 'Yes' : 'No', inline: true });
+      fields.push({ name: 'Server Booster', value: isBoosting ? 'Yes' : 'No', inline: true });
 
       // Timeout status
       if (targetMember.isCommunicationDisabled()) {
         const timeoutUntil = targetMember.communicationDisabledUntil;
-        embed.addFields({ name: 'Timeout Until', value: discordTimestamp(timeoutUntil!), inline: true });
+        fields.push({ name: 'Timeout Until', value: discordTimestamp(timeoutUntil!), inline: true });
       } else {
-        embed.addFields({ name: 'Timeout Status', value: 'Not timed out', inline: true });
+        fields.push({ name: 'Timeout Status', value: 'Not timed out', inline: true });
       }
 
       // Database info if available
       if (memberData) {
-        embed.addFields(
+        fields.push(
           { name: 'Level', value: String(memberData.level || 0), inline: true },
           { name: 'XP', value: String(memberData.xp || 0), inline: true },
           { name: 'Coins', value: String(memberData.coins || 0), inline: true },
@@ -123,14 +122,14 @@ export default {
         );
       }
 
-      embed.setFooter({ text: `Requested by ${interaction.user.tag}` });
+      addFields(container, fields);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in userinfo command:', error);
-      await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while fetching user information')]
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('An error occurred while fetching user information')
+      ]));
     }
   }
 } as BotCommand;

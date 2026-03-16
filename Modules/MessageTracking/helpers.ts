@@ -1,5 +1,5 @@
-import { Guild, EmbedBuilder, TextChannel, Message } from 'discord.js';
-import { getRedis } from '../../Shared/src/database/connection';
+import { Guild, TextChannel, Message } from 'discord.js';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
@@ -56,7 +56,6 @@ export async function setMessageTrackingConfig(guildId: string, updates: Partial
 // ── Snipe Storage ───────────────────────────────────────────────────────────
 
 export async function storeDeletedMessage(guildId: string, channelId: string, message: Message): Promise<void> {
-  const redis = getRedis();
   const key = `snipe:deleted:${guildId}:${channelId}`;
 
   try {
@@ -78,14 +77,13 @@ export async function storeDeletedMessage(guildId: string, channelId: string, me
       deletedAt: Date.now(),
     };
 
-    await redis.setex(key, config.snipeTimeout, JSON.stringify(messageData));
+    await cache.set(key, messageData, config.snipeTimeout);
   } catch (error) {
     logger.error(`Failed to store deleted message for snipe in ${guildId}:${channelId}:`, error);
   }
 }
 
 export async function storeEditedMessage(guildId: string, channelId: string, oldMessage: Message, newMessage: Message): Promise<void> {
-  const redis = getRedis();
   const key = `snipe:edited:${guildId}:${channelId}`;
 
   try {
@@ -103,19 +101,18 @@ export async function storeEditedMessage(guildId: string, channelId: string, old
       editedAt: newMessage.editedTimestamp || Date.now(),
     };
 
-    await redis.setex(key, config.snipeTimeout, JSON.stringify(editData));
+    await cache.set(key, editData, config.snipeTimeout);
   } catch (error) {
     logger.error(`Failed to store edited message for editsnipe in ${guildId}:${channelId}:`, error);
   }
 }
 
 export async function getLastDeletedMessage(guildId: string, channelId: string): Promise<any | null> {
-  const redis = getRedis();
   const key = `snipe:deleted:${guildId}:${channelId}`;
 
   try {
-    const data = await redis.get(key);
-    return data ? JSON.parse(data) : null;
+    const data = await cache.get<any>(key);
+    return data;
   } catch (error) {
     logger.error(`Failed to retrieve deleted message for snipe:`, error);
     return null;
@@ -123,12 +120,11 @@ export async function getLastDeletedMessage(guildId: string, channelId: string):
 }
 
 export async function getLastEditedMessage(guildId: string, channelId: string): Promise<any | null> {
-  const redis = getRedis();
   const key = `snipe:edited:${guildId}:${channelId}`;
 
   try {
-    const data = await redis.get(key);
-    return data ? JSON.parse(data) : null;
+    const data = await cache.get<any>(key);
+    return data;
   } catch (error) {
     logger.error(`Failed to retrieve edited message for editsnipe:`, error);
     return null;
@@ -156,7 +152,7 @@ export function checkGhostPing(message: Message): {
 
 // ── Logging ─────────────────────────────────────────────────────────────────
 
-export async function logToChannel(guild: Guild, embed: EmbedBuilder): Promise<void> {
+export async function logToChannel(guild: Guild, logData: { title: string; description: string; color: string; fields?: Array<{ name: string; value: string; inline?: boolean }>; thumbnail?: string | null; timestamp?: Date }): Promise<void> {
   try {
     const config = await getMessageTrackingConfig(guild.id);
     if (!config.logChannelId) return;
@@ -167,7 +163,19 @@ export async function logToChannel(guild: Guild, embed: EmbedBuilder): Promise<v
       return;
     }
 
-    await (logChannel as TextChannel).send({ embeds: [embed] });
+    // Build V2 container for logging
+    const { moduleContainer, addText, addFields: addFieldsFunc, addSectionWithThumbnail, v2Payload } = require('../../../Shared/src/utils/componentsV2');
+    const container = moduleContainer('message_tracking');
+
+    addText(container, `### ${logData.title}\n${logData.description}`);
+    if (logData.fields && logData.fields.length > 0) {
+      addFieldsFunc(container, logData.fields);
+    }
+    if (logData.thumbnail) {
+      // Note: Thumbnail is added to a section, we'll adjust this in the text instead
+    }
+
+    await (logChannel as TextChannel).send(v2Payload([container]));
   } catch (error) {
     logger.error(`Failed to log to channel in guild ${guild.id}:`, error);
   }

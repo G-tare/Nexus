@@ -5,8 +5,7 @@ import {
   getAutoRolesConfig,
   getAutoRoleRules,
   evaluateCondition,
-  queueDelayedRole,
-  processDelayedRoles,
+  queueDelayedRoleWithGuild,
   saveMemberRoles,
   restoreMemberRoles,
   logAutoRole,
@@ -71,8 +70,8 @@ const memberJoinHandler: ModuleEvent = { event: Events.GuildMemberAdd,
       }
 
       if (rule.delaySeconds > 0) {
-        // Queue for later
-        await queueDelayedRole(guildId, member.id, rule.roleId, rule.delaySeconds, rule.id);
+        // Queue for later using TimerManager (in-memory, no polling)
+        queueDelayedRoleWithGuild(member.guild, member.id, rule.roleId, rule.delaySeconds, rule.id);
         logger.debug('Auto-role queued (delayed)', {
           guild: guildId,
           member: member.id,
@@ -168,26 +167,12 @@ const memberUpdateHandler: ModuleEvent = { event: Events.GuildMemberUpdate,
 };
 
 /**
- * On ready: start delayed role processing interval.
+ * On ready: log that delayed roles now use TimerManager (no polling needed).
  */
 const readyHandler: ModuleEvent = { event: Events.ClientReady,
   once: true,
   async handler(client: Client) {
-    logger.info('Starting delayed role processor');
-
-    // Process delayed roles every 30 seconds
-    setInterval(async () => {
-      for (const guild of client.guilds.cache.values()) {
-        try {
-          const processed = await processDelayedRoles(guild);
-          if (processed > 0) {
-            logger.debug('Processed delayed roles', { guild: guild.id, count: processed });
-          }
-        } catch (err: any) {
-          logger.error('Delayed role processing error', { guild: guild.id, error: err.message });
-        }
-      }
-    }, 30_000);
+    logger.info('AutoRoles ready — delayed roles use TimerManager (no polling)');
   },
 };
 

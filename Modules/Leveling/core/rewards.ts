@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorReply, moduleContainer, addText, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getLevelingConfig } from '../helpers';
 
 const command: BotCommand = {
@@ -19,12 +19,7 @@ const command: BotCommand = {
       const guildId = interaction.guildId!;
 
       if (!guildId) {
-        return interaction.editReply({
-          embeds: [
-            errorEmbed('Error', 'This command can only be used in a server.')
-              .setColor(Colors.Error)
-          ]
-        });
+        return interaction.editReply(errorReply('Error', 'This command can only be used in a server.'));
       }
 
       const config = await getLevelingConfig(guildId);
@@ -34,16 +29,10 @@ const command: BotCommand = {
       const sortedRoles = [...config.levelRoles].sort((a, b) => a.level - b.level);
 
       if (sortedRoles.length === 0) {
-        return interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Leveling)
-              .setTitle('Level Role Rewards')
-              .setDescription('No level rewards have been set up yet.')
-              .setFooter({ text: guild.name, iconURL: guild.iconURL() || undefined })
-              .setTimestamp()
-          ]
-        });
+        const container = moduleContainer('leveling');
+        addText(container, '### Level Role Rewards\nNo level rewards have been set up yet.');
+        addFooter(container, guild.name);
+        return interaction.editReply(v2Payload([container]));
       }
 
       // Build rewards list
@@ -56,29 +45,20 @@ const command: BotCommand = {
         ? 'Roles stack (you keep all earned roles)'
         : 'Roles replace (you only have the highest level role)';
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Leveling)
-        .setTitle('Level Role Rewards')
-        .setDescription(description)
-        .addFields(
-          {
-            name: 'Stack Mode',
-            value: stackStatus,
-            inline: false
-          }
-        )
-        .setFooter({ text: guild.name, iconURL: guild.iconURL() || undefined })
-        .setTimestamp();
+      const container = moduleContainer('leveling');
+      addText(container, `### Level Role Rewards\n${description}`);
+      addFields(container, [
+        {
+          name: 'Stack Mode',
+          value: stackStatus,
+        }
+      ]);
+      addFooter(container, guild.name);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Rewards Command Error]', error);
-      return interaction.editReply({
-        embeds: [
-          errorEmbed('Error', 'An error occurred while fetching the rewards.')
-            .setColor(Colors.Error)
-        ]
-      });
+      return interaction.editReply(errorReply('Error', 'An error occurred while fetching the rewards.'));
     }
   }
 };

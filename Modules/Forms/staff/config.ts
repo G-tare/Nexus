@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ChannelSelectMenuBuilder, ActionRowBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ChannelSelectMenuBuilder, ActionRowBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormConfig, updateFormConfig } from '../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -57,17 +58,14 @@ const command: BotCommand = {
 
       switch (subcommand) {
         case 'view': {
-          const embed = new EmbedBuilder()
-            .setTitle('Form Configuration')
-            .setColor('#5865F2')
-            .addFields(
-              { name: 'Module Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-              { name: 'Require Approval', value: config.requireApproval ? '✅ Yes' : '❌ No', inline: true },
-              { name: 'Notification Channel', value: config.notificationChannelId ? `<#${config.notificationChannelId}>` : 'Not set', inline: false }
-            )
-            .setTimestamp();
+          const container = moduleContainer('forms');
+          addFields(container, [
+            { name: 'Module Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+            { name: 'Require Approval', value: config.requireApproval ? '✅ Yes' : '❌ No', inline: true },
+            { name: 'Notification Channel', value: config.notificationChannelId ? `<#${config.notificationChannelId}>` : 'Not set', inline: false }
+          ]);
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(v2Payload([container]));
           break;
         }
 

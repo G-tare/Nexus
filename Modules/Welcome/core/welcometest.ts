@@ -1,19 +1,18 @@
-import { 
+import {
 	SlashCommandBuilder,
 	ChatInputCommandInteraction,
 	PermissionFlagsBits,
-	EmbedBuilder,
-	AttachmentBuilder, MessageFlags } from 'discord.js';
+	AttachmentBuilder, MessageFlags, ContainerBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
 	getWelcomeConfig,
-	buildWelcomeEmbed,
-	buildLeaveEmbed,
-	buildDmEmbed,
+	buildWelcomeContainer,
+	buildLeaveContainer,
+	buildDmContainer,
 	replacePlaceholders,
 	generateWelcomeImage,
 } from '../helpers';
-import { Colors, infoEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorReply, v2Payload, moduleContainer, addText } from '../../../Shared/src/utils/componentsV2';
 
 export default {
 	data: new SlashCommandBuilder()
@@ -44,16 +43,16 @@ export default {
 		try {
 			const guild = interaction.guild;
 			if (!guild) {
-				return await interaction.editReply({
-					embeds: [errorEmbed('This command can only be used in a server.')],
-				});
+				return await interaction.editReply(
+					errorReply('Error', 'This command can only be used in a server.')
+				);
 			}
 
 			let member: any = interaction.member;
 			if (!member) {
-				return await interaction.editReply({
-					embeds: [errorEmbed('Unable to fetch member information.')],
-				});
+				return await interaction.editReply(
+					errorReply('Error', 'Unable to fetch member information.')
+				);
 			}
 
 			// Ensure we have a real GuildMember
@@ -61,110 +60,98 @@ export default {
 				try {
 					member = await guild.members.fetch(interaction.user.id);
 				} catch {
-					return await interaction.editReply({
-						embeds: [errorEmbed('Unable to fetch member information.')],
-					});
+					return await interaction.editReply(
+						errorReply('Error', 'Unable to fetch member information.')
+					);
 				}
 			}
 
 			const type = interaction.options.getString('type', true);
 			const config = await getWelcomeConfig(guild.id);
 
-			const replies: string[] = [];
-			const embeds: EmbedBuilder[] = [];
+			const containers: ContainerBuilder[] = [];
 			const files: AttachmentBuilder[] = [];
 
 			// Welcome message
 			if (type === 'welcome' || type === 'all') {
-				replies.push('**Welcome Message Preview:**');
-
-				if (!config.welcome.enabled) {
-					replies.push('*(Currently disabled)*');
-				}
-
-				if ((config.welcome as any).embed.enabled) {
-					const welcomeEmbed = buildWelcomeEmbed(member, config.welcome);
-					embeds.push(welcomeEmbed);
-				}
-
-				if ((config.welcome as any).text) {
-					const welcomeText = replacePlaceholders((config.welcome as any).text, member);
-					replies.push(`\`\`\`${welcomeText}\`\`\``);
-				}
-
-				if ((config.welcome as any).image.enabled) {
-					try {
-						const attachment = await generateWelcomeImage(member);
-						if (attachment) {
-							files.push(attachment);
-						}
-						replies.push('*(Welcome image would be attached)*');
-					} catch (error) {
-						replies.push('*(Welcome image generation failed)*');
+				if (config.welcome.enabled) {
+					if (config.welcome.useEmbed) {
+						const welcomeContainer = buildWelcomeContainer(member, config.welcome);
+						containers.push(welcomeContainer);
+					} else {
+						const container = moduleContainer('welcome');
+						const welcomeText = replacePlaceholders(config.welcome.message, member);
+						addText(container, welcomeText);
+						containers.push(container);
 					}
-				}
 
-				replies.push('');
+					if (config.welcome.showImage) {
+						try {
+							const attachment = await generateWelcomeImage(member);
+							if (attachment) {
+								files.push(attachment);
+							}
+						} catch (error) {
+							// Silently fail on image generation
+						}
+					}
+				} else {
+					const container = moduleContainer('welcome');
+					addText(container, '**Welcome Message Preview:**\n*(Currently disabled)*');
+					containers.push(container);
+				}
 			}
 
 			// Leave message
 			if (type === 'leave' || type === 'all') {
-				replies.push('**Leave Message Preview:**');
-
-				if (!config.leave.enabled) {
-					replies.push('*(Currently disabled)*');
+				if (config.leave.enabled) {
+					if (config.leave.useEmbed) {
+						const leaveContainer = buildLeaveContainer(member, config.leave);
+						containers.push(leaveContainer);
+					} else {
+						const container = moduleContainer('welcome');
+						const leaveText = replacePlaceholders(config.leave.message, member);
+						addText(container, leaveText);
+						containers.push(container);
+					}
+				} else {
+					const container = moduleContainer('welcome');
+					addText(container, '**Leave Message Preview:**\n*(Currently disabled)*');
+					containers.push(container);
 				}
-
-				if ((config.leave as any).embed.enabled) {
-					const leaveEmbed = buildLeaveEmbed(member, config.leave);
-					embeds.push(leaveEmbed);
-				}
-
-				if ((config.leave as any).text) {
-					const leaveText = replacePlaceholders((config.leave as any).text, member);
-					replies.push(`\`\`\`${leaveText}\`\`\``);
-				}
-
-				replies.push('');
 			}
 
 			// DM message
 			if (type === 'dm' || type === 'all') {
-				replies.push('**DM Message Preview:**');
-
-				if (!config.dm.enabled) {
-					replies.push('*(Currently disabled)*');
+				if (config.dm.enabled) {
+					if (config.dm.useEmbed) {
+						const dmContainer = buildDmContainer(member, config.dm);
+						containers.push(dmContainer);
+					} else {
+						const container = moduleContainer('welcome');
+						const dmText = replacePlaceholders(config.dm.message, member);
+						addText(container, dmText);
+						containers.push(container);
+					}
+					const container = moduleContainer('welcome');
+					addText(container, '*(This message would be sent as a DM, not shown in channel)*');
+					containers.push(container);
+				} else {
+					const container = moduleContainer('welcome');
+					addText(container, '**DM Message Preview:**\n*(Currently disabled)*');
+					containers.push(container);
 				}
-
-				if ((config.dm as any).embed.enabled) {
-					const dmEmbed = buildDmEmbed(member, config.dm);
-					embeds.push(dmEmbed);
-				}
-
-				if ((config.dm as any).text) {
-					const dmText = replacePlaceholders((config.dm as any).text, member);
-					replies.push(`\`\`\`${dmText}\`\`\``);
-				}
-
-				replies.push('*(This message would be sent as a DM, not shown in channel)*');
 			}
 
-			const content = replies.join('\n');
-
-			await interaction.editReply({
-				content: content || undefined,
-				embeds: embeds.length > 0 ? embeds : undefined,
-				files: files.length > 0 ? files : undefined,
-			});
+			await interaction.editReply(v2Payload(containers, files.length > 0 ? files : undefined));
 		} catch (error) {
 			console.error('Error in welcometest command:', error);
-			await interaction.editReply({
-				embeds: [
-					errorEmbed(
-						'An error occurred while generating the preview. Please check your welcome configuration.'
-					),
-				],
-			});
+			await interaction.editReply(
+				errorReply(
+					'Error',
+					'An error occurred while generating the preview. Please check your welcome configuration.'
+				)
+			);
 		}
 	},
 } as BotCommand;

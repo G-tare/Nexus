@@ -87,11 +87,12 @@ export const customCommandsEvents: ModuleEvent[] = [
 
         // Send response
         if (cmd.embedResponse) {
-          const { EmbedBuilder } = await import('discord.js');
-          const embed = new EmbedBuilder()
-            .setDescription(response)
-            .setColor('#5865F2');
-          await (message.channel as any).send({ embeds: [embed] });
+          const { ContainerBuilder, TextDisplayBuilder, MessageFlags } = await import('discord.js');
+          const { v2Payload } = await import('../../Shared/src/utils/componentsV2');
+          const container = new ContainerBuilder().setAccentColor(0x5865F2);
+          container.addTextDisplayComponents(new TextDisplayBuilder().setContent(response));
+          const payload = v2Payload([container]);
+          await (message.channel as any).send(payload);
         } else {
           await (message.channel as any).send(response);
         }

@@ -1,10 +1,10 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addSeparator, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getLastDeletedMessage } from '../helpers';
 
 const logger = createModuleLogger('MessageTracking');
@@ -49,24 +49,21 @@ const command: BotCommand = {
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor('#36393F')
-        .setTitle('Sniped Message')
-        .setDescription(deletedMessage.content || '*(no text)*')
-        .setAuthor({ name: deletedMessage.authorName, iconURL: deletedMessage.authorAvatar })
-        .setFooter({ text: `Message was deleted ${new Date(deletedMessage.deletedAt).toLocaleString()}` })
-        .setTimestamp(deletedMessage.timestamp);
+      const container = moduleContainer('message_tracking');
+      addText(container, `### Sniped Message\n**Author:** ${deletedMessage.authorName}\n\n${deletedMessage.content || '*(no text)*'}`);
 
       if (deletedMessage.embeds && deletedMessage.embeds.length > 0) {
-        embed.addFields({ name: 'Embedded Content', value: `${deletedMessage.embeds.length} embed(s)`, inline: false });
+        addText(container, `**Embedded Content:** ${deletedMessage.embeds.length} embed(s)`);
       }
 
       if (deletedMessage.attachments && deletedMessage.attachments.length > 0) {
         const attachmentList = deletedMessage.attachments.map((a: any) => `[${a.name}](${a.url})`).join('\n');
-        embed.addFields({ name: 'Attachments', value: attachmentList, inline: false });
+        addText(container, `**Attachments**\n${attachmentList}`);
       }
 
-      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      addFooter(container, `Message was deleted ${new Date(deletedMessage.deletedAt).toLocaleString()}`);
+
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error executing snipe command:', error);
       await interaction.reply({ content: '❌ An error occurred while retrieving the sniped message.', flags: MessageFlags.Ephemeral });

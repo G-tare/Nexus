@@ -2,7 +2,7 @@ import { BotModule } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { musicEvents } from './events';
 
-// Import all 30 commands
+// Import all 39 commands
 // Playback commands (10)
 import play from './playback/play';
 import pause from './playback/pause';
@@ -24,11 +24,22 @@ import move from './queue/move';
 import clear from './queue/clear';
 import skipto from './queue/skipto';
 
-// Controls (4)
+// Controls (3) — filters moved to effects
 import volume from './controls/volume';
-import filters from './controls/filters';
 import autoplay from './controls/autoplay';
 import voteskip from './controls/voteskip';
+
+// Effects (10)
+import effect8d from './effects/8d';
+import bassboost from './effects/bassboost';
+import lofi from './effects/lofi';
+import karaoke from './effects/karaoke';
+import nightcore from './effects/nightcore';
+import lowpass from './effects/lowpass';
+import timescale from './effects/timescale';
+import vaporwave from './effects/vaporwave';
+import slowmode from './effects/slowmode';
+import clearfilter from './effects/clearfilter';
 
 // Playlist (3)
 import playlist from './playlist/playlist';
@@ -43,6 +54,11 @@ import songinfo from './info/songinfo';
 import djrole from './staff/djrole';
 import musicconfig from './staff/musicconfig';
 import forceplay from './staff/forceplay';
+
+// Radio (3)
+import radioPlay from './radio/play';
+import radioStop from './radio/stop';
+import radioList from './radio/list';
 
 const logger = createModuleLogger('Music');
 
@@ -123,11 +139,22 @@ const musicModule: BotModule = {
     clear,
     skipto,
 
-    // Controls (4)
+    // Controls (3)
     volume,
-    filters,
     autoplay,
     voteskip,
+
+    // Effects (10)
+    effect8d,
+    bassboost,
+    lofi,
+    karaoke,
+    nightcore,
+    lowpass,
+    timescale,
+    vaporwave,
+    slowmode,
+    clearfilter,
 
     // Playlist (3)
     playlist,
@@ -142,6 +169,11 @@ const musicModule: BotModule = {
     djrole,
     musicconfig,
     forceplay,
+
+    // Radio (3)
+    radioPlay,
+    radioStop,
+    radioList,
   ],
 
   events: musicEvents,
@@ -149,7 +181,7 @@ const musicModule: BotModule = {
   defaultConfig: DEFAULT_MUSIC_CONFIG,
 
   async onLoad() {
-    logger.info('Music module loaded — 30 commands');
+    logger.info('Music module loaded — 42 commands');
   },
 };
 

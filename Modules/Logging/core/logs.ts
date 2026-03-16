@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ContainerBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { infoContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -34,29 +34,25 @@ const command: BotCommand = {
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const embed = new EmbedBuilder()
-      .setTitle('Logging Configuration Overview')
-      .setDescription(
-        'Logs are sent to configured channels. Use `/logconfig` to view or modify channel assignments.',
-      )
-      .addFields(
-        {
-          name: '📊 How to Use Logs',
-          value: [
-            '• Logs are automatically sent to designated channels',
-            '• Use `/logchannel` to set channels per event type',
-            '• Use `/logignore` to exclude channels, roles, or users',
-            '• Use `/logtoggle` to enable/disable specific event types',
-          ].join('\n'),
-        },
-        {
-          name: '📍 View Configuration',
-          value: 'Run `/logconfig` to see all logging setup details',
-        },
-      )
-      .setColor(Colors.Primary);
+    const container = infoContainer('Logging Configuration Overview');
 
-    await interaction.editReply({ embeds: [embed] });
+    addFields(container, [
+      {
+        name: '📊 How to Use Logs',
+        value: [
+          '• Logs are automatically sent to designated channels',
+          '• Use `/logchannel` to set channels per event type',
+          '• Use `/logignore` to exclude channels, roles, or users',
+          '• Use `/logtoggle` to enable/disable specific event types',
+        ].join('\n'),
+      },
+      {
+        name: '📍 View Configuration',
+        value: 'Run `/logconfig` to see all logging setup details',
+      },
+    ]);
+
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

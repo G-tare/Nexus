@@ -1,8 +1,8 @@
-import { GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ColorResolvable } from 'discord.js';
+import { GuildMember, ContainerBuilder, TextDisplayBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
-import { Colors } from '../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addMediaGallery, v2Payload } from '../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('Fun');
@@ -57,10 +57,12 @@ export async function checkCooldown(
   command: string
 ): Promise<number> {
   try {
-    const redis = getRedis();
     const cooldownKey = `fun:cooldown:${guildId}:${userId}:${command}`;
-    const ttl = await redis.ttl(cooldownKey);
-    return ttl > 0 ? ttl : 0;
+    if (!cache.has(cooldownKey)) return 0;
+    const data = cache.get<{ timestamp: number }>(cooldownKey);
+    if (!data) return 0;
+    const remaining = Math.max(0, Math.ceil((data.timestamp - Date.now()) / 1000));
+    return remaining;
   } catch (error) {
     logger.error(`Error checking cooldown for ${userId}/${command}`, error);
     return 0;
@@ -77,9 +79,8 @@ export async function setCooldown(
   seconds: number
 ): Promise<void> {
   try {
-    const redis = getRedis();
     const cooldownKey = `fun:cooldown:${guildId}:${userId}:${command}`;
-    await redis.setex(cooldownKey, seconds, '1');
+    cache.set(cooldownKey, { timestamp: Date.now() + seconds * 1000 }, seconds);
   } catch (error) {
     logger.error(`Error setting cooldown for ${userId}/${command}`, error);
   }
@@ -196,39 +197,37 @@ export async function getRandomGif(query: string): Promise<string> {
 }
 
 /**
- * Build a standard game embed
+ * Build a standard game container
  */
-export function buildGameEmbed(
+export function buildGameContainer(
   title: string,
-  description: string,
-  color: ColorResolvable = Colors.Primary
-): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setColor(color)
-    .setTimestamp();
+  description: string
+): ContainerBuilder {
+  const container = moduleContainer('fun');
+  addText(container, `### ${title}`);
+  if (description) {
+    addText(container, description);
+  }
+  return container;
 }
 
 /**
- * Build an interaction embed (e.g., "X hugged Y")
+ * Build an interaction container (e.g., "X hugged Y")
  */
-export function buildInteractionEmbed(
+export function buildInteractionContainer(
   user: GuildMember,
   target: GuildMember,
   action: string,
   gifUrl?: string
-): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`${user.displayName} ${action} ${target.displayName}`)
-    .setColor(Colors.Primary)
-    .setTimestamp();
+): ContainerBuilder {
+  const container = moduleContainer('fun');
+  addText(container, `### ${user.displayName} ${action} ${target.displayName}`);
 
   if (gifUrl) {
-    embed.setImage(gifUrl);
+    addMediaGallery(container, [{ url: gifUrl }]);
   }
 
-  return embed;
+  return container;
 }
 
 /**

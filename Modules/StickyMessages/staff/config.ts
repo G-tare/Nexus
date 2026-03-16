@@ -67,7 +67,7 @@ const stickyConfigCommand: BotCommand = {
             .setRequired(true)
         )
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction: any, db: any) {
     try {

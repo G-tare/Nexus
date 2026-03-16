@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('levelroles')
     .setDescription('Manage level-based role rewards')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('add')

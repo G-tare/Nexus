@@ -1,11 +1,10 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBoardConfig, getBoardStats } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   data: new SlashCommandBuilder()
@@ -52,24 +51,27 @@ export default {
 
       const stats = await getBoardStats(interaction.guildId!, selectedBoard.id);
 
-      const embed = new EmbedBuilder()
-        .setTitle(`${selectedBoard.emoji} ${selectedBoard.name} Statistics`)
-        .setColor(selectedBoard.color as any)
-        .addFields({
+      const container = moduleContainer('quote_board');
+      addText(container, `### ${selectedBoard.emoji} ${selectedBoard.name} Statistics`);
+      addFields(container, [
+        {
           name: 'Total Messages',
           value: stats.totalMessages.toString(),
           inline: true,
-        });
+        },
+      ]);
 
       if (stats.mostStarredMessage) {
         const author = await interaction.client.users.fetch(
           stats.mostStarredMessage.authorId
         );
-        embed.addFields({
-          name: 'Most Starred Message',
-          value: `**${stats.mostStarredMessage.reactionCount}** ${selectedBoard.emoji} from ${author.username}\n[Jump to Message](https://discord.com/channels/${stats.mostStarredMessage.guildId}/${stats.mostStarredMessage.originalChannelId}/${stats.mostStarredMessage.originalMessageId})`,
-          inline: false,
-        });
+        addFields(container, [
+          {
+            name: 'Most Starred Message',
+            value: `**${stats.mostStarredMessage.reactionCount}** ${selectedBoard.emoji} from ${author.username}\n[Jump to Message](https://discord.com/channels/${stats.mostStarredMessage.guildId}/${stats.mostStarredMessage.originalChannelId}/${stats.mostStarredMessage.originalMessageId})`,
+            inline: false,
+          },
+        ]);
       }
 
       if (stats.topAuthors.length > 0) {
@@ -84,15 +86,16 @@ export default {
           })
         );
 
-        embed.addFields({
-          name: 'Top Authors',
-          value: topAuthorsText.join('\n'),
-          inline: false,
-        });
+        addFields(container, [
+          {
+            name: 'Top Authors',
+            value: topAuthorsText.join('\n'),
+            inline: false,
+          },
+        ]);
       }
 
-      embed.setTimestamp();
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in board command:', error);
       await interaction.editReply({

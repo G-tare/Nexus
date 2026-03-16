@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
 
 const command: BotCommand = {
@@ -37,14 +37,11 @@ const command: BotCommand = {
       return `**${m.user.tag}** (${m.id}) — ${timeStr}`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Moderation)
-      .setTitle('Currently Muted Users')
-      .setDescription(lines.join('\n').slice(0, 4096))
-      .setFooter({ text: `${muted.size} user(s) muted` })
-      .setTimestamp();
+    const container = moduleContainer('moderation');
+    addText(container, `### Currently Muted Users\n${lines.join('\n').slice(0, 4096)}`);
+    addFooter(container, `${muted.size} user(s) muted`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

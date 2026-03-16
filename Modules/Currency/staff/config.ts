@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer } from '../../../Shared/src/utils/componentsV2';
 import { getCurrencyConfig, CurrencyType } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -173,6 +173,132 @@ export default {
             .setMaxValue(50)
         )
     )
+    .addSubcommand((sub) =>
+      sub
+        .setName('banking')
+        .setDescription('Toggle banking system')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('savings')
+        .setDescription('Toggle savings accounts')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('robbery')
+        .setDescription('Toggle rob command')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('earning')
+        .setDescription('Toggle all earning actions')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('jobs')
+        .setDescription('Toggle job system')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('job-slacking')
+        .setDescription('Toggle game-slacking detection')
+        .addBooleanOption((option) =>
+          option.setName('enabled').setDescription('Enable or disable').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('slacking-threshold')
+        .setDescription('Game commands before boss notices')
+        .addIntegerOption((option) =>
+          option
+            .setName('threshold')
+            .setDescription('Threshold (5-100)')
+            .setRequired(true)
+            .setMinValue(5)
+            .setMaxValue(100)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('jail-duration')
+        .setDescription('Jail duration in seconds')
+        .addIntegerOption((option) =>
+          option
+            .setName('duration')
+            .setDescription('Duration in seconds (60-3600)')
+            .setRequired(true)
+            .setMinValue(60)
+            .setMaxValue(3600)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('crime-fine-multiplier')
+        .setDescription('Fine multiplier for failed crimes')
+        .addNumberOption((option) =>
+          option
+            .setName('multiplier')
+            .setDescription('Multiplier (0.5-3.0)')
+            .setRequired(true)
+            .setMinValue(0.5)
+            .setMaxValue(3.0)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('rob-chance')
+        .setDescription('Base robbery success chance %')
+        .addIntegerOption((option) =>
+          option
+            .setName('percentage')
+            .setDescription('Percentage (10-80)')
+            .setRequired(true)
+            .setMinValue(10)
+            .setMaxValue(80)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('monthly-amount')
+        .setDescription('Monthly bonus coin amount')
+        .addIntegerOption((option) =>
+          option
+            .setName('amount')
+            .setDescription('Amount in coins')
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(100000)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('monthly-gems')
+        .setDescription('Monthly bonus gem amount')
+        .addIntegerOption((option) =>
+          option
+            .setName('amount')
+            .setDescription('Amount in gems')
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(1000)
+        )
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     ,
 
@@ -198,14 +324,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Currency Name Updated`)
-          .addFields(
-            { name: 'Type', value: type, inline: true },
-            { name: 'Name', value: name, inline: true },
-            { name: 'Emoji', value: emoji, inline: true }
-          );
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Currency Name Updated', `**Type:** ${type}\n**Name:** ${name}\n**Emoji:** ${emoji}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'daily') {
@@ -216,13 +336,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Daily Reward Updated`)
-          .addFields(
-            { name: 'Type', value: type, inline: true },
-            { name: 'New Daily Amount', value: amount.toString(), inline: true }
-          );
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Daily Reward Updated', `**Type:** ${type}\n**New Daily Amount:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'weekly') {
@@ -233,13 +348,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Weekly Reward Updated`)
-          .addFields(
-            { name: 'Type', value: type, inline: true },
-            { name: 'New Weekly Amount', value: amount.toString(), inline: true }
-          );
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Weekly Reward Updated', `**Type:** ${type}\n**New Weekly Amount:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'send-cap') {
@@ -249,10 +359,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Send Cap Updated`)
-          .addFields({ name: 'New Send Cap', value: amount.toString(), inline: true });
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Send Cap Updated', `**New Send Cap:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'receive-cap') {
@@ -262,10 +370,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Receive Cap Updated`)
-          .addFields({ name: 'New Receive Cap', value: amount.toString(), inline: true });
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Receive Cap Updated', `**New Receive Cap:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'tax') {
@@ -275,10 +381,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Tax Updated`)
-          .addFields({ name: 'New Tax', value: `${percentage}%`, inline: true });
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Tax Updated', `**New Tax:** ${percentage}%`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'message-earn') {
@@ -290,14 +394,8 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Message Earn Updated`)
-          .addFields(
-            { name: 'Type', value: type, inline: true },
-            { name: 'Amount Per Message', value: amount.toString(), inline: true },
-            { name: 'Cooldown', value: `${cooldown}s`, inline: true }
-          );
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = successContainer('Message Earn Updated', `**Type:** ${type}\n**Amount Per Message:** ${amount}\n**Cooldown:** ${cooldown}s`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
 
       if (subcommand === 'voice-earn') {
@@ -308,18 +406,122 @@ export default {
 
         await moduleConfig.updateConfig(guildId, 'currency', config);
 
-        const embed = successEmbed(`Voice Earn Updated`)
-          .addFields(
-            { name: 'Type', value: type, inline: true },
-            { name: 'Amount Per Minute', value: amount.toString(), inline: true }
-          );
+        const container = successContainer('Voice Earn Updated', `**Type:** ${type}\n**Amount Per Minute:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
 
-        return interaction.editReply({ embeds: [embed] });
+      if (subcommand === 'banking') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).banking = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Banking System ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'savings') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).savings = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Savings Accounts ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'robbery') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).robbery = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Robbery System ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'earning') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).earning = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Earning Actions ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'jobs') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).jobs = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Job System ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'job-slacking') {
+        const enabled = interaction.options.getBoolean('enabled', true);
+        (config as any).jobSlacking = enabled;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer(`Job Slacking Detection ${enabled ? 'Enabled' : 'Disabled'}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'slacking-threshold') {
+        const threshold = interaction.options.getInteger('threshold', true);
+        (config as any).slackingThreshold = threshold;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Slacking Threshold Updated', `**New Threshold:** ${threshold}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'jail-duration') {
+        const duration = interaction.options.getInteger('duration', true);
+        (config as any).jailDuration = duration;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Jail Duration Updated', `**Duration:** ${duration}s`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'crime-fine-multiplier') {
+        const multiplier = interaction.options.getNumber('multiplier', true);
+        (config as any).crimeMultiplier = multiplier;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Crime Fine Multiplier Updated', `**Multiplier:** ${multiplier.toFixed(2)}x`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'rob-chance') {
+        const percentage = interaction.options.getInteger('percentage', true);
+        (config as any).robChance = percentage;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Robbery Success Chance Updated', `**Chance:** ${percentage}%`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'monthly-amount') {
+        const amount = interaction.options.getInteger('amount', true);
+        (config as any).monthlyAmount = amount;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Monthly Bonus Amount Updated', `**Coins:** ${amount.toLocaleString()}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
+      }
+
+      if (subcommand === 'monthly-gems') {
+        const amount = interaction.options.getInteger('amount', true);
+        (config as any).monthlyGems = amount;
+        await moduleConfig.updateConfig(guildId, 'currency', config);
+
+        const container = successContainer('Monthly Gems Bonus Updated', `**Gems:** ${amount}`);
+        return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
       }
     } catch (error) {
       console.error('Error in config command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while updating configuration.')],
+        components: [errorContainer('Error', 'An error occurred while updating configuration.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

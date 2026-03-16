@@ -1,13 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
-  EmbedBuilder,
-  Colors, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   saveFavorite,
   removeFavorite,
   getFavorites,
 } from '../helpers';
+import { successContainer, errorContainer, moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   name: 'favorites',
@@ -89,13 +89,10 @@ const command: BotCommand = {
 
           await saveFavorite(userId, currentTrack);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Added to Favorites')
-            .setDescription(`**${(currentTrack as any).title}** added to your favorites.`)
-            .setFooter({ text: `${favorites.length + 1}/500 favorites` });
+          const container = successContainer('Added to Favorites', `**${(currentTrack as any).title}** added to your favorites.`);
+          addFooter(container, `${favorites.length + 1}/500 favorites`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -139,12 +136,9 @@ const command: BotCommand = {
 
           await removeFavorite(userId, (trackToRemove as any).identifier);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Red)
-            .setTitle('Removed from Favorites')
-            .setDescription(`**${trackToRemove.title}** removed from your favorites.`);
+          const container = errorContainer('Removed from Favorites', `**${trackToRemove.title}** removed from your favorites.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -167,20 +161,11 @@ const command: BotCommand = {
             )
             .join('\n');
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Blue)
-            .setTitle('Your Favorite Tracks')
-            .setDescription(
-              tracks +
-                (favorites.length > 20
-                  ? `\n\n+${favorites.length - 20} more track(s)`
-                  : '')
-            )
-            .setFooter({
-              text: `${favorites.length}/500 favorites`,
-            });
+          const container = moduleContainer('music');
+          addText(container, `### Your Favorite Tracks\n${tracks}${favorites.length > 20 ? `\n\n+${favorites.length - 20} more track(s)` : ''}`);
+          addFooter(container, `${favorites.length}/500 favorites`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -198,14 +183,9 @@ const command: BotCommand = {
           // TODO: Add all favorites to queue
           // await player.queue.add(...favorites);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Favorites Queued')
-            .setDescription(
-              `Added all **${favorites.length}** favorite track(s) to the queue.`
-            );
+          const container = successContainer('Favorites Queued', `Added all **${favorites.length}** favorite track(s) to the queue.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
       }

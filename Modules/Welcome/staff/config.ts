@@ -1,11 +1,18 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import {
+  moduleContainer,
+  addFields,
+  addFooter,
+  v2Payload,
+  successReply,
+} from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Welcome:Config');
 
@@ -60,65 +67,63 @@ const welcomeConfig: BotCommand = {
       const guild = interaction.guild!;
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('Welcome Module Configuration')
-          .setDescription(`Settings for **${guild.name}**`)
-          .addFields(
-            {
-              name: '📨 Welcome Messages',
-              value: `**Status:** ${config.welcome.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
-                config.welcome.channelId
-                  ? `<#${config.welcome.channelId}>`
-                  : 'Not set'
-              }\n**Mode:** ${config.welcome.embedMode ? 'Embed' : 'Text'}\n**Image Mode:** ${config.welcome.imageMode}`,
-              inline: true,
-            },
-            {
-              name: '👋 Leave Messages',
-              value: `**Status:** ${config.leave.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
-                config.leave.channelId ? `<#${config.leave.channelId}>` : 'Not set'
-              }\n**Mode:** ${config.leave.embedMode ? 'Embed' : 'Text'}`,
-              inline: true,
-            },
-            {
-              name: '💌 Welcome DMs',
-              value: `**Status:** ${config.dm.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Mode:** ${config.dm.embedMode ? 'Embed' : 'Text'}`,
-              inline: true,
-            },
-            {
-              name: '🎯 Autoroles',
-              value: `**Status:** ${config.autorole.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Roles:** ${config.autorole.roleIds.length}\n**Delay:** ${config.autorole.delayMs}ms`,
-              inline: true,
-            },
-            {
-              name: '👋 Member Greetings',
-              value: `**Status:** ${config.greet.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
-                config.greet.channelId
-                  ? `<#${config.greet.channelId}>`
-                  : 'First message channel'
-              }`,
-              inline: true,
-            },
-            {
-              name: '🔒 Member Screening',
-              value: `**Status:** ${config.screening.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Role:** ${
-                config.screening.verifiedRoleId
-                  ? `<@&${config.screening.verifiedRoleId}>`
-                  : 'Not set'
-              }`,
-              inline: true,
-            },
-            {
-              name: '⚔️ Join Gate',
-              value: `**Status:** ${config.joingate.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Min Age:** ${config.joingate.minimumAccountAgeDays} days\n**Action:** ${config.joingate.actionForYoungAccounts}`,
-              inline: true,
-            }
-          )
-          .setFooter({ text: 'Use /greet, /screening, /joingate to configure individual features' })
-          .setTimestamp();
+        const container = moduleContainer('welcome');
 
-        return interaction.editReply({ embeds: [embed] });
+        addFields(container, [
+          {
+            name: '📨 Welcome Messages',
+            value: `**Status:** ${config.welcome.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
+              config.welcome.channelId
+                ? `<#${config.welcome.channelId}>`
+                : 'Not set'
+            }\n**Mode:** ${config.welcome.useEmbed ? 'Container' : 'Text'}\n**Image Mode:** ${config.welcome.showImage ? 'Enabled' : 'Disabled'}`,
+            inline: true,
+          },
+          {
+            name: '👋 Leave Messages',
+            value: `**Status:** ${config.leave.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
+              config.leave.channelId ? `<#${config.leave.channelId}>` : 'Not set'
+            }\n**Mode:** ${config.leave.useEmbed ? 'Container' : 'Text'}`,
+            inline: true,
+          },
+          {
+            name: '💌 Welcome DMs',
+            value: `**Status:** ${config.dm.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Mode:** ${config.dm.useEmbed ? 'Container' : 'Text'}`,
+            inline: true,
+          },
+          {
+            name: '🎯 Autoroles',
+            value: `**Status:** ${config.autorole.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Roles:** ${config.autorole.roles.length}\n**Delay:** ${config.autorole.delaySeconds}s`,
+            inline: true,
+          },
+          {
+            name: '👋 Member Greetings',
+            value: `**Status:** ${config.greet.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Channel:** ${
+              config.greet.channelId
+                ? `<#${config.greet.channelId}>`
+                : 'First message channel'
+            }`,
+            inline: true,
+          },
+          {
+            name: '🔒 Member Screening',
+            value: `**Status:** ${config.screening.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Role:** ${
+              config.screening.verifiedRoleId
+                ? `<@&${config.screening.verifiedRoleId}>`
+                : 'Not set'
+            }`,
+            inline: true,
+          },
+          {
+            name: '⚔️ Join Gate',
+            value: `**Status:** ${config.joingate.enabled ? '✅ Enabled' : '❌ Disabled'}\n**Min Age:** ${config.joingate.minAccountAgeDays} days\n**Action:** ${config.joingate.action}`,
+            inline: true,
+          }
+        ]);
+
+        addFooter(container, 'Use /greet, /screening, /joingate to configure individual features');
+
+        return interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'toggle') {
@@ -158,14 +163,17 @@ const welcomeConfig: BotCommand = {
         };
 
         return interaction.editReply(
-          `✅ **${featureNames[feature]}** has been **${enabled ? 'enabled' : 'disabled'}**.`
+          successReply(
+            'Feature Updated',
+            `✅ **${featureNames[feature]}** has been **${enabled ? 'enabled' : 'disabled'}**.`
+          )
         );
       }
     } catch (error) {
       logger.error('Error in welcome-config command:', error);
-      return interaction.editReply(
-        '❌ An error occurred while managing welcome settings.'
-      );
+      return interaction.editReply({
+        content: '❌ An error occurred while managing welcome settings.'
+      });
     }
   },
 };

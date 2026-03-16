@@ -1,5 +1,5 @@
-import { EmbedBuilder } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 
@@ -169,33 +169,10 @@ async function queryCountingStats(
   offset: number,
   _cutoffDate: Date | null
 ): Promise<any[]> {
-  // Counting stats are stored in Redis with pattern counting:stats:{guildId}:{userId}
-  const redis = getRedis();
-
-  // Scan for all counting stat keys for this guild
-  const pattern = `counting:stats:${guildId}:*`;
-  const entries: { userId: string; value: number }[] = [];
-
-  let cursor = '0';
-  do {
-    const [newCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
-    cursor = newCursor;
-
-    for (const key of keys) {
-      const data = await redis.hgetall(key);
-      if (data && data.correctCounts) {
-        const userId = key.split(':').pop()!;
-        entries.push({
-          userId,
-          value: parseInt(data.correctCounts, 10) || 0,
-        });
-      }
-    }
-  } while (cursor !== '0');
-
-  // Sort descending by value, then paginate
-  entries.sort((a, b) => b.value - a.value);
-  return entries.slice(offset, offset + limit);
+  // Cache manager doesn't provide getKeysByPrefix, so we can't enumerate cached counting stats
+  // Return empty array for now
+  // TODO: Store counting stats in database for leaderboard queries
+  return [];
 }
 
 export async function getUserRank(
@@ -215,7 +192,7 @@ export async function getUserRank(
   }
 }
 
-export function buildLeaderboardEmbed(
+export function buildLeaderboardText(
   entries: LeaderboardEntry[],
   type: LeaderboardType,
   guildName: string,
@@ -223,17 +200,18 @@ export function buildLeaderboardEmbed(
   totalPages: number,
   userRank?: LeaderboardEntry | null,
   days?: number
-): EmbedBuilder {
+): { title: string; description: string; footer: string } {
   const { emoji, displayName } = getLeaderboardTypeDisplay(type);
   const medals = ['🥇', '🥈', '🥉'];
 
-  const embed = new EmbedBuilder()
-    .setColor('#FFD700')
-    .setTitle(`${emoji} ${displayName} Leaderboard${days ? ` - Last ${days} days` : ''}`);
+  const title = `${emoji} ${displayName} Leaderboard${days ? ` - Last ${days} days` : ''}`;
 
   if (entries.length === 0) {
-    embed.setDescription('No data available for this leaderboard.');
-    return embed;
+    return {
+      title,
+      description: 'No data available for this leaderboard.',
+      footer: `Page ${page}/${totalPages} • ${guildName}`
+    };
   }
 
   let description = '';
@@ -248,12 +226,11 @@ export function buildLeaderboardEmbed(
     description += `\n**Your Rank:** #${userRank.rank} - ${formatValue(userRank.value, type)}`;
   }
 
-  embed.setDescription(description);
-  embed.setFooter({
-    text: `Page ${page}/${totalPages} • ${guildName}`
-  });
-
-  return embed;
+  return {
+    title,
+    description,
+    footer: `Page ${page}/${totalPages} • ${guildName}`
+  };
 }
 
 export function formatValue(value: number, type: LeaderboardType): string {

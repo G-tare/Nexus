@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer, addText, addSeparator, addSectionWithThumbnail } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers, transactions } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -71,18 +71,21 @@ export default {
         },
       ]);
 
-      const embed = successEmbed(`Currency Reset`)
-        .addFields(
-          { name: 'User', value: user.toString(), inline: true },
-          { name: 'Action', value: 'All balances set to 0', inline: true }
-        )
-        .setThumbnail(user.avatarURL());
+      const container = successContainer('Currency Reset');
+      addText(container, `**User:** ${user.toString()}`);
+      addText(container, `**Action:** All balances set to 0`);
+      addSeparator(container);
+      addSectionWithThumbnail(container, `${user.username}`, user.displayAvatarURL({ size: 256 }));
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Error in reset command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while resetting currency.')],
+        components: [errorContainer('Error', 'An error occurred while resetting currency.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

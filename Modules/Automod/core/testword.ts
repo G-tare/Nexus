@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, warningEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addSeparator, V2Colors } from '../../../Shared/src/utils/componentsV2';
 import {
   getAutomodConfig,
   checkWordFilter,
@@ -76,126 +76,114 @@ const command: BotCommand = {
         ),
       };
 
-      // Build results embed
-      const embed = new EmbedBuilder()
-        .setTitle('Automod Filter Test Results')
-        .setColor(Colors.Info)
-        .setTimestamp();
+      // Build results container
+      const container = moduleContainer('automod');
+      addText(container, '### Automod Filter Test Results');
+      addSeparator(container, 'small');
+
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
 
       // Word Filter Results
       if (config.wordfilter.enabled) {
         if (results.wordFilter.matched) {
-          embed.addFields({
+          fields.push({
             name: '⚠️ Word Filter - TRIGGERED',
             value: `Matched trigger: **${results.wordFilter.trigger}**`,
-            inline: false,
           });
         } else {
-          embed.addFields({
+          fields.push({
             name: '✅ Word Filter - Passed',
             value: 'No filtered words detected',
-            inline: false,
           });
         }
       } else {
-        embed.addFields({
+        fields.push({
           name: 'Word Filter - Disabled',
           value: 'This filter is not enabled',
-          inline: false,
         });
       }
 
       // Links Filter Results
       if (config.antilink.enabled) {
         if (results.links) {
-          embed.addFields({
+          fields.push({
             name: '⚠️ Anti-Link - TRIGGERED',
             value: 'Disallowed link(s) detected',
-            inline: false,
           });
         } else {
-          embed.addFields({
+          fields.push({
             name: '✅ Anti-Link - Passed',
             value: 'No disallowed links detected',
-            inline: false,
           });
         }
       } else {
-        embed.addFields({
+        fields.push({
           name: 'Anti-Link - Disabled',
           value: 'This filter is not enabled',
-          inline: false,
         });
       }
 
       // Invites Filter Results
       if (config.antiinvite.enabled) {
         if (results.invites) {
-          embed.addFields({
+          fields.push({
             name: '⚠️ Anti-Invite - TRIGGERED',
             value: 'Discord invite(s) detected',
-            inline: false,
           });
         } else {
-          embed.addFields({
+          fields.push({
             name: '✅ Anti-Invite - Passed',
             value: 'No Discord invites detected',
-            inline: false,
           });
         }
       } else {
-        embed.addFields({
+        fields.push({
           name: 'Anti-Invite - Disabled',
           value: 'This filter is not enabled',
-          inline: false,
         });
       }
 
       // Emojis Filter Results
       if (config.antispam.enabled && config.antispam.maxEmojis > 0) {
         if (results.emojis) {
-          embed.addFields({
+          fields.push({
             name: '⚠️ Emoji Limit - TRIGGERED',
             value: `Too many emojis (max: ${config.antispam.maxEmojis})`,
-            inline: false,
           });
         } else {
-          embed.addFields({
+          fields.push({
             name: '✅ Emoji Limit - Passed',
             value: `Emoji count within limit (max: ${config.antispam.maxEmojis})`,
-            inline: false,
           });
         }
       } else {
-        embed.addFields({
+        fields.push({
           name: 'Emoji Limit - Disabled',
           value: 'This filter is not enabled',
-          inline: false,
         });
       }
 
       // Caps Filter Results
       if (config.antispam.enabled && config.antispam.maxCaps > 0) {
         if (results.caps) {
-          embed.addFields({
+          fields.push({
             name: '⚠️ Caps Limit - TRIGGERED',
             value: `Too many capital letters (max: ${config.antispam.maxCaps}%)`,
-            inline: false,
           });
         } else {
-          embed.addFields({
+          fields.push({
             name: '✅ Caps Limit - Passed',
             value: `Capital letter percentage within limit (max: ${config.antispam.maxCaps}%)`,
-            inline: false,
           });
         }
       } else {
-        embed.addFields({
+        fields.push({
           name: 'Caps Limit - Disabled',
           value: 'This filter is not enabled',
-          inline: false,
         });
       }
+
+      addFields(container, fields);
 
       // Summary section
       const triggeredCount = Object.values(results).filter((v) => {
@@ -205,27 +193,17 @@ const command: BotCommand = {
         return v === true;
       }).length;
 
-      const summaryColor =
-        triggeredCount > 0 ? Colors.Warning : Colors.Success;
-      embed.setColor(summaryColor as any);
+      addSeparator(container, 'small');
 
       if (triggeredCount > 0) {
-        embed.addFields({
-          name: `Summary: ${triggeredCount} filter(s) triggered ⚠️`,
-          value: 'This message would be flagged by automod.',
-          inline: false,
-        });
+        addText(container, `### Summary: ${triggeredCount} filter(s) triggered ⚠️\nThis message would be flagged by automod.`);
       } else {
-        embed.addFields({
-          name: 'Summary: All filters passed ✅',
-          value: 'This message would not be flagged by automod.',
-          inline: false,
-        });
+        addText(container, '### Summary: All filters passed ✅\nThis message would not be flagged by automod.');
       }
 
       await interaction.reply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral,
+        components: [container],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       console.error('Error in testword command:', error);

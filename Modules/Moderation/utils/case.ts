@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer, infoContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq } from 'drizzle-orm';
@@ -50,7 +50,7 @@ export default {
     await interaction.deferReply();
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply(v2Payload([errorContainer('Guild context required')]));
 
     const db = getDb();
     const subcommand = interaction.options.getSubcommand();
@@ -65,7 +65,7 @@ export default {
           .limit(1);
 
         if (!modCase.length) {
-          return interaction.editReply({ embeds: [errorEmbed(`Case #${caseId} not found`)] });
+          return interaction.editReply(v2Payload([errorContainer(`Case #${caseId} not found`)]));
         }
 
         const caseData = modCase[0];
@@ -79,27 +79,26 @@ export default {
           'unmute': 'Unmute',
         };
 
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Info)
-          .setTitle(`Case #${caseData.caseNumber}`)
-          .addFields(
-            { name: 'Action', value: actionTypes[caseData.action] || caseData.action, inline: true },
-            { name: 'Target User', value: `<@${caseData.targetId}>`, inline: true },
-            { name: 'Moderator', value: `<@${caseData.moderatorId}>`, inline: true },
-            { name: 'Reason', value: caseData.reason || 'No reason provided', inline: false }
-          );
+        const container = infoContainer(`Case #${caseData.caseNumber}`);
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+          { name: 'Action', value: actionTypes[caseData.action] || caseData.action, inline: true },
+          { name: 'Target User', value: `<@${caseData.targetId}>`, inline: true },
+          { name: 'Moderator', value: `<@${caseData.moderatorId}>`, inline: true },
+          { name: 'Reason', value: caseData.reason || 'No reason provided', inline: false }
+        ];
 
         if (caseData.duration) {
-          embed.addFields({ name: 'Duration', value: String(caseData.duration), inline: true });
+          fields.push({ name: 'Duration', value: String(caseData.duration), inline: true });
         }
 
-        embed.addFields({ name: 'Created', value: discordTimestamp(new Date(caseData.createdAt), 'F'), inline: true });
+        fields.push({ name: 'Created', value: discordTimestamp(new Date(caseData.createdAt), 'F'), inline: true });
 
         if (caseData.isActive === false) {
-          embed.addFields({ name: 'Status', value: 'Inactive', inline: true });
+          fields.push({ name: 'Status', value: 'Inactive', inline: true });
         }
 
-        return interaction.editReply({ embeds: [embed] });
+        addFields(container, fields);
+        return interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'edit') {
@@ -112,7 +111,7 @@ export default {
           .limit(1);
 
         if (!modCase.length) {
-          return interaction.editReply({ embeds: [errorEmbed(`Case #${caseId} not found`)] });
+          return interaction.editReply(v2Payload([errorContainer(`Case #${caseId} not found`)]));
         }
 
         const caseData = modCase[0];
@@ -123,7 +122,7 @@ export default {
           await ensureGuild(guild);
           const member = await guild.members.fetch(interaction.user.id).catch(() => null);
           if (!member?.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.editReply({ embeds: [errorEmbed('You can only edit cases you created, or you need Administrator permissions')] });
+            return interaction.editReply(v2Payload([errorContainer('You can only edit cases you created, or you need Administrator permissions')]));
           }
         }
 
@@ -132,11 +131,11 @@ export default {
           .set({ reason: newReason })
           .where(eq(modCases.id, caseId));
 
-        return interaction.editReply({ embeds: [successEmbed(`Case #${caseData.caseNumber} reason updated`)] });
+        return interaction.editReply(v2Payload([successContainer(`Case #${caseData.caseNumber} reason updated`)]));
       }
     } catch (error) {
       console.error('Error in case command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while processing your request')] });
+      return interaction.editReply(v2Payload([errorContainer('An error occurred while processing your request')]));
     }
   },
 } as BotCommand;

@@ -1,13 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId, deleteTempVC, auditLog } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcforceclose')
@@ -72,19 +72,17 @@ export const vcforceclose: BotCommand = {
         reason,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor('#ff0000')
-        .setTitle('Channel Force Closed')
-        .setDescription(`Temporary voice channel **${channel.name}** has been force closed.`)
-        .addFields(
-          { name: 'Channel', value: channel.name || 'Unknown', inline: true },
-          { name: 'Owner', value: ownerName, inline: true },
-          { name: 'Closed By', value: user.username, inline: true },
-          { name: 'Reason', value: reason || 'No reason provided' }
-        );
+      const container = moduleContainer('temp_voice').setAccentColor(0xff0000);
+      addText(container, `### Channel Force Closed\nTemporary voice channel **${channel.name}** has been force closed.`);
+      addFields(container, [
+        { name: 'Channel', value: channel.name || 'Unknown', inline: true },
+        { name: 'Owner', value: ownerName, inline: true },
+        { name: 'Closed By', value: user.username, inline: true },
+        { name: 'Reason', value: reason || 'No reason provided' }
+      ]);
 
       logger.info('[TempVoice] Staff force closed temp VC:', channel.id, 'reason:', reason);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vcforceclose command:', error);
       return interaction.editReply('An error occurred while closing the channel.');

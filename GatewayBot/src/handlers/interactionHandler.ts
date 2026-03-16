@@ -16,6 +16,7 @@ import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { t } from '../../../Shared/src/i18n';
 import { formatDuration } from '../../../Shared/src/utils/time';
 import { eventBus } from '../../../Shared/src/events/eventBus';
+import { getPool } from '../../../Shared/src/database/connection';
 
 const logger = createModuleLogger('InteractionHandler');
 
@@ -173,13 +174,13 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
   const group = interaction.options.getSubcommandGroup(false);
   const sub = interaction.options.getSubcommand(false);
 
-  if (!sub) {
-    // All commands should be subcommands after grouping — this shouldn't happen
-    logger.warn(`No subcommand found for /${slug}`);
-    return;
+  let routeKey: string;
+  if (sub) {
+    routeKey = group ? `${slug}:${group}:${sub}` : `${slug}::${sub}`;
+  } else {
+    // Top-level command (no subcommand) — e.g. /configs, /help
+    routeKey = `${slug}::`;
   }
-
-  const routeKey = group ? `${slug}:${group}:${sub}` : `${slug}::${sub}`;
   const command = client.commandRoutes.get(routeKey);
 
   if (!command) {
@@ -201,12 +202,41 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
   }
 
   if (guildId) {
-    // Module enabled check
+    // Module enabled check (hierarchy: global disable > server ban > server config)
     if (command.requiresModule !== false) {
-      const isEnabled = await moduleConfig.isEnabled(guildId, moduleName);
-      if (!isEnabled) {
+      const moduleStatus = await moduleConfig.getModuleStatus(guildId, moduleName);
+      if (!moduleStatus.enabled) {
+        let title = 'Module Disabled';
+        let description = t('common:moduleDisabled');
+
+        if (moduleStatus.globallyDisabled) {
+          title = 'Module Temporarily Unavailable';
+          description = `This module has been temporarily disabled by the bot team.`;
+          if (moduleStatus.reason) description += `\n**Reason:** ${moduleStatus.reason}`;
+          if (moduleStatus.reasonDetail) description += `\n${moduleStatus.reasonDetail}`;
+        } else if (moduleStatus.serverBanned) {
+          title = 'Module Restricted';
+          description = `This module has been restricted for this server by the bot team.`;
+          if (moduleStatus.reason) description += `\n**Reason:** ${moduleStatus.reason}`;
+        }
+
         await interaction.reply({
-          embeds: [errorEmbed('Module Disabled', t('common:moduleDisabled'))],
+          embeds: [errorEmbed(title, description)],
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+    }
+
+    // Per-command disabled check
+    if (command.permissionPath) {
+      // Extract command name from permissionPath (e.g., "moderation.ban" → "ban")
+      const cmdParts = command.permissionPath.split('.');
+      const cmdName = cmdParts.length > 1 ? cmdParts.slice(1).join('.') : cmdParts[0];
+      const cmdDisabled = await moduleConfig.isCommandDisabled(guildId, moduleName, cmdName);
+      if (cmdDisabled) {
+        await interaction.reply({
+          embeds: [errorEmbed('Command Disabled', 'This command has been disabled by a server administrator.')],
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -269,8 +299,10 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
   }
 
   // Execute command
+  const startTime = Date.now();
   try {
     await command.execute(interaction);
+    const executionMs = Date.now() - startTime;
 
     // Track command usage for activity
     if (guildId) {
@@ -280,8 +312,12 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
         channelId: interaction.channelId!,
         messageId: interaction.id,
       });
+
+      // Log command usage to analytics table (fire-and-forget)
+      logCommandUsage(guildId, interaction.user.id, moduleName, slug, group, sub, executionMs, true);
     }
   } catch (err: any) {
+    const executionMs = Date.now() - startTime;
     logger.error(`Command execution error: /${slug} ${group || ''} ${sub}`, {
       error: err.message,
       stack: err.stack,
@@ -289,6 +325,11 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
       user: interaction.user.id,
       routeKey,
     });
+
+    // Log failed command execution
+    if (guildId) {
+      logCommandUsage(guildId, interaction.user.id, moduleName, slug, group, sub, executionMs, false);
+    }
 
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp({ embeds: [errorEmbed('Error', t('common:error'))], flags: MessageFlags.Ephemeral }).catch(() => {});
@@ -367,4 +408,40 @@ async function handleModal(client: Client, interaction: ModalSubmitInteraction):
   const data = dataParts.join(':');
 
   logger.debug(`Modal submit: ${moduleName}:${action}`, { data });
+}
+
+// ============================================
+// Command Usage Logging
+// ============================================
+
+/**
+ * Log command execution to the command_usage analytics table.
+ * Fire-and-forget — errors are logged but never block command execution.
+ */
+function logCommandUsage(
+  guildId: string,
+  userId: string,
+  moduleName: string,
+  commandName: string,
+  subcommandGroup: string | null,
+  subcommandName: string | null,
+  executionMs: number,
+  success: boolean,
+): void {
+  const pool = getPool();
+  pool.query(
+    `INSERT INTO command_usage (guild_id, user_id, module_name, command_name, subcommand_name, execution_ms, success)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      guildId,
+      userId,
+      moduleName,
+      commandName,
+      subcommandGroup ? `${subcommandGroup} ${subcommandName}` : subcommandName,
+      executionMs,
+      success,
+    ],
+  ).catch((err) => {
+    logger.error('Failed to log command usage', { error: err.message });
+  });
 }

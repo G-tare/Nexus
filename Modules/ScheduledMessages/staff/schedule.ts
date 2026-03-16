@@ -1,9 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
@@ -15,6 +15,7 @@ import {
   parseSimpleInterval,
   formatCron,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -184,32 +185,23 @@ const command: BotCommand = {
         ]
       );
 
-      // Build response embed
-      const responseEmbed = new EmbedBuilder()
-        .setColor('#00aa00')
-        .setTitle('Scheduled Message Created')
-        .addFields(
-          { name: 'Channel', value: `<#${channel.id}>`, inline: true },
-          { name: 'Type', value: isRecurring ? 'Recurring' : 'One-time', inline: true },
-          {
-            name: 'Schedule',
-            value: isRecurring
-              ? `\`${cronExpression || 'invalid'}\`` + (interval ? ` (${interval})` : '')
-              : scheduledFor
-                ? `<t:${Math.floor(scheduledFor.getTime() / 1000)}:F>`
-                : 'Not set',
-            inline: false,
-          },
-          {
-            name: 'Content',
-            value: message ? message.substring(0, 100) : (embedData ? '(Embed)' : 'None'),
-            inline: true,
-          },
-          { name: 'Message ID', value: `\`${id}\``, inline: true }
-        )
-        .setFooter({ text: 'Use /schedulelist to view all scheduled messages' });
+      // Build response container
+      const container = moduleContainer('scheduled_messages');
+      container.setAccentColor(0x00aa00);
+      addText(container, '### Scheduled Message Created');
+      addText(container, `**Channel**\n<#${channel.id}>`);
+      addText(container, `**Type**\n${isRecurring ? 'Recurring' : 'One-time'}`);
+      const scheduleText = isRecurring
+        ? `\`${cronExpression || 'invalid'}\`` + (interval ? ` (${interval})` : '')
+        : scheduledFor
+          ? `<t:${Math.floor(scheduledFor.getTime() / 1000)}:F>`
+          : 'Not set';
+      addText(container, `**Schedule**\n${scheduleText}`);
+      addText(container, `**Content**\n${message ? message.substring(0, 100) : (embedData ? '(Embed)' : 'None')}`);
+      addText(container, `**Message ID**\n\`${id}\``);
+      addFooter(container, 'Use /schedulelist to view all scheduled messages');
 
-      await interaction.editReply({ embeds: [responseEmbed] });
+      await interaction.editReply(v2Payload([container]));
 
       logger.info(
         `[ScheduledMessages] Created scheduled message ${id} for guild ${guildId}, channel ${channel.id}`

@@ -34,6 +34,21 @@
 		ED2BC7F8A6847855211E0AEA /* OwnerDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */; };
 		ED8C2E967FD292CE43F6D53E /* ServerSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E162ADA3EDE4D9AE1AA9A2 /* ServerSelectorView.swift */; };
 		F0CB79A2A21D91C741C29DD0 /* ModCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7701D964B7A06A42ED519373 /* ModCase.swift */; };
+		7A2E6D0F4B93C158E8D7A4F2 /* ConfigPickers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F4A91C8E5D2047F6C1B8E3 /* ConfigPickers.swift */; };
+		4C8B1FA3D9E52764C0A3B7D8 /* EmbedEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E2C7B5A1F630498B4D9E16 /* EmbedEditorView.swift */; };
+		A2B3C4D5E6F70819A1B2C3D4 /* Ticket.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718B2C3D4E5 /* Ticket.swift */; };
+		C3D4E5F6A7B80920C4D5E6F7 /* OwnerTicketsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E3F4A5B6C71031D3E4F5A6 /* OwnerTicketsView.swift */; };
+		AA01020304050607AA010203 /* OwnerOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01020304050607BB010203 /* OwnerOverviewView.swift */; };
+		AA11121314151617AA111213 /* OwnerServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11121314151617BB111213 /* OwnerServersView.swift */; };
+		AA21222324252627AA212223 /* OwnerMoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB21222324252627BB212223 /* OwnerMoreView.swift */; };
+		AA31323334353637AA313233 /* OwnerStaffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB31323334353637BB313233 /* OwnerStaffView.swift */; };
+		AA41424344454647AA414243 /* OwnerCommandsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB41424344454647BB414243 /* OwnerCommandsView.swift */; };
+		AA51525354555657AA515253 /* OwnerHealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB51525354555657BB515253 /* OwnerHealthView.swift */; };
+		AA61626364656667AA616263 /* OwnerRevenueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB61626364656667BB616263 /* OwnerRevenueView.swift */; };
+		AA71727374757677AA717273 /* OwnerModulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB71727374757677BB717273 /* OwnerModulesView.swift */; };
+		AA81828384858687AA818283 /* OwnerModerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB81828384858687BB818283 /* OwnerModerationView.swift */; };
+		AA91929394959697AA919293 /* OwnerAlertsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB91929394959697BB919293 /* OwnerAlertsView.swift */; };
+		AAA1A2A3A4A5A6A7AAA1A2A3 /* OwnerInfrastructureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBA1A2A3A4A5A6A7BBA1A2A3 /* OwnerInfrastructureView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -65,6 +80,21 @@
 		F6229693AF2197E0800FEF32 /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
 		FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerDashboardView.swift; sourceTree = "<group>"; };
 		FEF51371135644DF63AED287 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		B3F4A91C8E5D2047F6C1B8E3 /* ConfigPickers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigPickers.swift; sourceTree = "<group>"; };
+		D8E2C7B5A1F630498B4D9E16 /* EmbedEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedEditorView.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A60718B2C3D4E5 /* Ticket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ticket.swift; sourceTree = "<group>"; };
+		D2E3F4A5B6C71031D3E4F5A6 /* OwnerTicketsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerTicketsView.swift; sourceTree = "<group>"; };
+		BB01020304050607BB010203 /* OwnerOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerOverviewView.swift; sourceTree = "<group>"; };
+		BB11121314151617BB111213 /* OwnerServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerServersView.swift; sourceTree = "<group>"; };
+		BB21222324252627BB212223 /* OwnerMoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerMoreView.swift; sourceTree = "<group>"; };
+		BB31323334353637BB313233 /* OwnerStaffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerStaffView.swift; sourceTree = "<group>"; };
+		BB41424344454647BB414243 /* OwnerCommandsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerCommandsView.swift; sourceTree = "<group>"; };
+		BB51525354555657BB515253 /* OwnerHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerHealthView.swift; sourceTree = "<group>"; };
+		BB61626364656667BB616263 /* OwnerRevenueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerRevenueView.swift; sourceTree = "<group>"; };
+		BB71727374757677BB717273 /* OwnerModulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerModulesView.swift; sourceTree = "<group>"; };
+		BB81828384858687BB818283 /* OwnerModerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerModerationView.swift; sourceTree = "<group>"; };
+		BB91929394959697BB919293 /* OwnerAlertsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerAlertsView.swift; sourceTree = "<group>"; };
+		BBA1A2A3A4A5A6A7BBA1A2A3 /* OwnerInfrastructureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerInfrastructureView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +123,7 @@
 				2AA5D631CC79EC786B263F59 /* Guild.swift */,
 				7701D964B7A06A42ED519373 /* ModCase.swift */,
 				A8297F2B59F3654DE97CD98C /* Module.swift */,
+				B1C2D3E4F5A60718B2C3D4E5 /* Ticket.swift */,
 				AC438B4226745E83901E4A16 /* User.swift */,
 				99DB84F7941F77F74BC669BF6DC8E4F6 /* CommandRegistry.swift */,
 			);
@@ -138,7 +169,19 @@
 		72D2F4173E3437CD1B3A3889 /* Owner */ = {
 			isa = PBXGroup;
 			children = (
+				BB91929394959697BB919293 /* OwnerAlertsView.swift */,
+				BB41424344454647BB414243 /* OwnerCommandsView.swift */,
 				FD867401B824DFBBE00BD770 /* OwnerDashboardView.swift */,
+				BB51525354555657BB515253 /* OwnerHealthView.swift */,
+				BBA1A2A3A4A5A6A7BBA1A2A3 /* OwnerInfrastructureView.swift */,
+				BB81828384858687BB818283 /* OwnerModerationView.swift */,
+				BB71727374757677BB717273 /* OwnerModulesView.swift */,
+				BB21222324252627BB212223 /* OwnerMoreView.swift */,
+				BB01020304050607BB010203 /* OwnerOverviewView.swift */,
+				BB61626364656667BB616263 /* OwnerRevenueView.swift */,
+				BB11121314151617BB111213 /* OwnerServersView.swift */,
+				BB31323334353637BB313233 /* OwnerStaffView.swift */,
+				D2E3F4A5B6C71031D3E4F5A6 /* OwnerTicketsView.swift */,
 			);
 			path = Owner;
 			sourceTree = "<group>";
@@ -203,10 +246,12 @@
 		E65248BD87343DD8D881AE4F /* Modules */ = {
 			isa = PBXGroup;
 			children = (
-				632AC9AE2E808D7E13CC545F /* ModuleConfigView.swift */,
-				24C4662060D36D8623915B4E /* ModuleListView.swift */,
-				A1FD56F0FE9FA8A180D89B35B8517BE1 /* ModuleCommandsView.swift */,
 				A01580248A9650F7CA59D06B20D0C33A /* CommandPermissionView.swift */,
+				B3F4A91C8E5D2047F6C1B8E3 /* ConfigPickers.swift */,
+				D8E2C7B5A1F630498B4D9E16 /* EmbedEditorView.swift */,
+				632AC9AE2E808D7E13CC545F /* ModuleConfigView.swift */,
+				A1FD56F0FE9FA8A180D89B35B8517BE1 /* ModuleCommandsView.swift */,
+				24C4662060D36D8623915B4E /* ModuleListView.swift */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -337,6 +382,21 @@
 				355A49FC2F9977373566AFED /* SettingsView.swift in Sources */,
 				ED2BC7F8A6847855211E0AEA /* OwnerDashboardView.swift in Sources */,
 				ED8C2E967FD292CE43F6D53E /* ServerSelectorView.swift in Sources */,
+				7A2E6D0F4B93C158E8D7A4F2 /* ConfigPickers.swift in Sources */,
+				4C8B1FA3D9E52764C0A3B7D8 /* EmbedEditorView.swift in Sources */,
+				A2B3C4D5E6F70819A1B2C3D4 /* Ticket.swift in Sources */,
+				C3D4E5F6A7B80920C4D5E6F7 /* OwnerTicketsView.swift in Sources */,
+				AA01020304050607AA010203 /* OwnerOverviewView.swift in Sources */,
+				AA11121314151617AA111213 /* OwnerServersView.swift in Sources */,
+				AA21222324252627AA212223 /* OwnerMoreView.swift in Sources */,
+				AA31323334353637AA313233 /* OwnerStaffView.swift in Sources */,
+				AA41424344454647AA414243 /* OwnerCommandsView.swift in Sources */,
+				AA51525354555657AA515253 /* OwnerHealthView.swift in Sources */,
+				AA61626364656667AA616263 /* OwnerRevenueView.swift in Sources */,
+				AA71727374757677AA717273 /* OwnerModulesView.swift in Sources */,
+				AA81828384858687AA818283 /* OwnerModerationView.swift in Sources */,
+				AA91929394959697AA919293 /* OwnerAlertsView.swift in Sources */,
+				AAA1A2A3A4A5A6A7AAA1A2A3 /* OwnerInfrastructureView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

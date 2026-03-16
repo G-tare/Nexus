@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormById, updateForm, FormQuestion } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -154,23 +155,20 @@ const command: BotCommand = {
             return;
           }
 
-          const embed = new EmbedBuilder()
-            .setTitle(`${form.name} - Questions`)
-            .setColor('#5865F2')
-            .setDescription(
-              form.questions
-                .map(
-                  (q, i) =>
-                    `**${i + 1}. ${q.label}**\n` +
-                    `Type: ${q.type}\n` +
-                    `Required: ${q.required ? 'Yes' : 'No'}\n` +
-                    (q.options ? `Options: ${q.options.join(', ')}\n` : '')
-                )
-                .join('\n')
+          const container = moduleContainer('forms');
+          const description = form.questions
+            .map(
+              (q, i) =>
+                `**${i + 1}. ${q.label}**\n` +
+                `Type: ${q.type}\n` +
+                `Required: ${q.required ? 'Yes' : 'No'}\n` +
+                (q.options ? `Options: ${q.options.join(', ')}\n` : '')
             )
-            .setTimestamp();
+            .join('\n');
 
-          await interaction.editReply({ embeds: [embed] });
+          addText(container, `### ${form.name} - Questions\n${description}`);
+
+          await interaction.editReply(v2Payload([container]));
           break;
         }
 

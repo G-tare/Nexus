@@ -26,7 +26,7 @@ const command: BotCommand = {
         .setDescription('Target language for translations')
         .setRequired(true)
         .setAutocomplete(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'translation',
   permissionPath: 'translation.translatechannel',

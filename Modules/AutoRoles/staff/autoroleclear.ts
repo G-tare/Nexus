@@ -13,7 +13,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('autoroleclear')
     .setDescription('Remove all auto-role rules')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autoroleclear',

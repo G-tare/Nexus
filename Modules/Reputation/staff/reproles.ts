@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getRepRoles, addRepRole, removeRepRole } from '../helpers';
 
 const command: BotCommand = {
@@ -34,7 +35,7 @@ const command: BotCommand = {
           opt.setName('role')
             .setDescription('The role to ungate')
             .setRequired(true)))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'reputation',
   permissionPath: 'reputation.reproles',
@@ -60,12 +61,10 @@ const command: BotCommand = {
         return `• ${roleName} — requires **${rr.requiredRep}** rep ${drop}`;
       });
 
-      const embed = new EmbedBuilder()
-        .setColor(0xF1C40F)
-        .setTitle(`⭐ Rep-Gated Roles (${roles.length})`)
-        .setDescription(lines.join('\n'));
+      const container = moduleContainer('reputation');
+      addText(container, `### ⭐ Rep-Gated Roles (${roles.length})\n${lines.join('\n')}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 

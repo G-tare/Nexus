@@ -2,8 +2,6 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ColorResolvable,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
@@ -11,6 +9,7 @@ import {
   removeBonusInvites,
   getInviterStats,
 } from '../helpers';
+import { moduleContainer, addFields, v2Payload, successContainer, infoContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'invitetracker',
@@ -74,17 +73,13 @@ const command: BotCommand = {
 
         const stats = await getInviterStats(interaction.guildId!, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#57F287' as ColorResolvable)
-          .setTitle('✅ Bonus Invites Added')
-          .setDescription(`Added ${amount} bonus invites to ${user}`)
-          .addFields(
-            { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
-            { name: 'Total Real Invites', value: stats.real.toString(), inline: true }
-          )
-          .setFooter({ text: interaction.guild!.name });
+        const container = successContainer('Bonus Invites Added', `Added ${amount} bonus invites to ${user}`);
+        addFields(container, [
+          { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
+          { name: 'Total Real Invites', value: stats.real.toString(), inline: true }
+        ]);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } else if (subcommand === 'remove') {
         const amount = interaction.options.getInteger('amount', true);
 
@@ -92,31 +87,24 @@ const command: BotCommand = {
 
         const stats = await getInviterStats(interaction.guildId!, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#57F287' as ColorResolvable)
-          .setTitle('✅ Bonus Invites Removed')
-          .setDescription(`Removed ${amount} bonus invites from ${user}`)
-          .addFields(
-            { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
-            { name: 'Total Real Invites', value: stats.real.toString(), inline: true }
-          )
-          .setFooter({ text: interaction.guild!.name });
+        const container = successContainer('Bonus Invites Removed', `Removed ${amount} bonus invites from ${user}`);
+        addFields(container, [
+          { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
+          { name: 'Total Real Invites', value: stats.real.toString(), inline: true }
+        ]);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } else if (subcommand === 'view') {
         const stats = await getInviterStats(interaction.guildId!, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2' as ColorResolvable)
-          .setTitle(`Bonus Invites for ${user.tag}`)
-          .addFields(
-            { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
-            { name: 'Real Invites', value: stats.real.toString(), inline: true },
-            { name: 'Total (with bonus)', value: stats.real.toString(), inline: true }
-          )
-          .setFooter({ text: interaction.guild!.name });
+        const container = infoContainer(`Bonus Invites for ${user.tag}`);
+        addFields(container, [
+          { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
+          { name: 'Real Invites', value: stats.real.toString(), inline: true },
+          { name: 'Total (with bonus)', value: stats.real.toString(), inline: true }
+        ]);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       console.error('Error in /invite-bonus command:', error);

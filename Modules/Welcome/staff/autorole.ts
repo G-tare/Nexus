@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,7 +6,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getWelcomeConfig, WelcomeConfig } from '../helpers';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'welcome',
@@ -16,6 +16,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('autorole')
     .setDescription('Manage automatic roles assigned to new members')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(subcommand =>
       subcommand
         .setName('toggle')
@@ -105,12 +106,12 @@ const command: BotCommand = {
           config.autorole.enabled = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Autoroles',
-            `Autoroles are now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Autoroles',
+              `Autoroles are now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'add': {
@@ -119,62 +120,66 @@ const command: BotCommand = {
           // Check bot role hierarchy
           const botHighestRole = guild.members.me?.roles.highest;
           if (!botHighestRole || role.position >= botHighestRole.position) {
-            const embed = errorEmbed(
-              'Role Too High',
-              `I cannot assign ${role} because my highest role is ${botHighestRole}. Please move my role higher in the role hierarchy.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Too High',
+                `I cannot assign ${role} because my highest role is ${botHighestRole}. Please move my role higher in the role hierarchy.`
+              )
+            );
           }
 
           // Check max roles (10)
           if (config.autorole.roles.length >= 10) {
-            const embed = errorEmbed(
-              'Too Many Roles',
-              'You can only have a maximum of 10 autoroles. Remove one first.'
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Too Many Roles',
+                'You can only have a maximum of 10 autoroles. Remove one first.'
+              )
+            );
           }
 
           // Check if already added
           if (config.autorole.roles.includes(role.id)) {
-            const embed = errorEmbed(
-              'Role Already Added',
-              `${role} is already in the autoroles list.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Already Added',
+                `${role} is already in the autoroles list.`
+              )
+            );
           }
 
           config.autorole.roles.push(role.id);
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Autorole Added',
-            `${role} will now be assigned to new members.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Autorole Added',
+              `${role} will now be assigned to new members.`
+            )
+          );
         }
 
         case 'remove': {
           const role = interaction.options.getRole('role', true) as Role;
 
           if (!config.autorole.roles.includes(role.id)) {
-            const embed = errorEmbed(
-              'Role Not Found',
-              `${role} is not in the autoroles list.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Not Found',
+                `${role} is not in the autoroles list.`
+              )
+            );
           }
 
           config.autorole.roles = config.autorole.roles.filter(id => id !== role.id);
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Autorole Removed',
-            `${role} will no longer be assigned to new members.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Autorole Removed',
+              `${role} will no longer be assigned to new members.`
+            )
+          );
         }
 
         case 'add-bot': {
@@ -183,62 +188,66 @@ const command: BotCommand = {
           // Check bot role hierarchy
           const botHighestRole = guild.members.me?.roles.highest;
           if (!botHighestRole || role.position >= botHighestRole.position) {
-            const embed = errorEmbed(
-              'Role Too High',
-              `I cannot assign ${role} because my highest role is ${botHighestRole}. Please move my role higher in the role hierarchy.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Too High',
+                `I cannot assign ${role} because my highest role is ${botHighestRole}. Please move my role higher in the role hierarchy.`
+              )
+            );
           }
 
           // Check max roles (10)
           if (config.autorole.botRoles.length >= 10) {
-            const embed = errorEmbed(
-              'Too Many Roles',
-              'You can only have a maximum of 10 bot autoroles. Remove one first.'
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Too Many Roles',
+                'You can only have a maximum of 10 bot autoroles. Remove one first.'
+              )
+            );
           }
 
           // Check if already added
           if (config.autorole.botRoles.includes(role.id)) {
-            const embed = errorEmbed(
-              'Role Already Added',
-              `${role} is already in the bot autoroles list.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Already Added',
+                `${role} is already in the bot autoroles list.`
+              )
+            );
           }
 
           config.autorole.botRoles.push(role.id);
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Bot Autorole Added',
-            `${role} will now be assigned to new bot members.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Bot Autorole Added',
+              `${role} will now be assigned to new bot members.`
+            )
+          );
         }
 
         case 'remove-bot': {
           const role = interaction.options.getRole('role', true) as Role;
 
           if (!config.autorole.botRoles.includes(role.id)) {
-            const embed = errorEmbed(
-              'Role Not Found',
-              `${role} is not in the bot autoroles list.`
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Role Not Found',
+                `${role} is not in the bot autoroles list.`
+              )
+            );
           }
 
           config.autorole.botRoles = config.autorole.botRoles.filter(id => id !== role.id);
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Bot Autorole Removed',
-            `${role} will no longer be assigned to new bots.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Bot Autorole Removed',
+              `${role} will no longer be assigned to new bots.`
+            )
+          );
         }
 
         case 'delay': {
@@ -246,12 +255,12 @@ const command: BotCommand = {
           config.autorole.delaySeconds = seconds;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Autorole Delay Updated',
-            `Roles will be assigned with a **${seconds}s delay**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Autorole Delay Updated',
+              `Roles will be assigned with a **${seconds}s delay**.`
+            )
+          );
         }
 
         case 'list': {
@@ -300,26 +309,28 @@ const command: BotCommand = {
           description += `\n**Status:** ${config.autorole.enabled ? '✅ Enabled' : '❌ Disabled'}\n`;
           description += `**Delay:** ${config.autorole.delaySeconds}s`;
 
-          const embed = successEmbed(
-            'Autoroles Configuration',
-            description
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Autoroles Configuration',
+              description
+            )
+          );
         }
 
         default: {
-          const embed = errorEmbed('Unknown Subcommand', 'An unknown subcommand was provided.').setColor(Colors.Error);
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            errorReply('Unknown Subcommand', 'An unknown subcommand was provided.')
+          );
         }
       }
     } catch (error) {
       console.error('[Autorole Command Error]', error);
-      const embed = errorEmbed(
-        'Error',
-        'An error occurred while processing your command.'
-      ).setColor(Colors.Error);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(
+        errorReply(
+          'Error',
+          'An error occurred while processing your command.'
+        )
+      );
     }
   },
 };

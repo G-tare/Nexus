@@ -1,12 +1,20 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  successContainer,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 import type { TicketConfig } from '../../helpers';
 
 const command: BotCommand = {
@@ -280,60 +288,60 @@ async function handleView(
   interaction: ChatInputCommandInteraction,
   config: TicketConfig
 ) {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary)
-    .setTitle('Ticket Configuration')
-    .addFields(
-      {
-        name: 'Max Tickets Per User',
-        value: config.maxOpenTicketsPerUser === 0 ? 'Unlimited' : config.maxOpenTicketsPerUser.toString(),
-        inline: true,
-      },
-      {
-        name: 'Claim System',
-        value: config.claimEnabled ? '✅ Enabled' : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Priority System',
-        value: config.priorityEnabled ? '✅ Enabled' : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Transcripts',
-        value: config.transcriptEnabled ? '✅ Enabled' : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Feedback System',
-        value: config.feedbackEnabled ? '✅ Enabled' : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Close Confirmation',
-        value: config.closeConfirmation ? '✅ Enabled' : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Auto-Close',
-        value: config.autoCloseEnabled ? `✅ After ${config.autoCloseHours}h` : '❌ Disabled',
-        inline: true,
-      },
-      {
-        name: 'Delete on Close',
-        value: config.deleteOnClose ? `✅ Yes (${config.closeDelay}s delay)` : '❌ No',
-        inline: true,
-      },
-      {
-        name: 'Categories',
-        value: config.categories.length.toString(),
-        inline: true,
-      }
-    );
+  const container = moduleContainer('tickets');
+  addText(container, '### Ticket Configuration');
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  const fields = [
+    {
+      name: 'Max Tickets Per User',
+      value: config.maxOpenTicketsPerUser === 0 ? 'Unlimited' : config.maxOpenTicketsPerUser.toString(),
+      inline: true,
+    },
+    {
+      name: 'Claim System',
+      value: config.claimEnabled ? '✅ Enabled' : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Priority System',
+      value: config.priorityEnabled ? '✅ Enabled' : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Transcripts',
+      value: config.transcriptEnabled ? '✅ Enabled' : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Feedback System',
+      value: config.feedbackEnabled ? '✅ Enabled' : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Close Confirmation',
+      value: config.closeConfirmation ? '✅ Enabled' : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Auto-Close',
+      value: config.autoCloseEnabled ? `✅ After ${config.autoCloseHours}h` : '❌ Disabled',
+      inline: true,
+    },
+    {
+      name: 'Delete on Close',
+      value: config.deleteOnClose ? `✅ Yes (${config.closeDelay}s delay)` : '❌ No',
+      inline: true,
+    },
+    {
+      name: 'Categories',
+      value: config.categories.length.toString(),
+      inline: true,
+    },
+  ];
+
+  addFields(container, fields);
+
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleMaxTickets(
@@ -346,14 +354,12 @@ async function handleMaxTickets(
   moduleConfig.setConfig(guildId, 'tickets', config);
 
   const text = limit === 0 ? 'unlimited' : `${limit} open ticket(s)`;
-  const embed = successEmbed(
+  const container = successContainer(
     'Max Tickets Updated',
     `Users can now have ${text}.`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleAutoClose(
@@ -375,11 +381,9 @@ async function handleAutoClose(
     ? `Auto-close enabled after ${config.autoCloseHours} hours of inactivity. Warning at ${config.autoCloseWarningHours} hours.`
     : 'Auto-close disabled.';
 
-  const embed = successEmbed('Auto-Close Updated', desc);
+  const container = successContainer('Auto-Close Updated', desc);
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleCloseBehavior(
@@ -399,11 +403,9 @@ async function handleCloseBehavior(
 
   const desc = `Confirmation: ${config.closeConfirmation ? '✅' : '❌'}\nDelete on close: ${config.deleteOnClose ? `✅ (${config.closeDelay}s)` : '❌'}`;
 
-  const embed = successEmbed('Close Behavior Updated', desc);
+  const container = successContainer('Close Behavior Updated', desc);
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleClaimToggle(
@@ -414,14 +416,12 @@ async function handleClaimToggle(
   config.claimEnabled = interaction.options.getBoolean('enabled', true);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Claim System',
     config.claimEnabled ? '✅ Enabled' : '❌ Disabled'
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handlePriorityToggle(
@@ -432,14 +432,12 @@ async function handlePriorityToggle(
   config.priorityEnabled = interaction.options.getBoolean('enabled', true);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Priority System',
     config.priorityEnabled ? '✅ Enabled' : '❌ Disabled'
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleTranscriptToggle(
@@ -450,14 +448,12 @@ async function handleTranscriptToggle(
   config.transcriptEnabled = interaction.options.getBoolean('enabled', true);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Transcripts',
     config.transcriptEnabled ? '✅ Enabled' : '❌ Disabled'
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleFeedbackToggle(
@@ -468,14 +464,12 @@ async function handleFeedbackToggle(
   config.feedbackEnabled = interaction.options.getBoolean('enabled', true);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Feedback System',
     config.feedbackEnabled ? '✅ Enabled' : '❌ Disabled'
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleLogChannel(
@@ -487,14 +481,12 @@ async function handleLogChannel(
   config.logChannelId = channel.id;
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Log Channel Set',
     `Ticket logs will be posted to ${channel.toString()}`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleAddCategory(
@@ -525,14 +517,12 @@ async function handleAddCategory(
 
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Category Added',
     `${emoji || ''} **${name}** has been added to the ticket system.`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleRemoveCategory(
@@ -561,14 +551,12 @@ async function handleRemoveCategory(
   const removed = config.categories.splice(index, 1)[0];
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Category Removed',
     `**${removed.name}** has been removed.`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleEditCategory(
@@ -603,11 +591,9 @@ async function handleEditCategory(
 
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed('Category Updated', `**${category.name}** has been updated.`);
+  const container = successContainer('Category Updated', `**${category.name}** has been updated.`);
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 export default command;

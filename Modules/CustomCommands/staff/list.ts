@@ -1,8 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
@@ -10,6 +9,8 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { CustomCommandsHelper } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, addSeparator, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { ContainerBuilder } from 'discord.js';
 const logger = createModuleLogger('CustomCommands');
 
 export const listCommand: BotCommand = {
@@ -74,44 +75,45 @@ export const listCommand: BotCommand = {
 
       // Paginate results
       const pageSize = 5;
-      const pages: EmbedBuilder[] = [];
+      const pages: ContainerBuilder[] = [];
 
       for (let i = 0; i < filtered.length; i += pageSize) {
         const pageCommands = filtered.slice(i, i + pageSize);
-        const embed = new EmbedBuilder()
-          .setTitle(`Custom Commands (${i / pageSize + 1} of ${Math.ceil(filtered.length / pageSize)})`)
-          .setColor('#2f3136')
-          .setDescription(`Total commands: **${commands.length}**`);
+        const pageNum = Math.floor(i / pageSize) + 1;
+        const totalPages = Math.ceil(filtered.length / pageSize);
 
-        for (const cmd of pageCommands) {
+        const container = moduleContainer('custom_commands');
+        addText(container, `### Custom Commands (${pageNum} of ${totalPages})\nTotal commands: **${commands.length}**`);
+        addSeparator(container, 'small');
+
+        const fields = pageCommands.map(cmd => {
           const aliases = cmd.aliases && cmd.aliases.length > 0
             ? `\nAliases: ${cmd.aliases.join(', ')}`
             : '';
-
           const responsePreview = cmd.response.substring(0, 50).replace(/\n/g, ' ') + (cmd.response.length > 50 ? '...' : '');
 
-          embed.addFields({
+          return {
             name: `\`${cmd.name}\``,
             value: `${responsePreview}${aliases}\nUses: ${cmd.useCount || 0} | Cooldown: ${cmd.cooldown || 0}s`,
             inline: false
-          });
-        }
+          };
+        });
 
-        embed.setFooter({ text: `Page ${Math.floor(i / pageSize) + 1} of ${Math.ceil(filtered.length / pageSize)}` });
-        pages.push(embed);
+        addFields(container, fields);
+        addText(container, `-# Page ${pageNum} of ${totalPages}`);
+        pages.push(container);
       }
 
       if (pages.length === 1) {
-        await interaction.reply({
-          embeds: pages
-        });
+        await interaction.reply(v2Payload(pages));
         return;
       }
 
       // Create pagination controls
       let currentPage = 0;
 
-      const generateRow = (page: number) => {
+      const buildPageWithButtons = (page: number) => {
+        const container = pages[page];
         const prevButton = new ButtonBuilder()
           .setCustomId('prev_page')
           .setLabel('Previous')
@@ -124,14 +126,11 @@ export const listCommand: BotCommand = {
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === pages.length - 1);
 
-        return new ActionRowBuilder<ButtonBuilder>()
-          .addComponents(prevButton, nextButton);
+        addButtons(container, [prevButton, nextButton]);
+        return container;
       };
 
-      const response = await interaction.reply({
-        embeds: [pages[currentPage]],
-        components: [generateRow(currentPage)]
-      });
+      const response = await interaction.reply(v2Payload([buildPageWithButtons(currentPage)]));
 
       const collector = response.createMessageComponentCollector({
         componentType: ComponentType.Button,
@@ -152,15 +151,12 @@ export const listCommand: BotCommand = {
           currentPage--;
         }
 
-        await buttonInteraction.update({
-          embeds: [pages[currentPage]],
-          components: [generateRow(currentPage)]
-        });
+        await buttonInteraction.update(v2Payload([buildPageWithButtons(currentPage)]));
       });
 
       collector.on('end', async () => {
         try {
-          await response.edit({ components: [] });
+          await response.edit(v2Payload([pages[currentPage]]));
         } catch (error) {
           logger.warn('Failed to remove pagination buttons', error);
         }

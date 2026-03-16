@@ -5,8 +5,8 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getPoll,
-  buildResultsEmbed,
-  buildPollEmbed,
+  buildResultsContainer,
+  buildPollContainer,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -48,16 +48,16 @@ const command: BotCommand = {
         });
       }
 
-      // Build embed
-      let embed;
+      // Build container
+      let container;
       if (poll.status === 'ended') {
-        embed = buildResultsEmbed(poll);
+        container = buildResultsContainer(poll);
       } else {
-        embed = buildPollEmbed(poll, true); // Always show live results in this view
+        container = buildPollContainer(poll, true); // Always show live results in this view
       }
 
       await interaction.editReply({
-        embeds: [embed],
+        components: [container],
       });
     } catch (error) {
       console.error('Error in /pollresults command:', error);

@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   savePalette,
@@ -10,6 +13,7 @@ import {
   getColorPalette,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -56,17 +60,16 @@ const command: BotCommand = {
 
     const save = await savePalette(guild.id, name, interaction.user.id);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle('💾 Palette Saved')
-      .setDescription(
-        `Saved **${colors.length}** colors as **"${name}"**\n` +
-        `Save ID: \`${save.id}\`\n\n` +
-        `Use \`/colorrestore ${save.id}\` to restore this palette.`
-      )
-      .setFooter({ text: `${existingSaves.length + 1}/20 saves used` });
+    const container = moduleContainer('color_roles').setAccentColor(0x2ECC71);
+    addText(container, `### 💾 Palette Saved`);
+    addText(container,
+      `Saved **${colors.length}** colors as **"${name}"**\n` +
+      `Save ID: \`${save.id}\`\n\n` +
+      `Use \`/colorrestore ${save.id}\` to restore this palette.`
+    );
+    addFooter(container, `${existingSaves.length + 1}/20 saves used`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

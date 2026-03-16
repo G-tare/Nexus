@@ -15,7 +15,7 @@ const command: BotCommand = {
         .setDescription('The channel to stop auto-translating')
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
         .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'translation',
   permissionPath: 'translation.translateremove',

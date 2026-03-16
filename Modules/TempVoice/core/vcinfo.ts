@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId } from '../helpers';
+import { moduleContainer, addText, addFields, addSeparator, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcinfo')
@@ -52,34 +53,35 @@ export const vcinfo: BotCommand = {
       const permittedUsers = tempVC.permittedUsers || [];
       const deniedUsers = tempVC.deniedUsers || [];
 
-      const embed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('Temporary Voice Channel Info')
-        .addFields(
-          { name: 'Channel', value: `<#${voiceChannel.id}>`, inline: true },
-          { name: 'Owner', value: ownerName, inline: true },
-          { name: 'Members', value: `${members.size}${userLimit > 0 ? `/${userLimit}` : ''}`, inline: true },
-          { name: 'Created', value: `<t:${Math.floor(createdAt.getTime() / 1000)}:R>`, inline: true },
-          { name: 'Uptime', value: `${uptime}s`, inline: true },
-          { name: 'Status', value: isLocked ? '🔒 Locked' : '🔓 Unlocked', inline: true }
-        );
+      const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+
+      addText(container, '### Temporary Voice Channel Info');
+      addSeparator(container, 'small');
+      addFields(container, [
+        { name: 'Channel', value: `<#${voiceChannel.id}>`, inline: true },
+        { name: 'Owner', value: ownerName, inline: true },
+        { name: 'Members', value: `${members.size}${userLimit > 0 ? `/${userLimit}` : ''}`, inline: true },
+        { name: 'Created', value: `<t:${Math.floor(createdAt.getTime() / 1000)}:R>`, inline: true },
+        { name: 'Uptime', value: `${uptime}s`, inline: true },
+        { name: 'Status', value: isLocked ? '🔒 Locked' : '🔓 Unlocked', inline: true }
+      ]);
 
       if (permittedUsers.length > 0) {
-        embed.addFields({
+        addFields(container, [{
           name: 'Permitted Users',
           value: permittedUsers.map((id) => `<@${id}>`).join(', ') || 'None',
-        });
+        }]);
       }
 
       if (deniedUsers.length > 0) {
-        embed.addFields({
+        addFields(container, [{
           name: 'Denied Users',
           value: deniedUsers.map((id) => `<@${id}>`).join(', ') || 'None',
-        });
+        }]);
       }
 
       logger.info('[TempVoice] User viewed temp VC info:', voiceChannel.id);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vcinfo command:', error);
       return interaction.editReply('An error occurred while retrieving channel information.');

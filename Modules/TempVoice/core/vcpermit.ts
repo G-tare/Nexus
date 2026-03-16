@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId, auditLog, permitUser, removeDeny, updateTempVC } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcpermit')
@@ -87,13 +88,11 @@ export const vcpermit: BotCommand = {
           targetUser: targetUser.id,
         });
 
-        const embed = new EmbedBuilder()
-          .setColor('#00ff00')
-          .setTitle('User Permitted')
-          .setDescription(`${targetUser.username} can now join your channel.`);
+        const container = moduleContainer('temp_voice').setAccentColor(0x00ff00);
+        addText(container, `### User Permitted\n${targetUser.username} can now join your channel.`);
 
         logger.info('[TempVoice] User permitted to join temp VC:', targetUser.id, 'channel:', voiceChannel.id);
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } else {
         await removeDeny(voiceChannel, targetUser.id);
 
@@ -113,13 +112,11 @@ export const vcpermit: BotCommand = {
           targetUser: targetUser.id,
         });
 
-        const embed = new EmbedBuilder()
-          .setColor('#ff0000')
-          .setTitle('User Denied')
-          .setDescription(`${targetUser.username} can no longer join your channel.`);
+        const container = moduleContainer('temp_voice').setAccentColor(0xff0000);
+        addText(container, `### User Denied\n${targetUser.username} can no longer join your channel.`);
 
         logger.info('[TempVoice] User denied from joining temp VC:', targetUser.id, 'channel:', voiceChannel.id);
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       logger.error('[TempVoice] Error executing /vcpermit command:', error);

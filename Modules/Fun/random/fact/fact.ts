@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const facts = [
   'Honey never spoils and can last for thousands of years!',
@@ -51,13 +52,12 @@ export default {
 
       const fact = facts[Math.floor(Math.random() * facts.length)];
 
-      const embed = new EmbedBuilder()
-        .setTitle('💡 Random Fun Fact')
-        .setDescription(fact)
-        .setColor('#00D4FF')
-        .setFooter({ text: 'Did you know?' });
+      const container = moduleContainer('fun');
+      addText(container, '### 💡 Random Fun Fact');
+      addText(container, fact);
+      addFooter(container, 'Did you know?');
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Fact command error:', error);
       await interaction.reply({

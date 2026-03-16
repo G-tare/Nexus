@@ -26,6 +26,7 @@ import unclaim from './commands/manage/unclaim';
 import transfer from './commands/manage/transfer';
 import priority from './commands/manage/priority';
 import rename from './commands/manage/rename';
+import notice from './commands/manage/notice';
 
 // Transcript commands
 import transcript from './commands/transcript/transcript';
@@ -56,7 +57,7 @@ const ticketsModule: BotModule = {
     paneledit,
     panellist,
 
-    // Manage commands (7)
+    // Manage commands (8)
     add,
     remove,
     claim,
@@ -64,6 +65,7 @@ const ticketsModule: BotModule = {
     transfer,
     priority,
     rename,
+    notice,
 
     // Transcript commands (2)
     transcript,
@@ -80,7 +82,7 @@ const ticketsModule: BotModule = {
 
   async onLoad() {
     logger.info(
-      'Tickets module loaded — 18 commands with panels, categories, transcripts, claiming, priorities, feedback, and auto-close'
+      'Tickets module loaded — 19 commands with panels, categories, transcripts, claiming, priorities, notices, feedback, and auto-close'
     );
   },
 

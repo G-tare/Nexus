@@ -10,8 +10,9 @@ import {
   removeBirthdayRoleTracking,
   getAge,
   parseAnnouncementMessage,
-  buildBirthdayAnnouncementEmbed,
+  buildBirthdayAnnouncementContainer,
 } from './helpers';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { getDb } from '../../Shared/src/database/connection';
 import { guilds } from '../../Shared/src/database/models/schema';
@@ -97,8 +98,8 @@ async function checkBirthdays(client: Client): Promise<void> {
             showAge ? age : null
           ).replace(/\{server\}/g, discordGuild.name);
 
-          // Build embed
-          const embed = buildBirthdayAnnouncementEmbed(
+          // Build container
+          const container = buildBirthdayAnnouncementContainer(
             entry.userId,
             displayName,
             message,
@@ -106,18 +107,8 @@ async function checkBirthdays(client: Client): Promise<void> {
             config.showAge
           );
 
-          // Try to get user avatar
-          try {
-            const member = await discordGuild.members.fetch(entry.userId);
-            if (member) {
-              embed.setThumbnail(member.user.displayAvatarURL({ size: 256 }));
-            }
-          } catch {
-            // User might have left, still announce
-          }
-
           // Send announcement
-          await (channel as any).send({ embeds: [embed] });
+          await (channel as any).send(v2Payload([container]));
           await markBirthdayAnnounced(guild.id, entry.userId);
 
           // Assign birthday role if configured

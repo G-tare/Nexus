@@ -1,9 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormById, getFormResponses, updateResponseStatus } from '../helpers';
 import { emitFormApproved, emitFormDenied } from '../events';
+import { moduleContainer, addText, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -63,42 +64,37 @@ const command: BotCommand = {
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle(`${form.name} - Review Submissions`)
-        .setColor('#5865F2')
-        .setDescription(
-          filteredResponses
-            .map(
-              (r) =>
-                `**Response ID**: ${r.id}\n` +
-                `**User**: <@${r.userId}>\n` +
-                `**Status**: ${r.status}\n` +
-                `**Submitted**: <t:${Math.floor(r.submittedAt.getTime() / 1000)}:f>`
-            )
-            .join('\n\n')
+      const container = moduleContainer('forms');
+      const description = filteredResponses
+        .map(
+          (r) =>
+            `**Response ID**: ${r.id}\n` +
+            `**User**: <@${r.userId}>\n` +
+            `**Status**: ${r.status}\n` +
+            `**Submitted**: <t:${Math.floor(r.submittedAt.getTime() / 1000)}:f>`
         )
-        .setFooter({ text: `Showing ${filteredResponses.length} of ${total} responses` })
-        .setTimestamp();
+        .join('\n\n');
 
-      const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`review_pending_${formId}`)
-          .setLabel('View Pending')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(`review_approved_${formId}`)
-          .setLabel('View Approved')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId(`review_denied_${formId}`)
-          .setLabel('View Denied')
-          .setStyle(ButtonStyle.Danger)
-      );
+      addText(container, `### ${form.name} - Review Submissions\n${description}\n\n-# Showing ${filteredResponses.length} of ${total} responses`);
 
-      await interaction.editReply({
-        embeds: [embed],
-        components: [buttons],
-      });
+      const pendingBtn = new ButtonBuilder()
+        .setCustomId(`review_pending_${formId}`)
+        .setLabel('View Pending')
+        .setStyle(ButtonStyle.Primary);
+
+      const approvedBtn = new ButtonBuilder()
+        .setCustomId(`review_approved_${formId}`)
+        .setLabel('View Approved')
+        .setStyle(ButtonStyle.Success);
+
+      const deniedBtn = new ButtonBuilder()
+        .setCustomId(`review_denied_${formId}`)
+        .setLabel('View Denied')
+        .setStyle(ButtonStyle.Danger);
+
+      addButtons(container, [pendingBtn, approvedBtn, deniedBtn]);
+
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[Forms] /formreview error:', error);
       await interaction.editReply({ content: '❌ An error occurred while reviewing responses.' });

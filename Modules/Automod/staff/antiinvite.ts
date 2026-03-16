@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addSeparator, successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 function isValidSnowflake(id: string): boolean {
   return /^\d{17,19}$/.test(id);
@@ -21,6 +21,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('antiinvite')
     .setDescription('Configure Discord invite blocking')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('toggle')
@@ -90,8 +91,7 @@ export default {
         const serverId = interaction.options.getString('server-id', true);
 
         if (!isValidSnowflake(serverId)) {
-          const embed = errorEmbed('Invalid server ID format');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Invalid Server ID', 'Invalid server ID format'));
           return;
         }
 
@@ -102,16 +102,14 @@ export default {
         const serverId = interaction.options.getString('server-id', true);
 
         if (!isValidSnowflake(serverId)) {
-          const embed = errorEmbed('Invalid server ID format');
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Invalid Server ID', 'Invalid server ID format'));
           return;
         }
 
         const allowedServers = (config.antiinvite.allowedServers || []).filter(id => id !== serverId);
 
         if (allowedServers.length === (config.antiinvite.allowedServers || []).length) {
-          const embed = errorEmbed(`Server **${serverId}** not found in allowlist`);
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(errorReply('Server Not Found', `Server **${serverId}** not found in allowlist`));
           return;
         }
 
@@ -139,33 +137,34 @@ export default {
         const allowedServers = config.antiinvite.allowedServers || [];
         const allowedRoles = config.antiinvite.allowedRoles || [];
 
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Primary)
-          .setTitle('Anti-Invite Configuration')
-          .setDescription(
-            `**Enabled:** ${config.antiinvite.enabled ? '✓' : '✗'}\n\n` +
-            `**Allowed Servers (${allowedServers.length}):**\n` +
-            (allowedServers.length > 0
-              ? '```\n' + allowedServers.slice(0, 10).join('\n') + (allowedServers.length > 10 ? '\n... and ' + (allowedServers.length - 10) + ' more' : '') + '\n```'
-              : '(none)\n') +
-            `\n**Exempt Roles (${allowedRoles.length}):**\n` +
-            (allowedRoles.length > 0
-              ? allowedRoles.slice(0, 10).map((id: any) => `<@&${id}>`).join(', ') + (allowedRoles.length > 10 ? ` + ${allowedRoles.length - 10} more` : '')
-              : '(none)')
-          )
-          .setFooter({ text: `Guild ID: ${guildId}` });
+        const container = moduleContainer('automod');
+        addText(container, '### Anti-Invite Configuration');
+        addSeparator(container, 'small');
 
-        await interaction.editReply({ embeds: [embed] });
+        const serversList = allowedServers.length > 0
+          ? allowedServers.slice(0, 10).join('\n') + (allowedServers.length > 10 ? `\n... and ${allowedServers.length - 10} more` : '')
+          : '(none)';
+
+        const rolesList = allowedRoles.length > 0
+          ? allowedRoles.slice(0, 10).map((id: any) => `<@&${id}>`).join(', ') + (allowedRoles.length > 10 ? ` + ${allowedRoles.length - 10} more` : '')
+          : '(none)';
+
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+          { name: 'Enabled', value: config.antiinvite.enabled ? '✓' : '✗', inline: true },
+          { name: `Allowed Servers (${allowedServers.length})`, value: serversList },
+          { name: `Exempt Roles (${allowedRoles.length})`, value: rolesList },
+        ];
+
+        addFields(container, fields);
+        await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
         return;
       }
 
       await moduleConfig.setConfig(guildId, 'automod', updatedConfig);
 
-      const embed = successEmbed(`Invite Filter Updated\n${message}`);
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(successReply('Invite Filter Updated', message));
     } catch (error) {
-      const embed = errorEmbed('Failed to update invite filter settings');
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Configuration Error', 'Failed to update invite filter settings'));
       console.error('[Automod] Antiinvite command error:', error);
     }
   }

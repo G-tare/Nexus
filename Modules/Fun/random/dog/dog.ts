@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addMediaGallery, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const dogFallback = {
   image: 'https://images.dog.ceo/breeds/retriever-golden/n02099601_11136.jpg',
@@ -25,13 +26,12 @@ export default {
 
       const dog = dogFallback;
 
-      const embed = new EmbedBuilder()
-        .setTitle('🐕 Random Dog')
-        .setImage(dog.image)
-        .setFooter({ text: `Breed: ${dog.breed}` })
-        .setColor('#8B4513');
+      const container = moduleContainer('fun');
+      addText(container, '### 🐕 Random Dog');
+      addMediaGallery(container, [{ url: dog.image }]);
+      addFooter(container, `Breed: ${dog.breed}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Dog command error:', error);
       await interaction.reply({

@@ -1,10 +1,10 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getGuildStats, getCallHistory, formatDuration } from '../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -33,18 +33,15 @@ const command: BotCommand = {
         }).join('\n')
       : 'No calls yet';
 
-    const embed = new EmbedBuilder()
-      .setColor(0x9B59B6)
-      .setTitle('📞 Phonebook')
-      .addFields(
-        { name: 'Total Calls', value: `${stats.totalCalls}`, inline: true },
-        { name: 'Total Messages', value: `${stats.totalMessages}`, inline: true },
-        { name: 'Avg Duration', value: avgDuration, inline: true },
-        { name: 'Recent Calls', value: historyLines },
-      )
-      .setTimestamp();
+    const container = moduleContainer('userphone');
+    addFields(container, [
+      { name: 'Total Calls', value: `${stats.totalCalls}`, inline: true },
+      { name: 'Total Messages', value: `${stats.totalMessages}`, inline: true },
+      { name: 'Avg Duration', value: avgDuration, inline: true },
+      { name: 'Recent Calls', value: historyLines },
+    ]);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

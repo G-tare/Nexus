@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const quotes = [
   { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
@@ -41,13 +42,12 @@ export default {
 
       const quote = quotes[Math.floor(Math.random() * quotes.length)];
 
-      const embed = new EmbedBuilder()
-        .setTitle('✨ Inspirational Quote')
-        .setDescription(`"${quote.text}"`)
-        .setFooter({ text: `— ${quote.author}` })
-        .setColor('#9D4EDD');
+      const container = moduleContainer('fun');
+      addText(container, '### ✨ Inspirational Quote');
+      addText(container, `"${quote.text}"`);
+      addFooter(container, `— ${quote.author}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Quote command error:', error);
       await interaction.reply({

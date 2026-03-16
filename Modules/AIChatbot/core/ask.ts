@@ -1,9 +1,10 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags, GuildMember } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags, GuildMember } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { config as globalConfig } from '../../../Shared/src/config';
 import { checkAICooldown, setAICooldown, getAIConfig, isAIAuthorized } from '../helpers';
 import { runAgentFromInteraction } from '../agent';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AIChatbot');
 
@@ -58,16 +59,12 @@ const command: BotCommand = {
       try {
         const result = await runAgentFromInteraction(interaction, question);
 
-        const embed = new EmbedBuilder()
-          .setTitle('🤖 AI Response')
-          .setDescription(result.response.slice(0, 4000))
-          .setColor('#7289DA')
-          .setFooter({
-            text: `Requested by ${interaction.user.username}${result.toolsUsed.length > 0 ? ` • ${result.toolsUsed.length} actions taken` : ''}`,
-          })
-          .setTimestamp();
+        const container = moduleContainer('ai_chatbot');
+        addText(container, `### 🤖 AI Response\n${result.response.slice(0, 4000)}`);
+        const footerText = `Requested by ${interaction.user.username}${result.toolsUsed.length > 0 ? ` • ${result.toolsUsed.length} actions taken` : ''}`;
+        addFooter(container, footerText);
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(v2Payload([container]));
         await setAICooldown(interaction.guildId!, interaction.user.id, config.cooldown);
       } catch (error) {
         logger.error(`Error in ask command for ${interaction.guildId!}/${interaction.user.id}`, error);

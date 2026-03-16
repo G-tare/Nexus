@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
-  createModCase, sendModDM, canModerate, modActionEmbed,
+  createModCase, sendModDM, canModerate, buildModActionContainer,
   getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
   checkWarnThresholds,
 } from '../helpers';
@@ -29,7 +29,8 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('user', true);
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const rawReason = interaction.options.getString('reason');
+    const reason = rawReason || 'No reason provided';
     const guild = interaction.guild!;
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
@@ -47,6 +48,13 @@ const command: BotCommand = {
     await interaction.deferReply();
 
     const config = await getModConfig(guild.id);
+
+    // Enforce requireReason
+    if (config.requireReason && !rawReason) {
+      await interaction.editReply({ content: '❌ This server requires a reason for moderation actions. Please provide a reason.' });
+      return;
+    }
+
     await ensureGuild(guild);
     await ensureGuildMember(guild.id, target.id);
 
@@ -88,13 +96,13 @@ const command: BotCommand = {
 
     // Reputation penalty
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.warn, 'Warning');
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.warn, 'Warning', interaction.user.id);
     }
 
     // Check thresholds for auto-escalation
     await checkWarnThresholds(guild.id, target.id, warnCount, config, guild);
 
-    const embed = modActionEmbed({
+    const container = buildModActionContainer({
       action: 'Warning',
       target,
       moderator: interaction.user,
@@ -106,7 +114,7 @@ const command: BotCommand = {
       ],
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

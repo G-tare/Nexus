@@ -1,6 +1,7 @@
-import { EmbedBuilder, Guild, Message, TextChannel, ColorResolvable } from 'discord.js';
-import { getRedis } from '../../Shared/src/database/connection';
-const redis = getRedis();
+import { Guild, Message, TextChannel } from 'discord.js';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { moduleContainer, addText, addFields, addFooter, v2Payload } from '../../Shared/src/utils/componentsV2';
+// Using global cache;
 
 export type SuggestionStatus = 'pending' | 'approved' | 'denied' | 'considering' | 'implemented';
 
@@ -59,9 +60,9 @@ const DEFAULT_CONFIG: SuggestionConfig = {
  */
 export async function getSuggestionConfig(guildId: string): Promise<SuggestionConfig> {
   const key = `suggestions:config:${guildId}`;
-  const data = await redis.hgetall(key);
+  const data = cache.hgetall(key);
 
-  if (Object.keys(data).length === 0) {
+  if (!data || Object.keys(data).length === 0) {
     return { ...DEFAULT_CONFIG };
   }
 
@@ -113,7 +114,10 @@ export async function setSuggestionConfig(guildId: string, config: Partial<Sugge
     data.channelId = merged.channelId;
   }
 
-  await redis.hset(key, data);
+  // Set each field individually since cache.hset takes field/value pairs
+  for (const [field, value] of Object.entries(data)) {
+    cache.hset(key, field, value);
+  }
 }
 
 /**
@@ -121,7 +125,7 @@ export async function setSuggestionConfig(guildId: string, config: Partial<Sugge
  */
 export async function getNextSuggestionNumber(guildId: string): Promise<number> {
   const key = `suggestions:counter:${guildId}`;
-  const next = await redis.incr(key);
+  const next = cache.incr(key);
   return next;
 }
 
@@ -151,9 +155,12 @@ export async function storeSuggestion(
     data.imageUrl = imageUrl;
   }
 
-  await redis.hset(key, data);
+  // Set each field individually since cache.hset takes field/value pairs
+  for (const [field, value] of Object.entries(data)) {
+    cache.hset(key, field, value);
+  }
   // Set expiry to 180 days
-  await redis.expire(key, 15552000);
+  cache.expire(key, 15552000);
 }
 
 /**
@@ -161,9 +168,9 @@ export async function storeSuggestion(
  */
 export async function getSuggestionData(guildId: string, number: number): Promise<SuggestionData | null> {
   const key = `suggestions:data:${guildId}:${number}`;
-  const data = await redis.hgetall(key);
+  const data = cache.hgetall(key);
 
-  if (Object.keys(data).length === 0) {
+  if (!data || Object.keys(data).length === 0) {
     return null;
   }
 
@@ -184,7 +191,7 @@ export async function getSuggestionData(guildId: string, number: number): Promis
 }
 
 /**
- * Build suggestion embed with status styling
+ * Build suggestion container with status styling
  */
 export function buildSuggestionEmbed(
   number: number,
@@ -192,45 +199,33 @@ export function buildSuggestionEmbed(
   author: string,
   config: SuggestionConfig,
   status: SuggestionStatus = 'pending',
-): EmbedBuilder {
-  let color: ColorResolvable;
+) {
   let statusBadge = '';
 
   switch (status) {
     case 'approved':
-      color = config.approvedColor as ColorResolvable;
       statusBadge = ' ✅ APPROVED';
       break;
     case 'denied':
-      color = config.deniedColor as ColorResolvable;
       statusBadge = ' ❌ DENIED';
       break;
     case 'considering':
-      color = config.consideringColor as ColorResolvable;
       statusBadge = ' 🤔 CONSIDERING';
       break;
     case 'implemented':
-      color = config.implementedColor as ColorResolvable;
       statusBadge = ' 🚀 IMPLEMENTED';
       break;
     default:
-      color = config.embedColor as ColorResolvable;
       statusBadge = ' ⏳ PENDING';
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle(`Suggestion #${number}${statusBadge}`)
-    .setDescription(content)
-    .setColor(color)
-    .setAuthor({
-      name: author === 'Anonymous' ? 'Anonymous' : author,
-    })
-    .setFooter({
-      text: `ID: ${number}`,
-    })
-    .setTimestamp();
+  const container = moduleContainer('suggestions');
+  addText(container, `### Suggestion #${number}${statusBadge}`);
+  addText(container, content);
+  addText(container, `**Author:** ${author === 'Anonymous' ? 'Anonymous' : author}`);
+  addFooter(container, `ID: ${number}`);
 
-  return embed;
+  return container;
 }
 
 /**
@@ -254,7 +249,10 @@ export async function updateSuggestionStatus(
     updates.reason = reason;
   }
 
-  await redis.hset(key, updates);
+  // Set each field individually since cache.hset takes field/value pairs
+  for (const [field, value] of Object.entries(updates)) {
+    cache.hset(key, field, value);
+  }
 }
 
 /**
@@ -262,11 +260,11 @@ export async function updateSuggestionStatus(
  */
 export async function storeSuggestionThread(guildId: string, number: number, threadId: string): Promise<void> {
   const key = `suggestions:data:${guildId}:${number}`;
-  await redis.hset(key, { threadId });
+  cache.hset(key, 'threadId', threadId);
 }
 
 /**
- * Update suggestion message with new status embed and reactions
+ * Update suggestion message with new status container and reactions
  */
 export async function updateSuggestionMessage(
   guild: Guild,
@@ -285,17 +283,19 @@ export async function updateSuggestionMessage(
     const authorUser = await guild.client.users.fetch(suggestion.userId).catch(() => null);
     const authorName = config.anonymous ? 'Anonymous' : authorUser?.username || 'Unknown User';
 
-    const embed = buildSuggestionEmbed(suggestion.number, suggestion.content, authorName, config, suggestion.status);
+    const container = buildSuggestionEmbed(suggestion.number, suggestion.content, authorName, config, suggestion.status);
 
     if (suggestion.reason) {
-      embed.addFields({
-        name: 'Staff Reason',
-        value: suggestion.reason,
-        inline: false,
-      });
+      addFields(container, [
+        {
+          name: 'Staff Reason',
+          value: suggestion.reason,
+          inline: false,
+        },
+      ]);
     }
 
-    await message.edit({ embeds: [embed] });
+    await message.edit(v2Payload([container]));
   } catch (error) {
     console.error(`Failed to update suggestion message for suggestion #${suggestion.number}:`, error);
   }
@@ -318,5 +318,5 @@ export async function addVoteReactions(message: Message, config: SuggestionConfi
  */
 export async function deleteSuggestion(guildId: string, number: number): Promise<void> {
   const key = `suggestions:data:${guildId}:${number}`;
-  await redis.del(key);
+  cache.del(key);
 }

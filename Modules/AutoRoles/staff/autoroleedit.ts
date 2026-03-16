@@ -1,8 +1,8 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getAutoRoleRule,
@@ -10,6 +10,7 @@ import {
   AutoRoleCondition,
   CONDITION_LABELS,
 } from '../helpers';
+import { moduleContainer, addText, addSeparator, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -45,7 +46,7 @@ const command: BotCommand = {
     .addBooleanOption(opt =>
       opt.setName('enabled')
         .setDescription('Enable or disable the rule'))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autoroleedit',
@@ -94,12 +95,12 @@ const command: BotCommand = {
 
     await updateAutoRoleRule(guild.id, ruleId, updates);
 
-    const embed = new EmbedBuilder()
-      .setColor(0xF39C12)
-      .setTitle(`✏️ Rule #${ruleId} Updated`)
-      .setDescription(changes.join('\n'));
+    const container = moduleContainer('auto_roles');
+    addText(container, `### ✏️ Rule #${ruleId} Updated`);
+    addSeparator(container, 'small');
+    addText(container, changes.join('\n'));
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

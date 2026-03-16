@@ -1,6 +1,8 @@
 import { 
   SlashCommandBuilder,
-  ChatInputCommandInteraction, MessageFlags } from 'discord.js';
+  ChatInputCommandInteraction,
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getConfessionConfig,
@@ -13,6 +15,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('confession-reveal')
     .setDescription('Reveal the author of a confession (owner only)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addIntegerOption(opt =>
       opt
         .setName('id')

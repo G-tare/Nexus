@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
-  createModCase, sendModDM, canModerate, modActionEmbed,
+  createModCase, sendModDM, canModerate, buildModActionContainer,
   getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
 } from '../helpers';
 
@@ -25,7 +25,8 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('user', true);
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const rawReason = interaction.options.getString('reason');
+    const reason = rawReason || 'No reason provided';
     const guild = interaction.guild!;
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
@@ -44,6 +45,13 @@ const command: BotCommand = {
 
     try {
       const config = await getModConfig(guild.id);
+
+      // Enforce requireReason
+      if (config.requireReason && !rawReason) {
+        await interaction.editReply({ content: '❌ This server requires a reason for moderation actions. Please provide a reason.' });
+        return;
+      }
+
       await ensureGuild(guild);
       await ensureGuildMember(guild.id, target.id);
 
@@ -70,10 +78,10 @@ const command: BotCommand = {
       await targetMember.kick(`[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
 
       if (config.reputationEnabled) {
-        await adjustReputation(guild.id, target.id, -config.reputationPenalties.kick, 'Kick');
+        await adjustReputation(guild.id, target.id, -config.reputationPenalties.kick, 'Kick', interaction.user.id);
       }
 
-      const embed = modActionEmbed({
+      const container = buildModActionContainer({
         action: 'Kick',
         target,
         moderator: interaction.user,
@@ -82,7 +90,7 @@ const command: BotCommand = {
         dmSent,
       });
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (err: any) {
       await interaction.editReply({ content: `❌ Failed to kick user: ${err.message}` }).catch(() => {});
     }

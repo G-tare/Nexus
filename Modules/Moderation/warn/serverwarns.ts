@@ -1,13 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { V2Colors, addText, addFooter, moduleContainer } from '../../../Shared/src/utils/componentsV2';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
 
 const command: BotCommand = {
@@ -71,14 +71,11 @@ const command: BotCommand = {
       `**Case #${w.caseNumber}** — <@${w.targetId}> by <@${w.moderatorId}> ${discordTimestamp(w.createdAt, 'R')}\n> ${w.reason}`
     );
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Warning)
-      .setTitle('Server-Wide Active Warnings')
-      .setDescription(lines.join('\n\n'))
-      .setFooter({ text: `Page ${currentPage}/${totalPages} • ${total} total warnings` })
-      .setTimestamp();
+    const container = moduleContainer('moderation');
+    addText(container, `### Server-Wide Active Warnings\n${lines.join('\n\n')}`);
+    addFooter(container, `Page ${currentPage}/${totalPages} • ${total} total warnings`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

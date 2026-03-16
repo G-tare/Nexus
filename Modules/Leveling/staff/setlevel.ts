@@ -20,6 +20,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('setlevel')
     .setDescription('Set a user\'s level directly')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addUserOption(option =>
       option
         .setName('user')

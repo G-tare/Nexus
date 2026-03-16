@@ -1,6 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBoardConfig, getRandomBoardMessage, buildBoardEmbed } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   data: new SlashCommandBuilder()
@@ -68,37 +69,42 @@ export default {
           );
 
           const author = originalMessage.author;
-          const embed = buildBoardEmbed(
+          const container = buildBoardEmbed(
             originalMessage,
             author,
             selectedBoard,
             boardMessage.reactionCount
           );
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(v2Payload([container]));
         } else {
           throw new Error('Channel not found or not text-based');
         }
       } catch (error) {
         // Fallback if original message was deleted
-        const embed = new EmbedBuilder()
-          .setAuthor({
-            name: boardMessage.authorId,
-          })
-          .setColor(selectedBoard.color as any)
-          .setDescription(boardMessage.content || '*Message content unavailable*')
-          .addFields({
+        const container = moduleContainer('quote_board');
+        addText(container, `**${boardMessage.authorId}**`);
+        addText(container, boardMessage.content || '*Message content unavailable*');
+        addFields(container, [
+          {
             name: 'Reactions',
             value: `${selectedBoard.emoji} ${boardMessage.reactionCount}`,
             inline: true,
-          })
-          .setTimestamp(boardMessage.createdAt);
+          },
+        ]);
 
         if (boardMessage.attachments.length > 0) {
-          embed.setImage(boardMessage.attachments[0]);
+          const { addMediaGallery } = require('../../../Shared/src/utils/componentsV2');
+          addMediaGallery(container, [
+            {
+              url: boardMessage.attachments[0],
+              description: undefined,
+              spoiler: false,
+            },
+          ]);
         }
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       console.error('Error in random-star command:', error);

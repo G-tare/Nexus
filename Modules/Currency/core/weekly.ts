@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
@@ -24,12 +24,8 @@ const command: BotCommand = {
 
       if (!guildId) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription('This command can only be used in a server.')
-          ]
+          components: [errorContainer('Error', 'This command can only be used in a server.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -59,12 +55,8 @@ const command: BotCommand = {
           const timeRemaining = `${remainingDays}d ${remainingHours}h`;
 
           return interaction.editReply({
-            embeds: [
-              successEmbed()
-                .setColor(Colors.Error)
-                .setTitle('Weekly Reward on Cooldown')
-                .setDescription(`You can claim your weekly reward in **${timeRemaining}**.`)
-            ]
+            components: [errorContainer('Weekly Reward on Cooldown', `You can claim your weekly reward in **${timeRemaining}**.`)],
+            flags: MessageFlags.IsComponentsV2,
           });
         }
       }
@@ -122,22 +114,14 @@ const command: BotCommand = {
       }
 
       return interaction.editReply({
-        embeds: [
-          successEmbed()
-            .setTitle('Weekly Reward Claimed!')
-            .setDescription(description)
-            .setColor(Colors.Success)
-        ]
+        components: [successContainer('Weekly Reward Claimed!', description)],
+        flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       console.error('[Weekly Command Error]', error);
       return interaction.editReply({
-        embeds: [
-          successEmbed()
-            .setColor(Colors.Error)
-            .setTitle('Error')
-            .setDescription('An error occurred while claiming your weekly reward.')
-        ]
+        components: [errorContainer('Error', 'An error occurred while claiming your weekly reward.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

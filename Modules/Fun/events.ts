@@ -1,6 +1,5 @@
 import { Client } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getRedis } from '../../Shared/src/database/connection';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('Fun');

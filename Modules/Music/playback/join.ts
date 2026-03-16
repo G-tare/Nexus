@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { joinVC, getConnection, createQueue, getQueue } from '../helpers';
+import { errorContainer, warningContainer, successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -17,11 +18,9 @@ const command: BotCommand = {
     const member = interaction.guild?.members.cache.get(interaction.user.id);
 
     if (!member?.voice.channel) {
-      return interaction.editReply({
-        embeds: [new EmbedBuilder()
-          .setDescription('You must be in a voice channel first.')
-          .setColor(0xff0000)],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel first.')])
+      );
     }
 
     const voiceChannelId = member.voice.channel.id;
@@ -31,21 +30,17 @@ const command: BotCommand = {
     if (existing) {
       const queue = getQueue(interaction.guild!.id);
       if (queue?.voiceChannelId === voiceChannelId) {
-        return interaction.editReply({
-          embeds: [new EmbedBuilder()
-            .setDescription('I\'m already in your voice channel!')
-            .setColor(0xf39c12)],
-        });
+        return interaction.editReply(
+          v2Payload([warningContainer('Already Connected', 'I\'m already in your voice channel!')])
+        );
       }
     }
 
     const connection = await joinVC(interaction.guild!, voiceChannelId);
     if (!connection) {
-      return interaction.editReply({
-        embeds: [new EmbedBuilder()
-          .setDescription('Failed to join your voice channel. Check my permissions.')
-          .setColor(0xff0000)],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Connection Failed', 'Failed to join your voice channel. Check my permissions.')])
+      );
     }
 
     // Ensure a queue exists
@@ -53,11 +48,9 @@ const command: BotCommand = {
       createQueue(interaction.guild!.id, interaction.channelId!, voiceChannelId);
     }
 
-    return interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setDescription(`Joined <#${voiceChannelId}>`)
-        .setColor(0x2ecc71)],
-    });
+    return interaction.editReply(
+      v2Payload([successContainer('Joined', `Joined <#${voiceChannelId}>`)])
+    );
   },
 };
 

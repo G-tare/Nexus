@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('levelconfig')
     .setDescription('Configure leveling settings for this server')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('xp-range')

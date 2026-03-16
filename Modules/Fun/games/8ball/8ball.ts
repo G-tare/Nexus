@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const POSITIVE_RESPONSES = [
@@ -70,28 +71,13 @@ export default {
     const question = interaction.options.getString('question', true);
     const response = ALL_RESPONSES[Math.floor(Math.random() * ALL_RESPONSES.length)];
 
-    let color = 0x3498db;
-    if (POSITIVE_RESPONSES.includes(response)) {
-      color = 0x00ff00;
-    } else if (NEGATIVE_RESPONSES.includes(response)) {
-      color = 0xff0000;
-    }
+    const container = moduleContainer('fun');
+    addFields(container, [
+      { name: 'Question', value: question, inline: false },
+      { name: 'Answer', value: `*${response}*`, inline: false }
+    ]);
 
-    const embed = new EmbedBuilder()
-      .setColor(color)
-      .setTitle('🎱 Magic 8-Ball')
-      .addFields({
-        name: 'Question',
-        value: question,
-        inline: false,
-      })
-      .addFields({
-        name: 'Answer',
-        value: `*${response}*`,
-        inline: false,
-      });
-
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
     await setCooldown(interaction.guildId!, interaction.user.id, '8ball', 2);
   },
 } as BotCommand;

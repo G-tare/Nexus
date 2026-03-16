@@ -1,15 +1,24 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import {
   getCountingConfig,
   saveCountingConfig,
   setCurrentCount,
 } from '../helpers';
+import {
+  moduleContainer,
+  successContainer,
+  errorContainer,
+  warningContainer,
+  addFields,
+  addText,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('counting-config')
@@ -195,29 +204,27 @@ const configCommand: BotCommand = {
           ? `<#${config.channelId}>`
           : 'Not set';
 
-        const embed = new EmbedBuilder()
-          .setColor(0x5865f2)
-          .setTitle('⚙️ Counting Configuration')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Channel', value: channel, inline: true },
-            { name: 'Current Count', value: String(config.currentCount), inline: true },
-            { name: 'Strict Mode', value: config.strictMode ? '✅ Numbers Only' : '❌ Talking Allowed', inline: true },
-            { name: 'Math Mode', value: config.mathMode ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Allow Double Count', value: config.allowDoubleCount ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Delete Wrong Numbers', value: config.deleteWrongNumbers ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Reset on Wrong', value: config.resetOnWrong ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'React on Correct', value: config.reactOnCorrect ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Milestones Enabled', value: config.notifyOnMilestone ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Milestone Interval', value: `Every ${config.milestoneInterval} numbers`, inline: true },
-            { name: 'Lives System', value: config.livesEnabled ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Global Leaderboard', value: config.globalLeaderboardEnabled ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Server Record', value: String(config.highestCount), inline: true },
-            { name: 'Total Counts', value: String(config.totalCounts), inline: true },
-          )
-          .setTimestamp();
+        const container = moduleContainer('counting');
+        addText(container, '### ⚙️ Counting Configuration');
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Channel', value: channel, inline: true },
+          { name: 'Current Count', value: String(config.currentCount), inline: true },
+          { name: 'Strict Mode', value: config.strictMode ? '✅ Numbers Only' : '❌ Talking Allowed', inline: true },
+          { name: 'Math Mode', value: config.mathMode ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Allow Double Count', value: config.allowDoubleCount ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Delete Wrong Numbers', value: config.deleteWrongNumbers ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Reset on Wrong', value: config.resetOnWrong ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'React on Correct', value: config.reactOnCorrect ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Milestones Enabled', value: config.notifyOnMilestone ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Milestone Interval', value: `Every ${config.milestoneInterval} numbers`, inline: true },
+          { name: 'Lives System', value: config.livesEnabled ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Global Leaderboard', value: config.globalLeaderboardEnabled ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Server Record', value: String(config.highestCount), inline: true },
+          { name: 'Total Counts', value: String(config.totalCounts), inline: true },
+        ]);
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'channel') {
@@ -226,13 +233,12 @@ const configCommand: BotCommand = {
         config.enabled = true;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Counting Channel Set')
-          .setDescription(`Counting channel set to ${channel.toString()}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Counting Channel Set',
+          `Counting channel set to ${channel.toString()}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'strict-mode') {
@@ -240,17 +246,14 @@ const configCommand: BotCommand = {
         config.strictMode = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Strict Mode Updated')
-          .setDescription(
-            enabled
-              ? 'Strict mode is now **enabled** — only numbers are allowed in the counting channel. Any other text will break the streak.'
-              : 'Strict mode is now **disabled** — users can chat freely in the counting channel. Only messages that are numbers (or math expressions) will be counted.'
-          )
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Strict Mode Updated',
+          enabled
+            ? 'Strict mode is now **enabled** — only numbers are allowed in the counting channel. Any other text will break the streak.'
+            : 'Strict mode is now **disabled** — users can chat freely in the counting channel. Only messages that are numbers (or math expressions) will be counted.'
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'math-mode') {
@@ -258,13 +261,12 @@ const configCommand: BotCommand = {
         config.mathMode = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Math Mode Updated')
-          .setDescription(`Math mode is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Math Mode Updated',
+          `Math mode is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'double-count') {
@@ -272,13 +274,12 @@ const configCommand: BotCommand = {
         config.allowDoubleCount = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Double Count Updated')
-          .setDescription(`Double counting is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Double Count Updated',
+          `Double counting is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'delete-wrong') {
@@ -286,13 +287,12 @@ const configCommand: BotCommand = {
         config.deleteWrongNumbers = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Delete Wrong Updated')
-          .setDescription(`Deleting wrong numbers is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Delete Wrong Updated',
+          `Deleting wrong numbers is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'reset-on-wrong') {
@@ -300,13 +300,12 @@ const configCommand: BotCommand = {
         config.resetOnWrong = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Reset on Wrong Updated')
-          .setDescription(`Resetting on wrong count is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Reset on Wrong Updated',
+          `Resetting on wrong count is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'react') {
@@ -314,13 +313,12 @@ const configCommand: BotCommand = {
         config.reactOnCorrect = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Reaction Updated')
-          .setDescription(`Checkmark reactions are now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Reaction Updated',
+          `Checkmark reactions are now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'milestones') {
@@ -334,16 +332,13 @@ const configCommand: BotCommand = {
 
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Milestones Updated')
-          .setDescription(
-            `Milestone announcements are now ${enabled ? '**enabled**' : '**disabled**'}` +
-            (interval ? `\nInterval set to **${interval}**` : '')
-          )
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Milestones Updated',
+          `Milestone announcements are now ${enabled ? '**enabled**' : '**disabled**'}` +
+          (interval ? `\nInterval set to **${interval}**` : '')
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'lives') {
@@ -351,13 +346,12 @@ const configCommand: BotCommand = {
         config.livesEnabled = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Lives System Updated')
-          .setDescription(`Lives system is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Lives System Updated',
+          `Lives system is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'reset-count') {
@@ -367,13 +361,12 @@ const configCommand: BotCommand = {
         config.currentStreak = 0;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Count Reset')
-          .setDescription('The count has been reset to **0**')
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Count Reset',
+          'The count has been reset to **0**'
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'set-count') {
@@ -383,13 +376,12 @@ const configCommand: BotCommand = {
         config.lastCounterId = null;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Count Updated')
-          .setDescription(`The count has been set to **${number}**`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Count Updated',
+          `The count has been set to **${number}**`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'global-leaderboard') {
@@ -397,66 +389,61 @@ const configCommand: BotCommand = {
         config.globalLeaderboardEnabled = enabled;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Global Leaderboard Updated')
-          .setDescription(`Global leaderboard is now ${enabled ? '**enabled**' : '**disabled**'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Global Leaderboard Updated',
+          `Global leaderboard is now ${enabled ? '**enabled**' : '**disabled**'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'unban-counter') {
         const user = interaction.options.getUser('user', true);
-        const redis = (await import('../../../Shared/src/database/connection')).getRedis();
+        const redis = (await import('../../../Shared/src/cache/cacheManager')).cache;
 
         // Remove ban and reset strikes
-        await redis.del(`counting:ban:${guildId}:${user.id}`);
-        await redis.del(`counting:strikes:${guildId}:${user.id}`);
+        cache.del(`counting:ban:${guildId}:${user.id}`);
+        cache.del(`counting:strikes:${guildId}:${user.id}`);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Counting Ban Removed')
-          .setDescription(`${user.tag} has been unbanned from counting and their strike count has been reset.`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Counting Ban Removed',
+          `${user.tag} has been unbanned from counting and their strike count has been reset.`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'enable') {
         if (!config.channelId) {
-          const embed = new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('❌ Error')
-            .setDescription('Please set a counting channel first using `/counting-config channel`')
-            .setTimestamp();
+          const container = errorContainer(
+            '❌ Error',
+            'Please set a counting channel first using `/counting-config channel`'
+          );
 
-          return interaction.reply({ embeds: [embed] });
+          return interaction.reply(v2Payload([container]));
         }
 
         config.enabled = true;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x00aa00)
-          .setTitle('✅ Counting Enabled')
-          .setDescription(`Counting is now active in ${config.channelId ? `<#${config.channelId}>` : 'an unknown channel'}`)
-          .setTimestamp();
+        const container = successContainer(
+          '✅ Counting Enabled',
+          `Counting is now active in ${config.channelId ? `<#${config.channelId}>` : 'an unknown channel'}`
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
 
       if (subcommand === 'disable') {
         config.enabled = false;
         await saveCountingConfig(guildId, config);
 
-        const embed = new EmbedBuilder()
-          .setColor(0xff6600)
-          .setTitle('⚠️ Counting Disabled')
-          .setDescription('Counting has been disabled on this server')
-          .setTimestamp();
+        const container = warningContainer(
+          '⚠️ Counting Disabled',
+          'Counting has been disabled on this server'
+        );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply(v2Payload([container]));
       }
     } catch (error) {
       console.error('[Counting] Error in /counting-config:', error);

@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,13 +6,17 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   restoreSave,
   getSaves,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -82,10 +86,9 @@ const command: BotCommand = {
         const success = await restoreSave(guild, saveId);
 
         if (success) {
-          const embed = new EmbedBuilder()
-            .setColor(0x2ECC71)
-            .setDescription(`✅ Palette **"${save.name}"** restored with ${colorCount} colors!`);
-          await interaction.editReply({ embeds: [embed], components: [] });
+          const container = moduleContainer('color_roles').setAccentColor(0x2ECC71);
+          addText(container, `✅ Palette **"${save.name}"** restored with ${colorCount} colors!`);
+          await interaction.editReply(v2Payload([container]));
         } else {
           await interaction.editReply({ content: '❌ Failed to restore the save.', components: [] });
         }

@@ -1,6 +1,11 @@
-import { EmbedBuilder } from 'discord.js';
-import { getRedis } from '../../Shared/src/database/connection';
-const redis = getRedis();
+import { cache } from '../../Shared/src/cache/cacheManager';
+import {
+  moduleContainer,
+  infoContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../Shared/src/utils/componentsV2';
 
 export interface AFKConfig {
   enabled: boolean;
@@ -40,9 +45,9 @@ const DEFAULT_CONFIG: AFKConfig = {
 
 export async function getAFKConfig(guildId: string): Promise<AFKConfig> {
   const key = `afk:config:${guildId}`;
-  const stored = await redis.hgetall(key);
+  const stored = cache.hgetall(key);
 
-  if (Object.keys(stored).length === 0) {
+  if (!stored || Object.keys(stored).length === 0) {
     return DEFAULT_CONFIG;
   }
 
@@ -62,15 +67,15 @@ export async function setAFKConfig(guildId: string, config: Partial<AFKConfig>):
   const current = await getAFKConfig(guildId);
   const updated = { ...current, ...config };
 
-  await redis.hset(key, {
-    enabled: String(updated.enabled),
-    maxMessageLength: String(updated.maxMessageLength),
-    dmPingsOnReturn: String(updated.dmPingsOnReturn),
-    maxPingsToTrack: String(updated.maxPingsToTrack),
-    autoRemoveOnMessage: String(updated.autoRemoveOnMessage),
-    bannedUsers: JSON.stringify(updated.bannedUsers),
-    ...(updated.logChannelId && { logChannelId: updated.logChannelId }),
-  });
+  cache.hset(key, 'enabled', String(updated.enabled));
+  cache.hset(key, 'maxMessageLength', String(updated.maxMessageLength));
+  cache.hset(key, 'dmPingsOnReturn', String(updated.dmPingsOnReturn));
+  cache.hset(key, 'maxPingsToTrack', String(updated.maxPingsToTrack));
+  cache.hset(key, 'autoRemoveOnMessage', String(updated.autoRemoveOnMessage));
+  cache.hset(key, 'bannedUsers', JSON.stringify(updated.bannedUsers));
+  if (updated.logChannelId) {
+    cache.hset(key, 'logChannelId', updated.logChannelId);
+  }
 }
 
 export async function setAFK(
@@ -88,23 +93,23 @@ export async function setAFK(
     nickname,
   };
 
-  await redis.hset(key, {
-    userId,
-    guildId,
-    message,
-    setAt: data.setAt.toISOString(),
-    ...(nickname && { nickname }),
-  });
+  cache.hset(key, 'userId', userId);
+  cache.hset(key, 'guildId', guildId);
+  cache.hset(key, 'message', message);
+  cache.hset(key, 'setAt', data.setAt.toISOString());
+  if (nickname) {
+    cache.hset(key, 'nickname', nickname);
+  }
 
   // Add to active set
-  await redis.sadd(`afk:active:${guildId}`, userId);
+  cache.sadd(`afk:active:${guildId}`, userId);
 }
 
 export async function removeAFK(guildId: string, userId: string): Promise<AFKData | null> {
   const key = `afk:${guildId}:${userId}`;
-  const stored = await redis.hgetall(key);
+  const stored = cache.hgetall(key);
 
-  if (Object.keys(stored).length === 0) {
+  if (!stored || Object.keys(stored).length === 0) {
     return null;
   }
 
@@ -116,17 +121,17 @@ export async function removeAFK(guildId: string, userId: string): Promise<AFKDat
     nickname: stored.nickname,
   };
 
-  await redis.del(key);
-  await redis.srem(`afk:active:${guildId}`, userId);
+  await cache.del(key);
+  await cache.srem(`afk:active:${guildId}`, userId);
 
   return data;
 }
 
 export async function getAFK(guildId: string, userId: string): Promise<AFKData | null> {
   const key = `afk:${guildId}:${userId}`;
-  const stored = await redis.hgetall(key);
+  const stored = cache.hgetall(key);
 
-  if (Object.keys(stored).length === 0) {
+  if (!stored || Object.keys(stored).length === 0) {
     return null;
   }
 
@@ -140,7 +145,7 @@ export async function getAFK(guildId: string, userId: string): Promise<AFKData |
 }
 
 export async function getAllAFK(guildId: string): Promise<AFKData[]> {
-  const userIds = await redis.smembers(`afk:active:${guildId}`);
+  const userIds = await cache.smembers(`afk:active:${guildId}`);
   const afkUsers: AFKData[] = [];
 
   for (const userId of userIds) {
@@ -166,58 +171,59 @@ export async function trackPing(
   const key = `afk:pings:${guildId}:${afkUserId}`;
   const config = await getAFKConfig(guildId);
 
-  // Get current count
-  const current = await redis.lrange(key, 0, -1);
+  // Get current pings stored
+  const current = await cache.get<PingRecord[]>(key) || [];
 
   // If at max, remove oldest
   if (current.length >= config.maxPingsToTrack) {
-    await redis.lpop(key);
+    current.shift();
   }
 
-  // Add new ping (to the right/end)
-  await redis.rpush(key, JSON.stringify(ping));
+  // Add new ping
+  current.push(ping);
 
-  // Set expiry: 7 days
-  await redis.expire(key, 604800);
+  // Store and set expiry: 7 days
+  await cache.set(key, current, 604800);
 }
 
 export async function getPings(guildId: string, userId: string): Promise<PingRecord[]> {
   const key = `afk:pings:${guildId}:${userId}`;
-  const stored = await redis.lrange(key, 0, -1);
+  const stored = await cache.get<PingRecord[]>(key) || [];
 
-  return stored.map((item) => JSON.parse(item));
+  return stored;
 }
 
 export async function clearPings(guildId: string, userId: string): Promise<void> {
   const key = `afk:pings:${guildId}:${userId}`;
-  await redis.del(key);
+  await cache.del(key);
 }
 
-export function buildAFKEmbed(data: AFKData): EmbedBuilder {
-  const durationMs = Date.now() - data.setAt.getTime();
-  const durationMin = Math.floor(durationMs / 60000);
-
-  return new EmbedBuilder()
-    .setColor('#FFA500')
-    .setTitle('🔴 User is AFK')
-    .setDescription(data.message)
-    .addFields({
+export function buildAFKContainer(data: AFKData) {
+  const container = moduleContainer('afk');
+  addText(container, `### 🔴 User is AFK\n${data.message}`);
+  addFields(container, [
+    {
       name: 'Set',
       value: `<t:${Math.floor(data.setAt.getTime() / 1000)}:R>`,
       inline: false,
-    })
-    .setTimestamp();
+    },
+  ]);
+  return container;
 }
 
-export function buildPingSummaryEmbed(pings: PingRecord[]): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle('📬 Pings While You Were Away')
-    .setDescription(pings.length > 0 ? 'Here are all the pings you received:' : 'No pings received while you were away.')
-    .setTimestamp();
+export function buildPingSummaryContainer(pings: PingRecord[]) {
+  const container = moduleContainer('afk');
+  addText(
+    container,
+    `### 📬 Pings While You Were Away\n${
+      pings.length > 0
+        ? 'Here are all the pings you received:'
+        : 'No pings received while you were away.'
+    }`
+  );
 
   if (pings.length === 0) {
-    return embed;
+    return container;
   }
 
   // Group pings for better readability to 20 pings displayed
@@ -231,36 +237,31 @@ export function buildPingSummaryEmbed(pings: PingRecord[]): EmbedBuilder {
     })
     .join('\n\n');
 
-  embed.setDescription(pingsText);
+  addText(container, pingsText);
 
   if (pings.length > 20) {
-    embed.setFooter({ text: `Showing last 20 of ${pings.length} pings` });
+    addText(container, `-# Showing last 20 of ${pings.length} pings`);
   }
 
-  return embed;
+  return container;
 }
 
-export function buildAFKListEmbed(afkUsers: AFKData[]): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle('🔴 AFK Users')
-    .setTimestamp();
+export function buildAFKListContainer(afkUsers: AFKData[]) {
+  const container = moduleContainer('afk');
+  addText(container, '### 🔴 AFK Users');
 
   if (afkUsers.length === 0) {
-    embed.setDescription('No one is AFK right now.');
-    return embed;
+    addText(container, 'No one is AFK right now.');
+    return container;
   }
 
-  const fields = afkUsers.map((afk) => {
-    const durationMin = Math.floor((Date.now() - afk.setAt.getTime()) / 60000);
-    return {
-      name: `<@${afk.userId}>`,
-      value: `**Message:** ${afk.message}\n**Set:** <t:${Math.floor(afk.setAt.getTime() / 1000)}:R>`,
-      inline: false,
-    };
-  });
+  const fields = afkUsers.map((afk) => ({
+    name: `<@${afk.userId}>`,
+    value: `**Message:** ${afk.message}\n**Set:** <t:${Math.floor(afk.setAt.getTime() / 1000)}:R>`,
+    inline: false,
+  }));
 
-  embed.addFields(...fields);
+  addFields(container, fields);
 
-  return embed;
+  return container;
 }

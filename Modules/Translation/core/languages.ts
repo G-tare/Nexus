@@ -1,9 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { SUPPORTED_LANGUAGES } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -45,23 +48,21 @@ const command: BotCommand = {
     const col1 = lines.slice(0, mid).join('\n');
     const col2 = lines.slice(mid).join('\n');
 
-    const embed = new EmbedBuilder()
-      .setColor(0x4285F4)
-      .setTitle(`🌐 Supported Languages (${filtered.length})`)
-      .addFields(
-        { name: '\u200b', value: col1, inline: true },
-        { name: '\u200b', value: col2 || '\u200b', inline: true },
-      );
-
-    if (remaining > 0) {
-      embed.setFooter({ text: `...and ${remaining} more. Use /languages search:<query> to filter.` });
-    }
+    const container = new ContainerBuilder().setAccentColor(0x4285F4);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### 🌐 Supported Languages (${filtered.length})`));
 
     if (search) {
-      embed.setDescription(`Showing results for: "${search}"`);
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Showing results for: "${search}"`));
     }
 
-    await interaction.reply({ embeds: [embed] });
+    const colContent = col2 ? `${col1}\n\n${col2}` : col1;
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(colContent));
+
+    if (remaining > 0) {
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ...and ${remaining} more. Use /languages search:<query> to filter.`));
+    }
+
+    await interaction.reply(v2Payload([container]));
   },
 };
 

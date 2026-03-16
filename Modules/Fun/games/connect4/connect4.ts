@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
@@ -6,7 +6,7 @@ import {
   ButtonStyle,
   ButtonInteraction,
   User,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -17,6 +17,7 @@ import {
   emitGameLost,
   getFunConfig,
 } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 type Cell = 0 | 1 | 2;
@@ -205,27 +206,16 @@ export default {
       );
     };
 
-    const embed = new EmbedBuilder()
-      .setTitle('🔴🟡 Connect 4')
-      .setDescription(
-        `${interaction.user.username} (🔴) vs ${opponent.username} (🟡)\n\n` +
-          boardToString(board, interaction.user, opponent) +
-          `\n\n**Current Turn:** ${
-            currentPlayer === 1 ? interaction.user.username : opponent.username
-          }`
-      );
-
+    const container = moduleContainer('fun');
+    addText(container, '### 🔴🟡 Connect 4');
+    addText(container, `${interaction.user.username} (🔴) vs ${opponent.username} (🟡)\n\n${boardToString(board, interaction.user, opponent)}\n\n**Current Turn:** ${currentPlayer === 1 ? interaction.user.username : opponent.username}`);
     if (bet && bet > 0) {
-      embed.addFields({
-        name: 'Bet',
-        value: `${bet} per player`,
-        inline: false,
-      });
+      addFields(container, [{ name: 'Bet', value: `${bet} per player` }]);
     }
+    container.addActionRowComponents(createButtons());
 
     const message = await interaction.reply({
-      embeds: [embed],
-      components: [createButtons()],
+      ...v2Payload([container]),
       fetchReply: true,
     });
 
@@ -266,66 +256,37 @@ export default {
           emitGameLost(interaction.guildId!, loser.id, 'connect4', bet);
         }
 
-        const winEmbed = new EmbedBuilder()
-          .setColor(0x00ff00)
-          .setTitle('🎉 Game Over!')
-          .setDescription(
-            `${winner.username} (${currentPlayer === 1 ? '🔴' : '🟡'}) wins!\n\n` +
-              boardToString(board, interaction.user, opponent)
-          );
-
+        const winContainer = moduleContainer('fun');
+        addText(winContainer, '### 🎉 Game Over!');
+        addText(winContainer, `${winner.username} (${currentPlayer === 1 ? '🔴' : '🟡'}) wins!\n\n${boardToString(board, interaction.user, opponent)}`);
         if (bet && bet > 0) {
           const winnings = bet * 2;
-          winEmbed.addFields({
-            name: 'Winnings',
-            value: `${winner.username} +${winnings}`,
-            inline: false,
-          });
+          addFields(winContainer, [{ name: 'Winnings', value: `${winner.username} +${winnings}` }]);
         }
 
-        await buttonInteraction.update({
-          embeds: [winEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([winContainer]));
         collector.stop();
         gameOver = true;
       } else if (isBoardFull(board)) {
-        const drawEmbed = new EmbedBuilder()
-          .setColor(0xffff00)
-          .setTitle('🤝 Draw!')
-          .setDescription(
-            `The board is full!\n\n` + boardToString(board, interaction.user, opponent)
-          );
+        const drawContainer = moduleContainer('fun');
+        addText(drawContainer, '### 🤝 Draw!');
+        addText(drawContainer, `The board is full!\n\n${boardToString(board, interaction.user, opponent)}`);
 
-        await buttonInteraction.update({
-          embeds: [drawEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([drawContainer]));
         collector.stop();
         gameOver = true;
       } else {
         currentPlayer = currentPlayer === 1 ? 2 : 1;
 
-        const nextEmbed = new EmbedBuilder()
-          .setTitle('🔴🟡 Connect 4')
-          .setDescription(
-            `${interaction.user.username} (🔴) vs ${opponent.username} (🟡)\n\n` +
-              boardToString(board, interaction.user, opponent) +
-              `\n\n**Current Turn:** ${currentPlayer === 1 ? interaction.user.username : opponent.username}`
-          );
-
+        const nextContainer = moduleContainer('fun');
+        addText(nextContainer, '### 🔴🟡 Connect 4');
+        addText(nextContainer, `${interaction.user.username} (🔴) vs ${opponent.username} (🟡)\n\n${boardToString(board, interaction.user, opponent)}\n\n**Current Turn:** ${currentPlayer === 1 ? interaction.user.username : opponent.username}`);
         if (bet && bet > 0) {
-          nextEmbed.addFields({
-            name: 'Bet',
-            value: `${bet} per player`,
-            inline: false,
-          });
+          addFields(nextContainer, [{ name: 'Bet', value: `${bet} per player` }]);
         }
+        nextContainer.addActionRowComponents(createButtons());
 
-        await buttonInteraction.update({
-          embeds: [nextEmbed],
-          components: [createButtons()],
-        });
+        await buttonInteraction.update(v2Payload([nextContainer]));
       }
     });
 

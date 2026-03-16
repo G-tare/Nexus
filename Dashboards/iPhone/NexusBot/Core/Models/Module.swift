@@ -58,6 +58,9 @@ enum ModuleCategory: String, CaseIterable, Codable {
 // Module registry — maps API names to display info
 enum ModuleRegistry {
     static let modules: [(key: String, name: String, icon: String, category: ModuleCategory)] = [
+        // Core
+        ("core", "Core", "diamond.fill", .utility),
+
         // Moderation
         ("moderation", "Moderation", "shield.fill", .moderation),
         ("automod", "Auto Moderation", "eye.fill", .moderation),
@@ -82,13 +85,20 @@ enum ModuleRegistry {
         // Economy
         ("currency", "Currency & Economy", "dollarsign.circle.fill", .economy),
         ("shop", "Shop", "cart.fill", .economy),
+        ("casino", "Casino", "dice.fill", .economy),
+        ("donationtracking", "Donation Tracking", "heart.fill", .economy),
 
         // Fun
         ("fun", "Fun", "gamecontroller.fill", .fun),
         ("giveaways", "Giveaways", "gift.fill", .fun),
+        ("raffles", "Raffles", "ticket.fill", .fun),
+        ("images", "Images", "photo.fill", .fun),
+        ("soundboard", "Soundboard", "speaker.wave.3.fill", .fun),
         ("counting", "Counting", "number.circle.fill", .fun),
 
         // Social
+        ("profile", "Profile", "person.crop.circle.fill", .social),
+        ("family", "Family", "figure.2.and.child.holdinghands", .social),
         ("confessions", "Confessions", "eye.slash.fill", .social),
         ("userphone", "Userphone", "phone.fill", .social),
         ("voicephone", "Voice Phone", "phone.arrow.up.right.fill", .social),
@@ -104,9 +114,12 @@ enum ModuleRegistry {
         ("scheduledmessages", "Scheduled Messages", "clock.fill", .utility),
         ("customcommands", "Custom Commands", "terminal.fill", .utility),
         ("stickymessages", "Sticky Messages", "pin.fill", .utility),
+        ("timers", "Timers", "timer", .utility),
         ("backup", "Backup", "externaldrive.fill", .utility),
         ("statschannels", "Stats Channels", "number.square.fill", .utility),
         ("tempvoice", "Temp Voice", "waveform", .utility),
+        ("utilities", "Utilities", "wrench.and.screwdriver.fill", .utility),
+        ("autosetup", "Auto Setup", "wand.and.stars", .utility),
 
         // Entertainment
         ("colorroles", "Color Roles", "paintpalette.fill", .entertainment),

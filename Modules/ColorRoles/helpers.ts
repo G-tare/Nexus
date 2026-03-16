@@ -2,14 +2,17 @@ import {
   Guild,
   Role,
   GuildMember,
-  EmbedBuilder,
   AttachmentBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  MessageFlags,
 } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eq, and, sql, asc, desc } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { Colors } from '../../Shared/src/utils/embed';
+import { moduleContainer, addText, v2Payload } from '../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('ColorRoles');
@@ -216,12 +219,11 @@ export async function findSimilarColor(
  */
 export async function getColorPalette(guildId: string): Promise<ColorEntry[]> {
   const db = getDb();
-  const redis = getRedis();
 
   // Try cache first
-  const cached = await redis.get(`colors:palette:${guildId}`);
+  const cached = await cache.get<ColorEntry[]>(`colors:palette:${guildId}`);
   if (cached) {
-    try { return JSON.parse(cached); } catch { /* fall through */ }
+    return cached;
   }
 
   const rows = await db.execute(sql`
@@ -235,7 +237,7 @@ export async function getColorPalette(guildId: string): Promise<ColorEntry[]> {
   const colors = (rows as any).rows || rows || [];
 
   // Cache for 5 minutes
-  await redis.setex(`colors:palette:${guildId}`, 300, JSON.stringify(colors));
+  await cache.set(`colors:palette:${guildId}`, colors, 300);
 
   return colors;
 }
@@ -296,7 +298,6 @@ export async function addColor(params: {
   createdBy: string;
 }): Promise<ColorEntry> {
   const db = getDb();
-  const redis = getRedis();
   const { guild, name, hex, createdBy } = params;
 
   // Create the Discord role
@@ -333,7 +334,7 @@ export async function addColor(params: {
   `) as any).rows || [];
 
   // Invalidate cache
-  await redis.del(`colors:palette:${guild.id}`);
+  await cache.del(`colors:palette:${guild.id}`);
 
   // Emit event
   eventBus.emit('colorAdded' as any, {
@@ -359,7 +360,6 @@ export async function addExistingRoleAsColor(params: {
   createdBy: string;
 }): Promise<ColorEntry> {
   const db = getDb();
-  const redis = getRedis();
   const { guild, role, name, createdBy } = params;
 
   const hex = role.hexColor.replace('#', '').toUpperCase() || '000000';
@@ -372,7 +372,7 @@ export async function addExistingRoleAsColor(params: {
               position, created_by as "createdBy", created_at as "createdAt"
   `) as any).rows || [];
 
-  await redis.del(`colors:palette:${guild.id}`);
+  await cache.del(`colors:palette:${guild.id}`);
 
   eventBus.emit('colorAdded' as any, {
     guildId: guild.id,
@@ -395,7 +395,6 @@ export async function editColor(params: {
   newHex?: string;
 }): Promise<ColorEntry | null> {
   const db = getDb();
-  const redis = getRedis();
   const { guild, colorId, newName, newHex } = params;
 
   const existing = await getColorById(guild.id, colorId);
@@ -421,7 +420,7 @@ export async function editColor(params: {
     WHERE guild_id = ${guild.id} AND id = ${colorId}
   `);
 
-  await redis.del(`colors:palette:${guild.id}`);
+  await cache.del(`colors:palette:${guild.id}`);
 
   return { ...existing, name, hex };
 }
@@ -431,7 +430,6 @@ export async function editColor(params: {
  */
 export async function deleteColor(guild: Guild, colorId: number): Promise<boolean> {
   const db = getDb();
-  const redis = getRedis();
 
   const color = await getColorById(guild.id, colorId);
   if (!color) return false;
@@ -459,7 +457,7 @@ export async function deleteColor(guild: Guild, colorId: number): Promise<boolea
     WHERE guild_id = ${guild.id} AND id = ${colorId}
   `);
 
-  await redis.del(`colors:palette:${guild.id}`);
+  await cache.del(`colors:palette:${guild.id}`);
 
   eventBus.emit('colorRemoved' as any, {
     guildId: guild.id,
@@ -475,7 +473,6 @@ export async function deleteColor(guild: Guild, colorId: number): Promise<boolea
  */
 export async function clearAllColors(guild: Guild): Promise<number> {
   const db = getDb();
-  const redis = getRedis();
 
   const colors = await getColorPalette(guild.id);
 
@@ -495,7 +492,7 @@ export async function clearAllColors(guild: Guild): Promise<number> {
   // Delete all colors
   await db.execute(sql`DELETE FROM color_roles WHERE guild_id = ${guild.id}`);
 
-  await redis.del(`colors:palette:${guild.id}`);
+  await cache.del(`colors:palette:${guild.id}`);
 
   return colors.length;
 }
@@ -729,19 +726,15 @@ export async function createReactionList(params: {
   // Generate the palette image for these specific colors
   const attachment = await generatePaletteAttachment(guild.id);
 
-  const embed = new EmbedBuilder()
-    .setColor(hexToInt(colorsToUse[0].hex))
-    .setTitle('🎨 Color Roles')
-    .setDescription(
-      'React with the corresponding number to get a color role!\n\n' +
-      colorsToUse.map((c, i) => `${numberEmoji(i + 1)} **${c.name}** — \`#${c.hex}\``).join('\n')
-    )
-    .setImage('attachment://color-palette.png')
-    .setFooter({ text: 'React to pick your color • React again to remove' });
+  const container = moduleContainer('color_roles').setAccentColor(hexToInt(colorsToUse[0].hex));
+  addText(container, '### 🎨 Color Roles');
+  addText(container, 'React with the corresponding number to get a color role!\n\n' +
+      colorsToUse.map((c, i) => `${numberEmoji(i + 1)} **${c.name}** — \`#${c.hex}\``).join('\n'));
 
   const msg = await (channel as any).send({
-    embeds: [embed],
+    components: [container],
     files: [attachment],
+    flags: MessageFlags.IsComponentsV2,
   });
 
   // Add number reactions

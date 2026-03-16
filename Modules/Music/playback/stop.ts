@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getQueue,
@@ -6,6 +6,7 @@ import {
   isDJ,
   getMusicConfig,
 } from '../helpers';
+import { errorContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -23,45 +24,33 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
     // Check if user is in the same voice channel as the bot
     if (queue.voiceChannelId !== member.voice.channel.id) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to use this command.')])
+      );
     }
 
     // Check DJ requirement
     const config = await getMusicConfig(interaction.guild!.id);
     if (!member || !isDJ(member, config)) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be a DJ to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('DJ Required', 'You must be a DJ to use this command.')])
+      );
     }
 
     // Lavalink: player.stopTrack();
@@ -70,12 +59,12 @@ const command: BotCommand = {
     // Clear queue from memory
     deleteQueue(interaction.guild!.id);
 
-    const embed = new EmbedBuilder()
-      .setTitle('Playback Stopped')
-      .setDescription('The queue has been cleared and playback has stopped.')
-      .setColor(0xff6b6b);
+    const container = errorContainer('Playback Stopped', 'The queue has been cleared and playback has stopped.');
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

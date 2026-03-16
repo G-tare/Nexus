@@ -4,7 +4,7 @@ import {
   LeaderboardType,
   fetchLeaderboard,
   getUserRank,
-  buildLeaderboardEmbed,
+  buildLeaderboardText,
   getLeaderboardConfig,
   isValidLeaderboardType,
   getLeaderboardTypeDisplay
@@ -94,7 +94,7 @@ const command: BotCommand = {
       }
 
       // Build embed
-      const embed = buildLeaderboardEmbed(
+      const text = buildLeaderboardText(
         entries,
         type,
         interaction.guild?.name || 'Unknown Server',
@@ -104,7 +104,14 @@ const command: BotCommand = {
         days || undefined
       );
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        embeds: [{
+          title: text.title,
+          description: text.description,
+          footer: { text: text.footer },
+          color: 0x3498db
+        }]
+      });
     } catch (error) {
       console.error('Error in top command:', error);
       await interaction.editReply('An error occurred while fetching the leaderboard.');

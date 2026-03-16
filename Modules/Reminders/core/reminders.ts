@@ -1,21 +1,18 @@
 import {  ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getUserReminders, buildReminderListEmbed } from '../helpers';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { getUserReminders, buildReminderListContainer } from '../helpers';
 
 const command = new SlashCommandBuilder()
   .setName('reminders')
   .setDescription('View all your active reminders');
 
 const execute = async (interaction: ChatInputCommandInteraction, ...args: any[]): Promise<void> => {
-  const redis = await getRedis();
+  const reminders = await getUserReminders(interaction.user.id);
 
-  const reminders = await getUserReminders(redis, interaction.user.id);
-
-  const embed = buildReminderListEmbed(reminders);
+  const container = buildReminderListContainer(reminders);
 
   await interaction.reply({
-    embeds: [embed],
+    components: [container],
     flags: MessageFlags.Ephemeral,
   });
 };

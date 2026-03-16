@@ -1,12 +1,18 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
-import { Colors } from '../../../../Shared/src/utils/embed';
-import { getDb, getRedis } from '../../../../Shared/src/database/connection';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
+import { getDb } from '../../../../Shared/src/database/connection';
+import { cache } from '../../../../Shared/src/cache/cacheManager';
 import { tickets } from '../../../../Shared/src/database/models/schema';
 import { eq } from 'drizzle-orm';
 
@@ -97,7 +103,6 @@ const command: BotCommand = {
 
     try {
       const db = getDb();
-      const redis = getRedis();
 
       // Update database
       await db
@@ -108,27 +113,23 @@ const command: BotCommand = {
       // Update cache
       const cacheKey = `ticket:channel:${interaction.guildId!}:${interaction.channel.id}`;
       const updatedTicketData = { ...ticketData, claimedBy: targetUser.id };
-      await redis.setex(cacheKey, 3600, JSON.stringify(updatedTicketData));
+      cache.set(cacheKey, updatedTicketData, 3600);
 
-      // Send success embed
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('Ticket Transferred')
-        .setDescription(`This ticket has been transferred to ${targetUser}.`)
-        .setTimestamp();
+      // Send success container
+      const successContainer = moduleContainer('tickets');
+      addText(successContainer, '### ✅ Ticket Transferred');
+      addText(successContainer, `This ticket has been transferred to ${targetUser}.`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([successContainer]));
 
       // Log in channel
-      const logEmbed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle('Ticket Transferred')
-        .setDescription(`${interaction.user} transferred this ticket to ${targetUser}.`)
-        .setTimestamp();
+      const logContainer = moduleContainer('tickets');
+      addText(logContainer, '### ✅ Ticket Transferred');
+      addText(logContainer, `${interaction.user} transferred this ticket to ${targetUser}.`);
 
       const channel = interaction.channel as any;
       if (channel?.send) {
-        await channel.send({ embeds: [logEmbed] });
+        await channel.send(v2Payload([logContainer]));
       }
     } catch (error) {
       console.error('Error transferring ticket:', error);

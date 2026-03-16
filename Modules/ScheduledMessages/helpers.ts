@@ -1,4 +1,4 @@
-import { Guild, Channel, TextChannel, EmbedBuilder } from 'discord.js';
+import { Guild, Channel, TextChannel } from 'discord.js';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 // Cron expression parser
@@ -114,45 +114,34 @@ function matchesCronPart(value: number, part: string, min: number, max: number):
 }
 
 /**
- * Build Discord embed from options
+ * Build a simple object from options (for V2 components compatibility)
  */
-export function buildEmbed(options: EmbedOptions): EmbedBuilder {
-  const embed = new EmbedBuilder();
+export function buildEmbed(options: EmbedOptions): Record<string, any> {
+  const data: Record<string, any> = {};
 
-  if (options.title) embed.setTitle(options.title);
-  if (options.description) embed.setDescription(options.description);
-  if (options.color) {
-    try {
-      embed.setColor(options.color as any);
-    } catch {
-      embed.setColor('#000000');
-    }
-  }
-  if (options.footer) embed.setFooter({ text: options.footer });
-  if (options.image) embed.setImage(options.image);
-  if (options.thumbnail) embed.setThumbnail(options.thumbnail);
-  if (options.fields) {
-    options.fields.forEach(field => {
-      embed.addFields({ name: field.name, value: field.value, inline: field.inline ?? false });
-    });
-  }
+  if (options.title) data.title = options.title;
+  if (options.description) data.description = options.description;
+  if (options.color) data.color = options.color;
+  if (options.footer) data.footer = options.footer;
+  if (options.image) data.image = options.image;
+  if (options.thumbnail) data.thumbnail = options.thumbnail;
+  if (options.fields) data.fields = options.fields;
 
-  return embed;
+  return data;
 }
 
 /**
- * Convert EmbedBuilder to JSON for storage
+ * Convert options object to JSON for storage
  */
-export function embedToJSON(embed: EmbedBuilder): Record<string, any> {
-  const data = embed.toJSON();
+export function embedToJSON(options: EmbedOptions): Record<string, any> {
   return {
-    title: data.title,
-    description: data.description,
-    color: data.color,
-    footer: data.footer,
-    image: data.image,
-    thumbnail: data.thumbnail,
-    fields: data.fields,
+    title: options.title,
+    description: options.description,
+    color: options.color,
+    footer: options.footer,
+    image: options.image,
+    thumbnail: options.thumbnail,
+    fields: options.fields,
   };
 }
 

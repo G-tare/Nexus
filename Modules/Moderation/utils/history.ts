@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, infoContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -55,7 +55,7 @@ export default {
     await interaction.deferReply();
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply(v2Payload([errorContainer('Guild context required')]));
 
     const db = getDb();
     const targetUser = interaction.options.getUser('user', true);
@@ -69,12 +69,12 @@ export default {
         .orderBy(desc(modCases.createdAt));
 
       if (!allCases.length) {
-        return interaction.editReply({ embeds: [errorEmbed(`No moderation history found for ${targetUser.username}`)] });
+        return interaction.editReply(v2Payload([errorContainer(`No moderation history found for ${targetUser.username}`)]));
       }
 
       const totalPages = Math.ceil(allCases.length / CASES_PER_PAGE);
       if (page > totalPages) {
-        return interaction.editReply({ embeds: [errorEmbed(`Page ${page} does not exist. Max page: ${totalPages}`)] });
+        return interaction.editReply(v2Payload([errorContainer(`Page ${page} does not exist`, `Max page: ${totalPages}`)]));
       }
 
       const startIdx = (page - 1) * CASES_PER_PAGE;
@@ -89,16 +89,14 @@ export default {
           `Reason: ${modCase.reason || 'No reason provided'}\n\n`;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle(`Moderation History - ${targetUser.username}`)
-        .setDescription(description)
-        .setFooter({ text: `Page ${page}/${totalPages} • Total cases: ${allCases.length}` });
+      const container = infoContainer(`Moderation History - ${targetUser.username}`);
+      addText(container, description);
+      addFooter(container, `Page ${page}/${totalPages} • Total cases: ${allCases.length}`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in history command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while retrieving history')] });
+      return interaction.editReply(v2Payload([errorContainer('An error occurred while retrieving history')]));
     }
   },
 } as BotCommand;

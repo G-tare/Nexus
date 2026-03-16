@@ -1,7 +1,7 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, TextChannel, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, TextChannel, MessageFlags, ContainerBuilder, TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { successContainer, errorContainer, infoContainer, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
 
 interface WatchlistEntry {
@@ -53,22 +53,21 @@ export default {
     const targetUser = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason');
 
-    const redis = await getRedis();
     const watchlistSetKey = `watchlist:${guild.id}`;
 
     try {
       if (action === 'add') {
         if (!targetUser) {
-          await interaction.editReply({
-            embeds: [errorEmbed('User is required for add action')]
-          });
+          await interaction.editReply(v2Payload([
+            errorContainer('User is required for add action')
+          ]));
           return;
         }
 
         if (!reason) {
-          await interaction.editReply({
-            embeds: [errorEmbed('Reason is required for add action')]
-          });
+          await interaction.editReply(v2Payload([
+            errorContainer('Reason is required for add action')
+          ]));
           return;
         }
 
@@ -83,86 +82,86 @@ export default {
           addedAt: Date.now()
         };
 
-        await redis.sadd(watchlistSetKey, JSON.stringify(entry));
+        cache.sadd(watchlistSetKey, JSON.stringify(entry));
 
-        const embed = successEmbed(`${targetUser.tag} added to watchlist`);
-        embed.addFields({ name: 'Reason', value: reason });
+        const container = successContainer(`${targetUser.tag} added to watchlist`);
+        addFields(container, [{ name: 'Reason', value: reason }]);
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(v2Payload([container]));
 
         // Update watchlist channel if configured
         await updateWatchlistChannel(guild.id, guild);
       } else if (action === 'remove') {
         if (!targetUser) {
-          await interaction.editReply({
-            embeds: [errorEmbed('User is required for remove action')]
-          });
+          await interaction.editReply(v2Payload([
+            errorContainer('User is required for remove action')
+          ]));
           return;
         }
 
         // Get all entries and remove matching user
-        const entries = await redis.smembers(watchlistSetKey);
+        const entries = cache.smembers(watchlistSetKey);
         let found = false;
 
         for (const entry of entries) {
           const parsed: WatchlistEntry = JSON.parse(entry);
           if (parsed.userId === targetUser.id) {
-            await redis.srem(watchlistSetKey, entry);
+            cache.srem(watchlistSetKey, entry);
             found = true;
             break;
           }
         }
 
         if (!found) {
-          await interaction.editReply({
-            embeds: [errorEmbed('User is not on the watchlist')]
-          });
+          await interaction.editReply(v2Payload([
+            errorContainer('User is not on the watchlist')
+          ]));
           return;
         }
 
-        const embed = successEmbed(`${targetUser.tag} removed from watchlist`);
-        await interaction.editReply({ embeds: [embed] });
+        const container = successContainer(`${targetUser.tag} removed from watchlist`);
+        await interaction.editReply(v2Payload([container]));
 
         // Update watchlist channel if configured
         await updateWatchlistChannel(guild.id, guild);
       } else if (action === 'view') {
-        const entries = await redis.smembers(watchlistSetKey);
+        const entries = cache.smembers(watchlistSetKey);
 
         if (entries.length === 0) {
-          await interaction.editReply({
-            embeds: [errorEmbed('The watchlist is empty')]
-          });
+          await interaction.editReply(v2Payload([
+            errorContainer('The watchlist is empty')
+          ]));
           return;
         }
 
-        const embed = new EmbedBuilder()
-          .setColor(Colors.Info)
-          .setTitle(`Watchlist for ${guild.name}`)
-          .setDescription(`Total entries: ${entries.length}`);
+        const container = infoContainer(`Watchlist for ${guild.name}`, `Total entries: ${entries.length}`);
 
         const parsedEntries: WatchlistEntry[] = entries.map(e => JSON.parse(e));
 
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
         for (const entry of parsedEntries.slice(0, 20)) {
           const user = await guild.client.users.fetch(entry.userId).catch(() => null);
           const addedByUser = await guild.client.users.fetch(entry.addedBy).catch(() => null);
 
-          embed.addFields({
+          fields.push({
             name: user?.tag || `Unknown (${entry.userId})`,
             value: `Reason: ${entry.reason}\nAdded by: ${addedByUser?.tag || 'Unknown'}\nAdded: <t:${Math.floor(entry.addedAt / 1000)}:R>`
           });
         }
 
+        addFields(container, fields);
+
         if (entries.length > 20) {
-          embed.setFooter({ text: `Showing 20 of ${entries.length} entries` });
+          addFooter(container, `Showing 20 of ${entries.length} entries`);
         }
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       console.error('Error in watchlist command:', error);
-      await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while managing the watchlist')]
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('An error occurred while managing the watchlist')
+      ]));
     }
   }
 } as BotCommand;
@@ -175,9 +174,8 @@ async function updateWatchlistChannel(guildId: string, guild: any): Promise<void
     const channel = await guild.client.channels.fetch(modConfig.watchlistChannelId).catch(() => null) as TextChannel | null;
     if (!channel || !channel.isTextBased()) return;
 
-    const redis = await getRedis();
     const watchlistSetKey = `watchlist:${guildId}`;
-    const entries = await redis.smembers(watchlistSetKey);
+    const entries = cache.smembers(watchlistSetKey);
 
     if (entries.length === 0) {
       // Delete message if watchlist is empty
@@ -187,24 +185,23 @@ async function updateWatchlistChannel(guildId: string, guild: any): Promise<void
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Warning)
-      .setTitle('Server Watchlist')
-      .setDescription(`Active entries: ${entries.length}`)
-      .setTimestamp();
+    const container = infoContainer('Server Watchlist', `Active entries: ${entries.length}`);
 
     const parsedEntries: WatchlistEntry[] = entries.map(e => JSON.parse(e));
 
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
     for (const entry of parsedEntries.slice(0, 20)) {
       const user = await guild.client.users.fetch(entry.userId).catch(() => null);
-      embed.addFields({
+      fields.push({
         name: user?.tag || `Unknown (${entry.userId})`,
         value: `${entry.reason}`
       });
     }
 
+    addFields(container, fields);
+
     if (entries.length > 20) {
-      embed.setFooter({ text: `Showing 20 of ${entries.length} entries` });
+      addFooter(container, `Showing 20 of ${entries.length} entries`);
     }
 
     // Find and update or create message
@@ -212,9 +209,9 @@ async function updateWatchlistChannel(guildId: string, guild: any): Promise<void
     const botMessage = messages.find(m => m.author.id === guild.client.user.id);
 
     if (botMessage) {
-      await botMessage.edit({ embeds: [embed] }).catch(() => {});
+      await botMessage.edit(v2Payload([container])).catch(() => {});
     } else {
-      await (channel as any).send({ embeds: [embed] }).catch(() => {});
+      await (channel as any).send(v2Payload([container])).catch(() => {});
     }
   } catch (error) {
     console.error('Error updating watchlist channel:', error);

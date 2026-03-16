@@ -1,13 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown, emitGameWon } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const QUESTIONS = [
@@ -162,29 +162,21 @@ export default {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const embed = new EmbedBuilder()
-      .setTitle('🧠 Trivia Question')
-      .setDescription(question.question)
-      .addFields(
-        { name: 'A)', value: shuffledOptions[0], inline: false },
-        { name: 'B)', value: shuffledOptions[1], inline: false },
-        { name: 'C)', value: shuffledOptions[2], inline: false },
-        { name: 'D)', value: shuffledOptions[3], inline: false }
-      )
-      .addFields({
-        name: 'Difficulty',
-        value: difficulty.toUpperCase(),
-        inline: true,
-      })
-      .addFields({
-        name: 'Reward',
-        value: `+${DIFFICULTY_REWARDS[difficulty as keyof typeof DIFFICULTY_REWARDS]}`,
-        inline: true,
-      });
+    const qContainer = moduleContainer('fun');
+    addText(qContainer, '### 🧠 Trivia Question');
+    addText(qContainer, question.question);
+    addFields(qContainer, [
+      { name: 'A)', value: shuffledOptions[0] },
+      { name: 'B)', value: shuffledOptions[1] },
+      { name: 'C)', value: shuffledOptions[2] },
+      { name: 'D)', value: shuffledOptions[3] },
+      { name: 'Difficulty', value: difficulty.toUpperCase() },
+      { name: 'Reward', value: `+${DIFFICULTY_REWARDS[difficulty as keyof typeof DIFFICULTY_REWARDS]}` },
+    ]);
+    qContainer.addActionRowComponents(buttons);
 
     const message = await interaction.reply({
-      embeds: [embed],
-      components: [buttons],
+      ...v2Payload([qContainer]),
       fetchReply: true,
     });
 
@@ -223,25 +215,17 @@ export default {
           reward
         );
 
-        const resultEmbed = new EmbedBuilder()
-          .setTitle('✅ Correct!')
-          .setDescription(`You earned **${reward}** currency!`)
-          .setColor(0x00ff00);
+        const resultContainer = moduleContainer('fun');
+        addText(resultContainer, '### ✅ Correct!');
+        addText(resultContainer, `You earned **${reward}** currency!`);
 
-        await buttonInteraction.update({
-          embeds: [resultEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([resultContainer]));
       } else {
-        const resultEmbed = new EmbedBuilder()
-          .setTitle('❌ Wrong!')
-          .setDescription(`The correct answer was **${question.options[question.correct]}**`)
-          .setColor(0xff0000);
+        const resultContainer = moduleContainer('fun');
+        addText(resultContainer, '### ❌ Wrong!');
+        addText(resultContainer, `The correct answer was **${question.options[question.correct]}**`);
 
-        await buttonInteraction.update({
-          embeds: [resultEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([resultContainer]));
       }
 
       collector.stop();
@@ -249,11 +233,9 @@ export default {
 
     collector.on('end', (collected) => {
       if (collected.size === 0) {
-        interaction.editReply({
-          content: '⏱️ Time\'s up! The correct answer was: **' +
-            question.options[question.correct] + '**',
-          components: [],
-        });
+        const timeoutContainer = moduleContainer('fun');
+        addText(timeoutContainer, `⏱️ Time's up! The correct answer was: **${question.options[question.correct]}**`);
+        interaction.editReply(v2Payload([timeoutContainer]));
       }
     });
 

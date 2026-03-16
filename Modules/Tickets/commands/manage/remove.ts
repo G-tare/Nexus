@@ -1,11 +1,16 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
-import { Colors } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'tickets',
@@ -77,24 +82,20 @@ const command: BotCommand = {
       // Remove permissions from the channel
       await (interaction.channel as any).permissionOverwrites.delete(targetUser.id);
 
-      // Send success embed
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('User Removed from Ticket')
-        .setDescription(`${targetUser} has been removed from the ticket.`)
-        .setTimestamp();
+      // Send success container
+      const successContainer = moduleContainer('tickets');
+      addText(successContainer, '### ✅ User Removed from Ticket');
+      addText(successContainer, `${targetUser} has been removed from the ticket.`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([successContainer]));
 
       // Log in channel
-      const logEmbed = new EmbedBuilder()
-        .setColor(Colors.Warning)
-        .setDescription(`${interaction.user} removed ${targetUser} from the ticket.`)
-        .setTimestamp();
+      const logContainer = moduleContainer('tickets');
+      addText(logContainer, `${interaction.user} removed ${targetUser} from the ticket.`);
 
       const channel = interaction.channel as any;
       if (channel?.send) {
-        await channel.send({ embeds: [logEmbed] });
+        await channel.send(v2Payload([logContainer]));
       }
     } catch (error) {
       console.error('Error removing user from ticket:', error);

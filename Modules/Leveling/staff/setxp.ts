@@ -19,6 +19,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('setxp')
     .setDescription('Set a user\'s total XP directly')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addUserOption(option =>
       option
         .setName('user')

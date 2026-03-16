@@ -1,17 +1,18 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle, MessageFlags } from 'discord.js';
+  ButtonStyle } from 'discord.js';
 import {
   getReactionRolesConfig,
   saveReactionRolesConfig,
   getPanelById,
   deletePanel,
 } from '../helpers';
+import { errorContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const BotCommand = {
   data: new SlashCommandBuilder()
@@ -58,15 +59,11 @@ const BotCommand = {
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirmButton, cancelButton);
 
-    const embed = new EmbedBuilder()
-      .setColor('#FF0000')
-      .setTitle('⚠️ Delete Reaction Role Panel')
-      .setDescription(`Are you sure you want to delete panel \`${panelId}\`?\n\nThis action cannot be undone.`);
+    const container = errorContainer('Delete Reaction Role Panel', `Are you sure you want to delete panel \`${panelId}\`?\n\nThis action cannot be undone.`);
+    const { addButtons } = require('../../../Shared/src/utils/componentsV2');
+    addButtons(container, [confirmButton, cancelButton]);
 
-    const reply = await interaction.reply({
-      embeds: [embed],
-      components: [row],
-    });
+    const reply = await interaction.reply(v2Payload([container]));
 
     try {
       const buttonInteraction = await reply.awaitMessageComponent({

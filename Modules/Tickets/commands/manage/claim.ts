@@ -1,11 +1,17 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
-import { Colors } from '../../../../Shared/src/utils/embed';
-import { getDb, getRedis } from '../../../../Shared/src/database/connection';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
+import { getDb } from '../../../../Shared/src/database/connection';
+import { cache } from '../../../../Shared/src/cache/cacheManager';
 import { tickets } from '../../../../Shared/src/database/models/schema';
 import { eq } from 'drizzle-orm';
 
@@ -69,7 +75,6 @@ const command: BotCommand = {
 
     try {
       const db = getDb();
-      const redis = getRedis();
 
       // Update database
       await db
@@ -80,27 +85,23 @@ const command: BotCommand = {
       // Update cache
       const cacheKey = `ticket:channel:${interaction.guildId!}:${interaction.channel.id}`;
       const updatedTicketData = { ...ticketData, claimedBy: interaction.user.id };
-      await redis.setex(cacheKey, 3600, JSON.stringify(updatedTicketData));
+      cache.set(cacheKey, updatedTicketData, 3600);
 
-      // Send success embed
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('Ticket Claimed')
-        .setDescription(`${interaction.user} has claimed this ticket.`)
-        .setTimestamp();
+      // Send success container
+      const successContainer = moduleContainer('tickets');
+      addText(successContainer, '### ✅ Ticket Claimed');
+      addText(successContainer, `${interaction.user} has claimed this ticket.`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([successContainer]));
 
       // Log in channel
-      const logEmbed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle('Ticket Claimed')
-        .setDescription(`This ticket has been claimed by ${interaction.user}.`)
-        .setTimestamp();
+      const logContainer = moduleContainer('tickets');
+      addText(logContainer, '### ✅ Ticket Claimed');
+      addText(logContainer, `This ticket has been claimed by ${interaction.user}.`);
 
       const channel = interaction.channel as any;
       if (channel?.send) {
-        await channel.send({ embeds: [logEmbed] });
+        await channel.send(v2Payload([logContainer]));
       }
     } catch (error) {
       console.error('Error claiming ticket:', error);

@@ -1,8 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { paginatedContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getRepLeaderboard } from '../helpers';
 
 const command: BotCommand = {
@@ -32,20 +33,15 @@ const command: BotCommand = {
     }
 
     const medals = ['🥇', '🥈', '🥉'];
-    const lines = pageEntries.map((entry, i) => {
-      const rank = (page - 1) * perPage + i + 1;
+    const allEntries = await getRepLeaderboard(guild.id, 100);
+    const items = allEntries.map((entry, i) => {
+      const rank = i + 1;
       const medal = rank <= 3 ? medals[rank - 1] : `\`#${rank}\``;
       return `${medal} <@${entry.userId}> — **${entry.reputation}** rep`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0xF1C40F)
-      .setTitle('⭐ Reputation Leaderboard')
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: `Page ${page}` })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed] });
+    const { container } = paginatedContainer(items, page - 1, perPage, '⭐ Reputation Leaderboard', 0xF1C40F);
+    await interaction.reply(v2Payload([container]));
   },
 };
 

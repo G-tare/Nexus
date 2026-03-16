@@ -1,9 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { createModCase, modActionEmbed, ensureGuild } from '../helpers';
+import { createModCase, buildModActionContainer, ensureGuild } from '../helpers';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -49,7 +49,7 @@ const command: BotCommand = {
 
     await targetMember.timeout(null, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
 
-    const embed = modActionEmbed({
+    const container = buildModActionContainer({
       action: 'Unmute',
       target,
       moderator: interaction.user,
@@ -57,7 +57,7 @@ const command: BotCommand = {
       caseNumber,
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

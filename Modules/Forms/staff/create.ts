@@ -1,9 +1,10 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { createForm, FormQuestion } from '../helpers';
 import crypto from 'crypto';
+import { moduleContainer, addFields, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -82,32 +83,25 @@ const command: BotCommand = {
         maxResponses || undefined
       );
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Form Created')
-        .setColor('#5865F2')
-        .addFields(
-          { name: 'Form Name', value: form.name, inline: true },
-          { name: 'Form ID', value: form.id, inline: true },
-          { name: 'Response Channel', value: `<#${form.responseChannelId}>`, inline: false },
-          { name: 'One Per User', value: form.onePerUser ? 'Yes' : 'No', inline: true },
-          { name: 'DM Confirmation', value: form.dmConfirm ? 'Yes' : 'No', inline: true },
-          { name: 'Status', value: form.isActive ? 'Active' : 'Inactive', inline: true },
-          { name: 'Next Step', value: 'Add questions to this form using `/formedit`', inline: false }
-        )
-        .setTimestamp();
+      const container = moduleContainer('forms');
+      addFields(container, [
+        { name: 'Form Name', value: form.name, inline: true },
+        { name: 'Form ID', value: form.id, inline: true },
+        { name: 'Response Channel', value: `<#${form.responseChannelId}>`, inline: false },
+        { name: 'One Per User', value: form.onePerUser ? 'Yes' : 'No', inline: true },
+        { name: 'DM Confirmation', value: form.dmConfirm ? 'Yes' : 'No', inline: true },
+        { name: 'Status', value: form.isActive ? 'Active' : 'Inactive', inline: true },
+        { name: 'Next Step', value: 'Add questions to this form using `/formedit`', inline: false }
+      ]);
 
-      const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`form_edit_${form.id}`)
-          .setLabel('Add Questions')
-          .setStyle(ButtonStyle.Primary)
-      );
+      const addButton = new ButtonBuilder()
+        .setCustomId(`form_edit_${form.id}`)
+        .setLabel('Add Questions')
+        .setStyle(ButtonStyle.Primary);
 
-      await interaction.reply({
-        embeds: [embed],
-        components: [buttons],
-        ephemeral: false,
-      });
+      addButtons(container, [addButton]);
+
+      await interaction.reply(v2Payload([container]));
 
       logger.info(`[Forms] Form created - ID: ${form.id}, Guild: ${guildId}, Name: ${name}`);
     } catch (error) {

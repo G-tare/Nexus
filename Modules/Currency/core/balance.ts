@@ -1,10 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
-import { getCurrencyConfig, getBalance, balanceEmbed } from '../helpers';
+import { getCurrencyConfig, getBalance, balanceContainer } from '../helpers';
 
 const command: BotCommand = {
   module: 'currency',
@@ -30,12 +30,8 @@ const command: BotCommand = {
 
       if (!guildId) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription('This command can only be used in a server.')
-          ]
+          components: [errorContainer('Error', 'This command can only be used in a server.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -43,12 +39,8 @@ const command: BotCommand = {
 
       if (!balance) {
         return interaction.editReply({
-          embeds: [
-            successEmbed()
-              .setColor(Colors.Error)
-              .setTitle('Error')
-              .setDescription(`${targetUser.username} has no currency data yet.`)
-          ]
+          components: [errorContainer('Error', `${targetUser.username} has no currency data yet.`)],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
@@ -66,7 +58,7 @@ const command: BotCommand = {
 
       const streak = memberRecord[0]?.dailyStreak || 0;
 
-      const embed = balanceEmbed(
+      const container = balanceContainer(
         targetUser.id,
         targetUser.username,
         targetUser.displayAvatarURL(),
@@ -75,16 +67,15 @@ const command: BotCommand = {
         streak
       );
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('[Balance Command Error]', error);
       return interaction.editReply({
-        embeds: [
-          successEmbed()
-            .setColor(Colors.Error)
-            .setTitle('Error')
-            .setDescription('An error occurred while fetching the balance.')
-        ]
+        components: [errorContainer('Error', 'An error occurred while fetching the balance.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

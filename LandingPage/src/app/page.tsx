@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform, AnimatePresence, useInView } from "fra
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, MeshDistortMaterial } from "@react-three/drei";
 import * as THREE from "three";
-import { MODULES, FEATURES, DEMO_CONVERSATIONS } from "@/lib/data";
+import { MODULES, FEATURES, DEMO_CONVERSATIONS, MODULE_COUNT, COMMAND_COUNT } from "@/lib/data";
 
 // ============================================
 // BOOT SEQUENCE — Full-screen loading animation
@@ -14,8 +14,8 @@ import { MODULES, FEATURES, DEMO_CONVERSATIONS } from "@/lib/data";
 const BOOT_LINES = [
   { text: "> NEXUS CORE v3.8.0", delay: 0 },
   { text: "> Initializing subsystems...", delay: 200 },
-  { text: "> Loading 39 modules...", delay: 500 },
-  { text: "> Mapping 370 command routes...", delay: 900 },
+  { text: `> Loading ${MODULE_COUNT} modules...`, delay: 500 },
+  { text: `> Mapping ${COMMAND_COUNT} command routes...`, delay: 900 },
   { text: "> Connecting to Discord API...", delay: 1300 },
   { text: "> Shard 0 — ONLINE", delay: 1700, color: "var(--hud-green)" },
   { text: "> All systems nominal.", delay: 2000, color: "var(--hud-green)" },
@@ -233,9 +233,9 @@ function Hero() {
           <span className="w-2 h-2 rounded-full bg-[var(--hud-green)] shadow-[0_0_8px_var(--hud-green)]" />
           <span className="text-[var(--hud-green)]">SYSTEM ONLINE</span>
           <span className="text-[var(--hud-dim)]">&bull;</span>
-          <span className="text-[var(--hud-dim)]">39 MODULES ACTIVE</span>
+          <span className="text-[var(--hud-dim)]">{MODULE_COUNT} MODULES ACTIVE</span>
           <span className="text-[var(--hud-dim)]">&bull;</span>
-          <span className="text-[var(--hud-dim)]">370 COMMANDS LOADED</span>
+          <span className="text-[var(--hud-dim)]">{COMMAND_COUNT} COMMANDS LOADED</span>
         </motion.div>
 
         {/* Title */}
@@ -262,7 +262,7 @@ function Hero() {
           transition={{ delay: 1 }}
           className="text-base text-[var(--hud-dim)] max-w-xl mx-auto mb-10"
         >
-          39 modules. 370+ commands. One bot to rule them all. Stop juggling 10 bots &mdash; deploy Nexus.
+          {MODULE_COUNT} modules. {COMMAND_COUNT}+ commands. One bot to rule them all. Stop juggling 10 bots &mdash; deploy Nexus.
         </motion.p>
 
         {/* CTA */}
@@ -291,8 +291,8 @@ function Hero() {
       {/* Bottom HUD readouts */}
       <div className="absolute bottom-6 left-6 right-6 flex justify-between z-10">
         <div className="flex gap-8">
-          <DataReadout label="modules" value="39" />
-          <DataReadout label="commands" value="370" />
+          <DataReadout label="modules" value="48" />
+          <DataReadout label="commands" value="460" />
         </div>
         <div className="flex gap-8">
           <DataReadout label="uptime" value="99.9%" color="var(--hud-green)" />
@@ -360,8 +360,8 @@ function StatsHud() {
       <div className="max-w-5xl mx-auto px-6">
         <HudFrame label="SYSTEM TELEMETRY" className="p-8 border border-[var(--hud-border)] bg-[var(--hud-bg-panel)] backdrop-blur">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <AnimatedStat value={39} label="Modules" />
-            <AnimatedStat value={370} label="Commands" suffix="+" />
+            <AnimatedStat value={48} label="Modules" />
+            <AnimatedStat value={460} label="Commands" suffix="+" />
             <AnimatedStat value={150} label="Features" suffix="+" color="var(--hud-purple)" />
             <AnimatedStat value={99.9} label="Uptime" suffix="%" color="var(--hud-green)" />
           </div>
@@ -493,7 +493,7 @@ const TERMINAL_COMMANDS: Record<string, { response: string; color?: string }> = 
   // Meta commands
   "help": { response: "Available commands:\n  help        Show this message\n  modules     List all modules\n  stats       Show system status\n  clear       Clear terminal\n\nOr type a module name (e.g. moderation, music, fun) to see its commands." },
   "modules": { response: "[\u2713] Moderation (45 cmds)  [\u2713] Fun (36 cmds)       [\u2713] Music (27 cmds)\n[\u2713] ColorRoles (25 cmds) [\u2713] Tickets (18 cmds)   [\u2713] Leveling (13 cmds)\n[\u2713] Giveaways (13 cmds)  [\u2713] Currency (12 cmds)  [\u2713] AutoMod (12 cmds)\n[\u2713] TempVoice (11 cmds)  [\u2713] Welcome (10 cmds)   [\u2713] ...27 more", color: "var(--hud-green)" },
-  "stats": { response: "NEXUS SYSTEM STATUS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nModules:  39 loaded\nCommands: 370 registered\nUptime:   99.9%\nLatency:  42ms\nShards:   1 active", color: "var(--hud-green)" },
+  "stats": { response: "NEXUS SYSTEM STATUS\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nModules:  48 loaded\nCommands: 460 registered\nUptime:   99.9%\nLatency:  42ms\nShards:   1 active", color: "var(--hud-green)" },
 
   // Module lookups — flat subcommand structure
   "moderation": { response: "/mod ban, unban, tempban, kick, softban, mute, unmute,\n     warn, unwarn, warnings, clearwarnings, purge, purgeuser,\n     purgebot, purgehuman, slowmode, lock, unlock, lockdown,\n     unlockdown, nuke, nickname, role, userinfo\n/modlog case, modstats, history, note, notes, massban,\n        massmute, mutelist, banlist, serverwarns, bulkdelete...\n(45 commands total)", color: "var(--hud-red)" },
@@ -677,7 +677,7 @@ function ModuleGrid() {
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-12">
           <div className="text-[10px] font-mono text-[var(--hud-cyan)] uppercase tracking-[0.3em] mb-3">// ALL MODULES</div>
           <h2 className="text-4xl font-black mb-2">
-            <span className="neon-text">39</span> Modules Loaded
+            <span className="neon-text">48</span> Modules Loaded
           </h2>
           <p className="text-sm text-[var(--hud-dim)] font-mono">Everything your server needs. Select a category to filter.</p>
         </motion.div>
@@ -748,7 +748,7 @@ function DeployCTA() {
             <span className="glitch-text-hover neon-text">GET STARTED</span>
           </h2>
           <p className="text-[var(--hud-dim)] font-mono text-sm mb-10 max-w-lg mx-auto">
-            One click. 39 modules. 370+ commands. Your server, upgraded.
+            One click. {MODULE_COUNT} modules. {COMMAND_COUNT}+ commands. Your server, upgraded.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -785,7 +785,7 @@ function Footer() {
           <div>
             <span className="font-mono font-bold text-[var(--hud-cyan)]">NEXUS</span>
             <p className="text-[11px] text-[var(--hud-dim)] mt-2 leading-relaxed">
-              The ultimate all-in-one Discord bot. 39 modules. 370+ commands.
+              The ultimate all-in-one Discord bot. {MODULE_COUNT} modules. {COMMAND_COUNT}+ commands.
             </p>
           </div>
           <div>
@@ -866,7 +866,7 @@ function Navbar() {
 // ============================================
 
 const INVITE_URL = "https://discord.com/oauth2/authorize?client_id=1475529392963981333&permissions=8&scope=bot%20applications.commands";
-const DASHBOARD_URL = "/dashboard";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3002";
 
 // App download links — update these when builds are published
 const APP_LINKS: Record<string, { label: string; icon: string; url: string }> = {

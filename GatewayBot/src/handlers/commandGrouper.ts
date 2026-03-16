@@ -24,7 +24,7 @@ const MODULE_SLUG_MAP: Record<string, string> = {
   'colorroles': 'colors',
   'confessions': 'confessions',
   'counting': 'counting',
-  'currency': 'currency',
+  // currency moved to MODULE_SPLITS (too many commands for single slug)
   'customcommands': 'customcmds',
   'forms': 'forms',
   'giveaways': 'giveaways',
@@ -48,7 +48,27 @@ const MODULE_SLUG_MAP: Record<string, string> = {
   'translation': 'translate',
   'userphone': 'userphone',
   'welcome': 'welcome',
+  'raffles': 'raffles',
+  'donationtracking': 'donations',
+  'timers': 'timers',
+  'casino': 'casino',
+  'profile': 'profile',
+  'family': 'family',
+  'images': 'images',
+  'soundboard': 'soundboard',
+  'autosetup': 'autosetup',
 };
+
+// ============================================
+// STANDALONE COMMANDS
+//
+// Modules listed here register each of their
+// commands as TOP-LEVEL slash commands (no
+// parent wrapper, no subcommand nesting).
+// e.g. /configs, /help
+// ============================================
+
+const STANDALONE_MODULES = new Set<string>(['core']);
 
 // ============================================
 // MODULE SPLITS
@@ -94,10 +114,14 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
       description: 'Play music, control playback, manage the queue and more',
       commands: [
         'play', 'forceplay', 'pause', 'resume', 'skip', 'stop', 'previous', 'seek', 'nowplaying',
-        'autoplay', 'filters', 'volume', 'voteskip',
+        'autoplay', 'volume', 'voteskip',
         'lyrics', 'songinfo',
         'queue', 'clear', 'loop', 'move', 'remove', 'shuffle', 'skipto',
       ],
+    },
+    effects: {
+      description: 'Audio effects and filters for music playback',
+      commands: ['8d', 'bassboost', 'lofi', 'karaoke', 'nightcore', 'lowpass', 'timescale', 'vaporwave', 'slowmo', 'clearfilter'],
     },
     playlist: {
       description: 'Save and manage playlists',
@@ -107,15 +131,60 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
       description: 'Voice channel control, DJ settings, and music configuration',
       commands: ['join', 'disconnect', 'djrole', 'musicconfig'],
     },
+    radio: {
+      description: 'Live radio streaming in voice channels',
+      commands: ['radio-play', 'radio-stop', 'radio-list'],
+    },
+  },
+  currency: {
+    currency: {
+      description: 'Balance, daily, weekly, monthly rewards and transfers',
+      commands: [
+        'balance', 'daily', 'weekly', 'pay', 'richest', 'economy',
+      ],
+    },
+    bank: {
+      description: 'Banking — deposits, withdrawals, savings accounts and upgrades',
+      commands: [
+        'bank-deposit', 'bank-withdraw', 'bank-balance', 'bank-savings', 'bank-collect', 'bank-upgrade',
+      ],
+    },
+    earn: {
+      description: 'Earn currency — beg, fish, hunt, crime, rob, dig, search and more',
+      commands: [
+        'earn-beg', 'earn-fish', 'earn-hunt', 'earn-crime', 'earn-rob',
+        'earn-dig', 'earn-search', 'earn-monthly',
+      ],
+    },
+    job: {
+      description: 'Jobs — apply for work, complete shifts, and climb the career ladder',
+      commands: [
+        'job-apply', 'job-work', 'job-info', 'job-quit', 'job-list', 'job-leaderboard',
+      ],
+    },
+    'currency-staff': {
+      description: 'Currency administration — give, take, reset, config and audit',
+      commands: [
+        'currency-give', 'currency-take', 'currency-reset', 'currency-setbalance',
+        'currency-config', 'currency-audit',
+      ],
+    },
   },
   fun: {
     fun: {
-      description: 'Games, random content, jokes, memes and more',
+      description: 'Classic games — trivia, connect4, wordle, memes and more',
       commands: [
-        'trivia', 'rps', 'coinflip', '8ball', 'roll', 'slots',
-        'blackjack', 'connect4', 'tictactoe', 'wordle', 'wouldyourather',
+        'trivia', 'rps', '8ball', 'roll',
+        'connect4', 'tictactoe', 'wordle', 'wouldyourather',
         'meme', 'joke', 'fact', 'quote', 'dog', 'cat', 'roast', 'compliment',
-        'config',
+      ],
+    },
+    games: {
+      description: 'New games — snake, hangman, duel, memory, reaction and more',
+      commands: [
+        'guess', 'hangman', 'tord', 'wordchain', 'snake', 'fasttype',
+        'memory', 'reaction', 'mathrace', 'scramble', 'quizbowl',
+        'puzzle', 'duel', 'discord-activity',
       ],
     },
     social: {
@@ -123,6 +192,29 @@ const MODULE_SPLITS: Record<string, Record<string, SplitEntry>> = {
       commands: [
         'hug', 'pat', 'slap', 'kiss', 'highfive', 'bite', 'punch',
         'kick-fun', 'laugh', 'cry', 'pout', 'wave', 'dance', 'boop', 'cuddle', 'poke',
+      ],
+    },
+    extras: {
+      description: 'Fun extras — ASCII art, shipping, hacking, animal facts and more',
+      commands: [
+        'ascii', 'say', 'reverse', 'emojify', 'rate', 'ship', 'hack',
+        'birdfact', 'pandafact', 'fox',
+      ],
+    },
+  },
+  utilities: {
+    utils: {
+      description: 'Search, tools, and notepad utilities',
+      commands: [
+        'google', 'youtube', 'github', 'npm', 'steam', 'weather', 'crypto', 'util-translate', 'utilities-colorinfo',
+        'calculator', 'qrcode', 'password', 'encode', 'decode',
+      ],
+    },
+    'utils-tools': {
+      description: 'More tools — emojify, enlarge, anagram, minecraft, notepad and quick polls',
+      commands: [
+        'util-emojify', 'enlarge', 'anagram', 'minecraft', 'utilities-quickpoll',
+        'notepad-add', 'notepad-view', 'notepad-edit', 'notepad-delete',
       ],
     },
   },
@@ -217,7 +309,9 @@ export function groupModuleCommands(modules: Map<string, BotModule>): GrouperRes
     const moduleKey = getModuleKey(module.name);
     const splitConfig = MODULE_SPLITS[moduleKey];
 
-    if (splitConfig) {
+    if (STANDALONE_MODULES.has(moduleKey)) {
+      processStandaloneModule(module, registrationData, routingMap, slugToModule);
+    } else if (splitConfig) {
       processSplitModule(module, splitConfig, registrationData, routingMap, slugToModule);
     } else {
       processNormalModule(module, registrationData, routingMap, slugToModule);
@@ -312,6 +406,30 @@ function processSplitModule(
   const mainParent = registrationData.find((r) => r.name === mainSlug);
   if (mainParent && staffCommands.length > 0) {
     addStaffCommands(mainParent, staffCommands, mainSlug, module.displayName, routingMap);
+  }
+}
+
+// ============================================
+// STANDALONE MODULE — each command registers
+// as its own top-level slash command
+// ============================================
+
+function processStandaloneModule(
+  module: BotModule,
+  registrationData: any[],
+  routingMap: Map<string, BotCommand>,
+  slugToModule: Map<string, string>,
+): void {
+  for (const cmd of module.commands) {
+    const cmdJson = (cmd.data as any).toJSON();
+    const name = cmdJson.name;
+
+    // Register as a top-level command (raw JSON, no subcommand wrapping)
+    registrationData.push(cmdJson);
+    slugToModule.set(name, module.name);
+
+    // Route key for top-level commands: "name::"
+    routingMap.set(`${name}::`, cmd);
   }
 }
 

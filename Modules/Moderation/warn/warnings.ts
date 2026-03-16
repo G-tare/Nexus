@@ -2,13 +2,13 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { warningContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
-import { Colors } from '../../../Shared/src/utils/embed';
 import { discordTimestamp } from '../../../Shared/src/utils/time';
 
 const command: BotCommand = {
@@ -51,15 +51,11 @@ const command: BotCommand = {
       `**Case #${w.caseNumber}** — ${discordTimestamp(w.createdAt, 'R')}\n> **Reason:** ${w.reason}\n> **By:** <@${w.moderatorId}>`
     );
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Warning)
-      .setTitle(`Warnings — ${target.tag}`)
-      .setDescription(lines.join('\n\n').slice(0, 4096))
-      .setThumbnail(target.displayAvatarURL())
-      .setFooter({ text: `${warns.length} active warning(s)` })
-      .setTimestamp();
+    const container = warningContainer(`Warnings — ${target.tag}`);
+    addText(container, lines.join('\n\n').slice(0, 4096));
+    addFooter(container, `${warns.length} active warning(s)`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

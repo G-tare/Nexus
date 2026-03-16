@@ -68,7 +68,7 @@ export default {
       const oldReputation = memberData[0]?.reputation || 0;
 
       // Adjust reputation using helper
-      const newReputation = await adjustReputation(guildId, targetUser.id, amount);
+      const newReputation = await adjustReputation(guildId, targetUser.id, amount, reason, interaction.user.id);
 
       const embed = successEmbed(
         `Added ${amount} reputation to ${targetUser.username}\n\n` +

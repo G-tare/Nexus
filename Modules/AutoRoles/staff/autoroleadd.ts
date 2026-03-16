@@ -1,8 +1,8 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   addAutoRoleRule,
@@ -10,6 +10,7 @@ import {
   AutoRoleCondition,
   CONDITION_LABELS,
 } from '../helpers';
+import { moduleContainer, addText, addField, addSeparator, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -42,7 +43,7 @@ const command: BotCommand = {
     .addStringOption(opt =>
       opt.setName('invite_code')
         .setDescription('Invite code (only used with "Joined via invite code" condition)'))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autoroleadd',
@@ -93,21 +94,19 @@ const command: BotCommand = {
     const conditionValue = condition === 'invite_code' ? inviteCode : null;
     const rule = await addAutoRoleRule(guild.id, role.id, condition, conditionValue, delay, interaction.user.id);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle('✅ Auto-Role Rule Added')
-      .addFields(
-        { name: 'Rule ID', value: `\`${rule.id}\``, inline: true },
-        { name: 'Role', value: `${role}`, inline: true },
-        { name: 'Condition', value: CONDITION_LABELS[condition], inline: true },
-        { name: 'Delay', value: delay > 0 ? `${delay}s` : 'Immediate', inline: true },
-      );
+    const container = moduleContainer('auto_roles');
+    addText(container, '### ✅ Auto-Role Rule Added');
+    addSeparator(container, 'small');
+    addField(container, 'Rule ID', `\`${rule.id}\``, true);
+    addField(container, 'Role', `${role}`, true);
+    addField(container, 'Condition', CONDITION_LABELS[condition], true);
+    addField(container, 'Delay', delay > 0 ? `${delay}s` : 'Immediate', true);
 
     if (conditionValue) {
-      embed.addFields({ name: 'Invite Code', value: `\`${conditionValue}\``, inline: true });
+      addField(container, 'Invite Code', `\`${conditionValue}\``, true);
     }
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

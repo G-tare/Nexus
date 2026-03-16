@@ -5,7 +5,7 @@ import {
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -24,9 +24,8 @@ const command: BotCommand = {
     await interaction.deferReply();
 
     try {
-      const redis = getRedis();
       const lockdownKey = `lockdown:${guild.id}`;
-      const lockdownData = await redis.get(lockdownKey);
+      const lockdownData = cache.get<any>(lockdownKey);
 
       if (!lockdownData) {
         await interaction.editReply({
@@ -35,7 +34,7 @@ const command: BotCommand = {
         return;
       }
 
-      const { channelIds, reason } = JSON.parse(lockdownData);
+      const { channelIds, reason } = lockdownData;
       const everyoneRole = guild.roles.everyone;
       let successCount = 0;
       let failureCount = 0;
@@ -56,8 +55,8 @@ const command: BotCommand = {
         }
       }
 
-      // Remove lockdown data from Redis
-      await redis.del(lockdownKey);
+      // Remove lockdown data from cache
+      cache.del(lockdownKey);
 
       // Reply to user
       const embed = successEmbed('Lockdown Reversed', `Server-wide lockdown has been lifted.`)

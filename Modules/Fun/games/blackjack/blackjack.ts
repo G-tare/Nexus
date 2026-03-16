@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -16,6 +16,7 @@ import {
   emitGameLost,
   getFunConfig,
 } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const SUITS = ['♠️', '♥️', '♦️', '♣️'];
@@ -199,22 +200,12 @@ export default {
     }
 
     if (await checkBlackjack()) {
-      const embed = new EmbedBuilder()
-        .setTitle('🎰 Blackjack')
-        .setDescription(getDisplay())
-        .addFields({
-          name: 'Result',
-          value: gameState.result,
-          inline: false,
-        });
+      const container = moduleContainer('fun');
+      addText(container, '### 🎰 Blackjack');
+      addText(container, getDisplay());
+      addFields(container, [{ name: 'Result', value: gameState.result }]);
 
-      if (gameState.result.includes('won')) {
-        embed.setColor(0x00ff00);
-      } else {
-        embed.setColor(0xffff00);
-      }
-
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       await setCooldown(interaction.guildId!, interaction.user.id, 'blackjack', 5);
       return;
     }
@@ -234,13 +225,13 @@ export default {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const embed = new EmbedBuilder()
-      .setTitle('🎰 Blackjack')
-      .setDescription(getDisplay());
+    const container = moduleContainer('fun');
+    addText(container, '### 🎰 Blackjack');
+    addText(container, getDisplay());
+    container.addActionRowComponents(buttons);
 
     const message = await interaction.reply({
-      embeds: [embed],
-      components: [buttons],
+      ...v2Payload([container]),
       fetchReply: true,
     });
 
@@ -273,32 +264,18 @@ export default {
           playerDone = true;
         }
 
-        const newEmbed = new EmbedBuilder()
-          .setTitle('🎰 Blackjack')
-          .setDescription(getDisplay());
+        const newContainer = moduleContainer('fun');
+        addText(newContainer, '### 🎰 Blackjack');
+        addText(newContainer, getDisplay());
 
         if (gameState.gameOver) {
-          newEmbed.addFields({
-            name: 'Result',
-            value: gameState.result,
-            inline: false,
-          });
+          addFields(newContainer, [{ name: 'Result', value: gameState.result }]);
 
-          if (gameState.result.includes('won')) {
-            newEmbed.setColor(0x00ff00);
-          } else {
-            newEmbed.setColor(0xff0000);
-          }
-
-          await buttonInteraction.update({
-            embeds: [newEmbed],
-            components: [],
-          });
+          await buttonInteraction.update(v2Payload([newContainer]));
           collector.stop();
         } else {
-          await buttonInteraction.update({
-            embeds: [newEmbed],
-          });
+          newContainer.addActionRowComponents(buttons);
+          await buttonInteraction.update(v2Payload([newContainer]));
         }
       } else if (buttonInteraction.customId === 'blackjack_stand') {
         playerDone = true;
@@ -310,27 +287,12 @@ export default {
 
         await endGame();
 
-        const newEmbed = new EmbedBuilder()
-          .setTitle('🎰 Blackjack')
-          .setDescription(getDisplay())
-          .addFields({
-            name: 'Result',
-            value: gameState.result,
-            inline: false,
-          });
+        const newContainer = moduleContainer('fun');
+        addText(newContainer, '### 🎰 Blackjack');
+        addText(newContainer, getDisplay());
+        addFields(newContainer, [{ name: 'Result', value: gameState.result }]);
 
-        if (gameState.result.includes('won')) {
-          newEmbed.setColor(0x00ff00);
-        } else if (gameState.result.includes('Push')) {
-          newEmbed.setColor(0xffff00);
-        } else {
-          newEmbed.setColor(0xff0000);
-        }
-
-        await buttonInteraction.update({
-          embeds: [newEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([newContainer]));
         collector.stop();
       } else if (buttonInteraction.customId === 'blackjack_double') {
         // Double bet and add one card
@@ -345,27 +307,12 @@ export default {
           await endGame();
         }
 
-        const newEmbed = new EmbedBuilder()
-          .setTitle('🎰 Blackjack (Doubled Down)')
-          .setDescription(getDisplay())
-          .addFields({
-            name: 'Result',
-            value: gameState.result,
-            inline: false,
-          });
+        const newContainer = moduleContainer('fun');
+        addText(newContainer, '### 🎰 Blackjack (Doubled Down)');
+        addText(newContainer, getDisplay());
+        addFields(newContainer, [{ name: 'Result', value: gameState.result }]);
 
-        if (gameState.result.includes('won')) {
-          newEmbed.setColor(0x00ff00);
-        } else if (gameState.result.includes('Push')) {
-          newEmbed.setColor(0xffff00);
-        } else {
-          newEmbed.setColor(0xff0000);
-        }
-
-        await buttonInteraction.update({
-          embeds: [newEmbed],
-          components: [],
-        });
+        await buttonInteraction.update(v2Payload([newContainer]));
         collector.stop();
       }
     });
@@ -380,27 +327,12 @@ export default {
 
         await endGame();
 
-        const timeoutEmbed = new EmbedBuilder()
-          .setTitle('🎰 Blackjack')
-          .setDescription(getDisplay())
-          .addFields({
-            name: 'Result',
-            value: gameState.result,
-            inline: false,
-          });
+        const timeoutContainer = moduleContainer('fun');
+        addText(timeoutContainer, '### 🎰 Blackjack');
+        addText(timeoutContainer, getDisplay());
+        addFields(timeoutContainer, [{ name: 'Result', value: gameState.result }]);
 
-        if (gameState.result.includes('won')) {
-          timeoutEmbed.setColor(0x00ff00);
-        } else if (gameState.result.includes('Push')) {
-          timeoutEmbed.setColor(0xffff00);
-        } else {
-          timeoutEmbed.setColor(0xff0000);
-        }
-
-        await message.edit({
-          embeds: [timeoutEmbed],
-          components: [],
-        });
+        await message.edit(v2Payload([timeoutContainer]));
       }
     });
 

@@ -2,8 +2,6 @@ import {
   Events,
   Guild,
   GuildMember,
-  EmbedBuilder,
-  ColorResolvable,
   ChannelType,
 } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
@@ -18,6 +16,7 @@ import {
   getInviterStats,
   logInviteEvent,
 } from './helpers';
+import { moduleContainer, addFields, addText, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 /**
  * Cache invites on bot startup
@@ -101,33 +100,34 @@ const memberJoinHandler: ModuleEvent = { event: Events.GuildMemberAdd,
         try {
           const channel = await guild.channels.fetch(config.announceChannelId);
           if (channel && channel.isTextBased() && channel.type === ChannelType.GuildText) {
-            const announceEmbed = new EmbedBuilder()
-              .setColor('#57F287' as ColorResolvable)
-              .setTitle('Member Joined')
-              .setDescription(`${member} joined the server`)
-              .addFields(
-                {
-                  name: 'Invited By',
-                  value: `${invitedBy}`,
-                  inline: true,
-                },
-                { name: `${invitedBy.displayName}'s Invites`,
-                  value: stats.real.toString(),
-                  inline: true,
-                }
-              );
+            const container = moduleContainer('invite_tracker');
+            addText(container, `### Member Joined`);
+            addText(container, `${member} joined the server`);
+
+            const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+              {
+                name: 'Invited By',
+                value: `${invitedBy}`,
+                inline: true,
+              },
+              {
+                name: `${invitedBy.displayName}'s Invites`,
+                value: stats.real.toString(),
+                inline: true,
+              }
+            ];
 
             if (isFake) {
-              announceEmbed.addFields({
+              fields.push({
                 name: 'Status',
                 value: '⚠️ Fake invite (new account)',
                 inline: false,
               });
             }
 
-            announceEmbed.setTimestamp();
+            addFields(container, fields);
 
-            await (channel as any).send({ embeds: [announceEmbed] });
+            await (channel as any).send(v2Payload([container]));
           }
         } catch (error) {
           console.error('Failed to announce join:', error);

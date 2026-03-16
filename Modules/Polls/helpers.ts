@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, TextDisplayBuilder } from 'discord.js';
 
 export interface PollConfig {
   enabled: boolean;
@@ -178,10 +178,9 @@ export async function endPoll(pollId: string, redis: any): Promise<{ success: bo
   return { success: true, poll };
 }
 
-export function buildPollEmbed(poll: PollData, showResults: boolean): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(poll.question)
-    .setColor(poll.status === 'ended' ? '#808080' : '#0099ff');
+export function buildPollContainer(poll: PollData, showResults: boolean): ContainerBuilder {
+  const container = new ContainerBuilder()
+    .setAccentColor(poll.status === 'ended' ? 0x808080 : 0x0099ff);
 
   const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -212,7 +211,9 @@ export function buildPollEmbed(poll: PollData, showResults: boolean): EmbedBuild
     }
   }
 
-  embed.setDescription(description.trim());
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`### ${poll.question}\n${description.trim()}`)
+  );
 
   let footerText = `Poll ID: ${poll.id}`;
   const visibility = poll.anonymous ? 'Anonymous' : 'Public';
@@ -233,15 +234,15 @@ export function buildPollEmbed(poll: PollData, showResults: boolean): EmbedBuild
     }
   }
 
-  embed.setFooter({ text: footerText });
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`-# ${footerText}`)
+  );
 
-  return embed;
+  return container;
 }
 
-export function buildResultsEmbed(poll: PollData): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`Results: ${poll.question}`)
-    .setColor('#28a745');
+export function buildResultsContainer(poll: PollData): ContainerBuilder {
+  const container = new ContainerBuilder().setAccentColor(0x28a745);
 
   const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -266,10 +267,14 @@ export function buildResultsEmbed(poll: PollData): EmbedBuilder {
     description += `${prefix}${numberEmojis[i]} ${poll.options[i]}\n${bar} ${voteCount} vote${voteCount !== 1 ? 's' : ''}\n\n`;
   }
 
-  embed.setDescription(description.trim());
-  embed.setFooter({ text: `Total votes: ${totalVotes}` });
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`### Results: ${poll.question}\n${description.trim()}`)
+  );
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`-# Total votes: ${totalVotes}`)
+  );
 
-  return embed;
+  return container;
 }
 
 export function buildPollComponents(poll: PollData): ActionRowBuilder<ButtonBuilder>[] {

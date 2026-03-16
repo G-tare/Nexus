@@ -1,7 +1,6 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
@@ -18,6 +17,7 @@ import {
   scheduleInactivityTimeout,
   getGuildTempVCs,
 } from '../helpers';
+import { moduleContainer, addText, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vc')
@@ -132,18 +132,18 @@ export const vc: BotCommand = {
         name: newChannelName,
       });
 
-      const embed = new EmbedBuilder()
-        .setColor('#00ff00')
-        .setTitle('Temporary Voice Channel Created')
-        .setDescription(`Successfully created **${newChannelName}**`)
-        .addFields(
-          { name: 'Channel', value: `<#${newChannel.id}>`, inline: true },
-          { name: 'Owner', value: user.username, inline: true }
-        )
-        .setFooter({ text: 'Use /vcname, /vclimit, /vclock, /vcpermit, /vckick, /vcinfo to manage your channel.' });
+      const container = moduleContainer('temp_voice')
+        .setAccentColor(0x00ff00);
+
+      addText(container, '### ✅ Temporary Voice Channel Created\nSuccessfully created **' + newChannelName + '**');
+      addFields(container, [
+        { name: 'Channel', value: `<#${newChannel.id}>`, inline: true },
+        { name: 'Owner', value: user.username, inline: true }
+      ]);
+      addFooter(container, 'Use /vcname, /vclimit, /vclock, /vcpermit, /vckick, /vcinfo to manage your channel.');
 
       logger.info('[TempVoice] User created temp VC:', newChannel.id, 'user:', user.id);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vc command:', error);
       return interaction.editReply('An error occurred while creating the temporary voice channel.');

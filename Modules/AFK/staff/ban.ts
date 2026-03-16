@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAFKConfig, setAFKConfig, removeAFK } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, errorContainer, successContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'afk',
@@ -73,24 +74,21 @@ const command: BotCommand = {
         // Remove their AFK status if active
         await removeAFK(interaction.guildId!, targetUser.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#E74C3C')
-          .setTitle('🚫 User Banned from AFK')
-          .addFields(
-            {
-              name: 'User',
-              value: `${targetUser.tag} (${targetUser.id})`,
-              inline: false,
-            },
-            {
-              name: 'Reason',
-              value: reason,
-              inline: false,
-            }
-          )
-          .setTimestamp();
+        const container = errorContainer('🚫 User Banned from AFK');
+        addFields(container, [
+          {
+            name: 'User',
+            value: `${targetUser.tag} (${targetUser.id})`,
+            inline: false,
+          },
+          {
+            name: 'Reason',
+            value: reason,
+            inline: false,
+          }
+        ]);
 
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'unban') {
@@ -108,17 +106,16 @@ const command: BotCommand = {
         await setAFKConfig(interaction.guildId!, { bannedUsers: config.bannedUsers });
         await moduleConfig.setConfig(interaction.guildId!, 'afk', { bannedUsers: config.bannedUsers });
 
-        const embed = new EmbedBuilder()
-          .setColor('#2ECC71')
-          .setTitle('✅ User Unbanned from AFK')
-          .addFields({
+        const container = successContainer('✅ User Unbanned from AFK');
+        addFields(container, [
+          {
             name: 'User',
             value: `${targetUser.tag} (${targetUser.id})`,
             inline: false,
-          })
-          .setTimestamp();
+          }
+        ]);
 
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'list') {
@@ -129,16 +126,14 @@ const command: BotCommand = {
         }
 
         const bannedList = config.bannedUsers.slice(0, 25).map((id, idx) => `${idx + 1}. <@${id}>`).join('\n');
-        const embed = new EmbedBuilder()
-          .setColor('#E74C3C')
-          .setTitle('🚫 AFK Bans')
-          .setDescription(bannedList)
-          .setFooter({
-            text: config.bannedUsers.length > 25 ? `Showing 25 of ${config.bannedUsers.length}` : `${config.bannedUsers.length} total`,
-          })
-          .setTimestamp();
+        const container = errorContainer('🚫 AFK Bans', bannedList);
+        if (config.bannedUsers.length > 25) {
+          addText(container, `-# Showing 25 of ${config.bannedUsers.length}`);
+        } else {
+          addText(container, `-# ${config.bannedUsers.length} total`);
+        }
 
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       console.error('Error in /afk-ban command:', error);

@@ -6,8 +6,9 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBirthdayConfig,
   getBirthdaysInMonth,
-  buildUpcomingEmbed,
+  buildUpcomingContainer,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -45,8 +46,8 @@ const command: BotCommand = {
       const month = interaction.options.getInteger('month') || (new Date().getMonth() + 1);
       const birthdays = await getBirthdaysInMonth(interaction.guildId!, month);
 
-      const embed = buildUpcomingEmbed(birthdays, `🎂 Birthdays in ${monthNames[month - 1]}`);
-      await interaction.editReply({ embeds: [embed] });
+      const container = buildUpcomingContainer(birthdays, `🎂 Birthdays in ${monthNames[month - 1]}`);
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Birthdays] /birthdaylist error:', error);
       await interaction.editReply({

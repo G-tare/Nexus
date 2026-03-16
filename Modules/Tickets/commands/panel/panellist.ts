@@ -1,12 +1,19 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../../Shared/src/utils/embed';
+import type { TicketPanel } from '../../helpers';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'tickets',
@@ -62,42 +69,36 @@ const command: BotCommand = {
     }
 
     try {
-      // Build panel list embed
-      const listEmbed = new EmbedBuilder()
-        .setTitle('Ticket Panels')
-        .setColor('#5865F2')
-        .setDescription(
-          config.panels.length > 0
-            ? `Found ${config.panels.length} active panel(s)`
-            : 'No panels found'
-        );
+      // Build panel list container
+      const listContainer = moduleContainer('tickets');
+      addText(listContainer, '### Ticket Panels');
+      addText(
+        listContainer,
+        config.panels.length > 0
+          ? `Found ${config.panels.length} active panel(s)`
+          : 'No panels found'
+      );
 
-      // Add each panel as a field
-      for (const panel of config.panels) {
-        const channel = interaction.guild.channels.cache.get(panel.channelId);
+      // Add each panel as fields
+      const panelFields = config.panels.map((panel: TicketPanel) => {
+        const channel = interaction.guild!.channels.cache.get(panel.channelId);
         const channelMention = channel ? `<#${channel.id}>` : '`Channel not found`';
         const panelType = panel.type.charAt(0).toUpperCase() + panel.type.slice(1);
 
         const panelInfo = `**Type:** ${panelType}\n**Title:** ${panel.title}\n**Channel:** ${channelMention}\n**[Jump to Message](https://discord.com/channels/${interaction.guildId!}/${panel.channelId}/${panel.messageId})`;
 
-        listEmbed.addFields({
+        return {
           name: `Panel - ${panel.messageId}`,
           value: panelInfo,
           inline: false,
-        });
+        };
+      });
+
+      if (panelFields.length > 0) {
+        addFields(listContainer, panelFields);
       }
 
-      listEmbed.setFooter({
-        text: `Requested by ${interaction.user.username}`,
-        iconURL: interaction.user.displayAvatarURL(),
-      });
-
-      listEmbed.setTimestamp();
-
-      return interaction.reply({
-        embeds: [listEmbed],
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([listContainer]));
     } catch (error) {
       console.error('[Tickets] Error listing panels:', error);
       return interaction.reply({

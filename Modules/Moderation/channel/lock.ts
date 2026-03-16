@@ -1,11 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -32,9 +34,9 @@ const command: BotCommand = {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
-      await interaction.reply({
-        embeds: [errorEmbed('Invalid Channel', 'Please specify a valid text channel.')],
-      });
+      await interaction.reply(v2Payload([
+        errorContainer('Invalid Channel', 'Please specify a valid text channel.')
+      ]));
       return;
     }
 
@@ -48,28 +50,26 @@ const command: BotCommand = {
         SendMessages: false,
       }, `Channel locked by ${interaction.user.tag}: ${reason}`);
 
-      // Send lock reason embed in the channel
-      const lockEmbed = new EmbedBuilder()
-        .setColor(Colors.Warning)
-        .setTitle('🔒 Channel Locked')
-        .setDescription(reason)
-        .addFields(
-          { name: 'Locked By', value: `${interaction.user.tag}`, inline: true },
-          { name: 'Locked At', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }
-        )
-        .setFooter({ text: 'This channel has been locked by a moderator.' });
+      // Send lock reason container in the channel
+      const lockContainer = new ContainerBuilder();
+      lockContainer.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### 🔒 Channel Locked\n${reason}`)
+      );
+      lockContainer.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**Locked By:** ${interaction.user.tag}\n**Locked At:** <t:${Math.floor(Date.now() / 1000)}:f>\n\n-# This channel has been locked by a moderator.`)
+      );
 
-      await (targetChannel as any).send({ embeds: [lockEmbed] });
+      await (targetChannel as any).send({ components: [lockContainer], flags: MessageFlags.IsComponentsV2 });
 
       // Reply to user
-      const embed = successEmbed('Channel Locked', `<#${targetChannel.id}> has been locked.`)
-        .addFields({ name: 'Reason', value: reason });
+      const container = successContainer('Channel Locked', `<#${targetChannel.id}> has been locked.`);
+      addFields(container, [{ name: 'Reason', value: reason }]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
-      await interaction.editReply({
-        embeds: [errorEmbed('Failed', 'Could not lock the channel. Please ensure I have permission to manage this channel.')],
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('Failed', 'Could not lock the channel. Please ensure I have permission to manage this channel.')
+      ]));
     }
   },
 };

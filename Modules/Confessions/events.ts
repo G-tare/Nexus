@@ -5,7 +5,7 @@ import {
   getPendingConfessionData,
   removePendingConfession,
   storeConfession,
-  buildConfessionEmbed,
+  buildConfessionContainer,
   buildConfessionButtons,
   getNextConfessionNumber,
   checkCooldown,
@@ -14,9 +14,10 @@ import {
   isConfessionBanned,
   checkBlacklist,
   storePendingConfession,
-  buildModerationEmbed,
+  buildModerationContainer,
 } from './helpers';
-import { getRedis } from '../../Shared/src/database/connection';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import {
   ModalBuilder,
   TextInputBuilder,
@@ -94,16 +95,12 @@ export const confessionsEvents: ModuleEvent[] = [
           );
 
           // Post to channel with buttons
-          const embed = buildConfessionEmbed(confessionId, pendingData.content, config);
-          if (pendingData.imageUrl) {
-            embed.setImage(pendingData.imageUrl);
-          }
+          const container = buildConfessionContainer(confessionId, pendingData.content, config);
 
           const confessionButtons = buildConfessionButtons(confessionId);
 
           // Remove buttons from the previous confession
-          const redis = getRedis();
-          const lastMsgId = await redis.get(`confession_last_msg:${guildId}`);
+          const lastMsgId = cache.get<string>(`confession_last_msg:${guildId}`);
           if (lastMsgId) {
             try {
               const oldMsg = await (channel as TextChannel).messages.fetch(lastMsgId);
@@ -115,8 +112,9 @@ export const confessionsEvents: ModuleEvent[] = [
             }
           }
 
-          const sentMsg = await (channel as any).send({ embeds: [embed], components: [confessionButtons] });
-          await redis.set(`confession_last_msg:${guildId}`, sentMsg.id);
+          container.addActionRowComponents(confessionButtons);
+          const sentMsg = await (channel as any).send(v2Payload([container]));
+          cache.set(`confession_last_msg:${guildId}`, sentMsg.id);
 
           // Remove from pending
           await removePendingConfession(guildId, confessionId);
@@ -329,13 +327,14 @@ export const confessionsEvents: ModuleEvent[] = [
 
           const modChannel = await interaction.client.channels.fetch(config.moderationChannelId).catch(() => null);
           if (modChannel && modChannel.isTextBased()) {
-            const embed = buildModerationEmbed(confessionNumber, message, config);
+            const container = buildModerationContainer(confessionNumber, message, config);
             const modButtons = new ActionRowBuilder<ButtonBuilder>()
               .addComponents(
                 new ButtonBuilder().setCustomId(`confession_approve_${confessionNumber}`).setLabel('Approve').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId(`confession_deny_${confessionNumber}`).setLabel('Deny').setStyle(ButtonStyle.Danger),
               );
-            await (modChannel as any).send({ embeds: [embed], components: [modButtons] });
+            container.addActionRowComponents(modButtons);
+            await (modChannel as any).send(v2Payload([container]));
           }
 
           await interaction.reply({
@@ -346,12 +345,11 @@ export const confessionsEvents: ModuleEvent[] = [
           // Post directly
           await storeConfession(guildId, confessionNumber, userHash, message, userId);
 
-          const embed = buildConfessionEmbed(confessionNumber, message, config);
+          const container = buildConfessionContainer(confessionNumber, message, config);
           const buttons = buildConfessionButtons(confessionNumber);
 
           // Remove buttons from previous confession
-          const redis = getRedis();
-          const lastMsgId = await redis.get(`confession_last_msg:${guildId}`);
+          const lastMsgId = cache.get<string>(`confession_last_msg:${guildId}`);
           if (lastMsgId) {
             try {
               const oldMsg = await (channel as TextChannel).messages.fetch(lastMsgId);
@@ -363,8 +361,9 @@ export const confessionsEvents: ModuleEvent[] = [
             }
           }
 
-          const sentMsg = await (channel as any).send({ embeds: [embed], components: [buttons] });
-          await redis.set(`confession_last_msg:${guildId}`, sentMsg.id);
+          container.addActionRowComponents(buttons);
+          const sentMsg = await (channel as any).send(v2Payload([container]));
+          cache.set(`confession_last_msg:${guildId}`, sentMsg.id);
 
           await interaction.reply({
             content: `Confession #${confessionNumber} submitted!`,

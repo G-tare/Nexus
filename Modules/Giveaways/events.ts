@@ -6,7 +6,7 @@ import { eq, and, lte } from 'drizzle-orm';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import {
   getGiveaway, getGiveawayByMessage, enterGiveaway, endGiveaway,
-  getActiveGiveaways, buildGiveawayEmbed, buildGiveawayComponents,
+  getActiveGiveaways, buildGiveawayContainer, buildGiveawayComponents,
   getGiveawayConfig, GiveawayData,
 } from './helpers';
 import { eventBus } from '../../Shared/src/events/eventBus';

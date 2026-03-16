@@ -15,7 +15,7 @@ struct ModuleListView: View {
                 displayName: entry.name,
                 icon: entry.icon,
                 category: entry.category,
-                isEnabled: config?.enabled ?? true,
+                isEnabled: config?.enabled ?? false,
                 config: config?.config
             )
         }

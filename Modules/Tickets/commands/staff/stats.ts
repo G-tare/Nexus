@@ -1,11 +1,18 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../../Shared/src/database/connection';
 import { tickets } from '../../../../Shared/src/database/models/schema';
 import { eq, and, sql, desc, gte } from 'drizzle-orm';
@@ -58,29 +65,29 @@ const command: BotCommand = {
       const days = interaction.options.getInteger('days') || 30;
       const stats = await getTicketStats(interaction.guildId!, days, config);
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Primary)
-        .setTitle(`Ticket Statistics (Last ${days} Days)`)
-        .addFields(
-          {
-            name: 'Open Tickets',
-            value: stats.open.toString(),
-            inline: true,
-          },
-          {
-            name: 'Closed Tickets',
-            value: stats.closed.toString(),
-            inline: true,
-          },
-          {
-            name: 'Total Created',
-            value: stats.created.toString(),
-            inline: true,
-          }
-        );
+      const container = moduleContainer('tickets');
+      addText(container, `### Ticket Statistics (Last ${days} Days)`);
+
+      const fields = [
+        {
+          name: 'Open Tickets',
+          value: stats.open.toString(),
+          inline: true,
+        },
+        {
+          name: 'Closed Tickets',
+          value: stats.closed.toString(),
+          inline: true,
+        },
+        {
+          name: 'Total Created',
+          value: stats.created.toString(),
+          inline: true,
+        },
+      ];
 
       if (stats.avgResponseTime > 0) {
-        embed.addFields({
+        fields.push({
           name: 'Avg Response Time',
           value: formatMinutes(stats.avgResponseTime),
           inline: true,
@@ -88,7 +95,7 @@ const command: BotCommand = {
       }
 
       if (config.feedbackEnabled && stats.avgRating > 0) {
-        embed.addFields({
+        fields.push({
           name: 'Average Feedback Rating',
           value: `${stats.avgRating}/5 ⭐`,
           inline: true,
@@ -101,16 +108,16 @@ const command: BotCommand = {
           .map((s) => `<@${s.userId}>: ${s.count} closed`)
           .join('\n');
 
-        embed.addFields({
+        fields.push({
           name: 'Top Staff (by tickets closed)',
           value: staffList,
           inline: false,
         });
       }
 
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      addFields(container, fields);
+
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Tickets] Error fetching stats:', error);
       return interaction.editReply({

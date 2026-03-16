@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
@@ -7,14 +7,15 @@ import {
   createModCase,
   sendModDM,
   canModerate,
-  modActionEmbed,
+  buildModActionContainer,
   getModConfig,
   ensureGuild,
   ensureGuildMember,
   adjustReputation,
 } from '../helpers';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { getPool } from '../../../Shared/src/database/connection';
+import { timers } from '../../../Shared/src/cache/timerManager';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -47,7 +48,8 @@ const command: BotCommand = {
   async execute(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('user', true);
     const durationStr = interaction.options.getString('duration', true);
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const rawReason = interaction.options.getString('reason');
+    const reason = rawReason || 'No reason provided';
     const deleteDays = interaction.options.getInteger('delete_days') || 0;
     const guild = interaction.guild!;
 
@@ -73,6 +75,13 @@ const command: BotCommand = {
     await interaction.deferReply();
 
     const config = await getModConfig(guild.id);
+
+    // Enforce requireReason
+    if (config.requireReason && !rawReason) {
+      await interaction.editReply({ content: '❌ This server requires a reason for moderation actions. Please provide a reason.' });
+      return;
+    }
+
     await ensureGuild(guild);
     await ensureGuildMember(guild.id, target.id);
 
@@ -106,20 +115,38 @@ const command: BotCommand = {
       deleteMessageSeconds: deleteDays * 86400,
     });
 
-    // Schedule unban via Redis
-    const redis = getRedis();
-    await redis.setex(
-      `tempban:${guild.id}:${target.id}`,
-      durationSeconds,
-      JSON.stringify({ caseNumber, moderatorId: interaction.user.id })
+    // Store in Postgres and schedule unban via TimerManager
+    const expiresAt = new Date(Date.now() + durationMs);
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO temp_bans (guild_id, user_id, moderator_id, reason, case_number, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT DO NOTHING`,
+      [guild.id, target.id, interaction.user.id, reason, caseNumber, expiresAt],
     );
+
+    const timerId = `tempban:${guild.id}:${target.id}`;
+    timers.schedule(timerId, expiresAt, async () => {
+      try {
+        const g = interaction.client.guilds.cache.get(guild.id);
+        if (g) {
+          await g.members.unban(target.id, '[AUTO] Temporary ban expired');
+        }
+        await pool.query(
+          'DELETE FROM temp_bans WHERE guild_id = $1 AND user_id = $2',
+          [guild.id, target.id],
+        ).catch(() => null);
+      } catch {
+        // User might already be unbanned
+      }
+    });
 
     // Adjust reputation
     if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -(config.reputationPenalties.tempban ?? config.reputationPenalties.ban), 'Temporary ban');
+      await adjustReputation(guild.id, target.id, -(config.reputationPenalties.tempban ?? config.reputationPenalties.ban), 'Temporary ban', interaction.user.id);
     }
 
-    const embed = modActionEmbed({
+    const container = buildModActionContainer({
       action: 'Temporary Ban',
       target,
       moderator: interaction.user,
@@ -129,7 +156,7 @@ const command: BotCommand = {
       dmSent,
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

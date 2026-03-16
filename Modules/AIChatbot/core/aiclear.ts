@@ -1,7 +1,8 @@
-import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { clearHistory, getAIConfig, isAIAuthorized } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AIChatbot');
 
@@ -37,14 +38,8 @@ const command: BotCommand = {
 
       await clearHistory(interaction.guildId!, interaction.channelId!);
 
-      const embed = new EmbedBuilder()
-        .setTitle('🗑️ Conversation Cleared')
-        .setDescription('The AI conversation history for this channel has been cleared.')
-        .setColor('#43B581')
-        .setFooter({ text: `Cleared by ${interaction.user.username}` })
-        .setTimestamp();
-
-      await interaction.reply({ embeds: [embed] });
+      const container = successContainer('Conversation Cleared', 'The AI conversation history for this channel has been cleared.');
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in aiclear command execution', error);
       await interaction.reply({ content: '❌ Failed to clear conversation history.', flags: MessageFlags.Ephemeral });

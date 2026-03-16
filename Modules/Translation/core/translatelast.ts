@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder,
-  TextChannel, MessageFlags } from 'discord.js';
+  TextChannel, MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   translateText,
@@ -13,6 +14,7 @@ import {
   getLanguageName,
   incrementTranslationStats,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -87,19 +89,15 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x4285F4)
-      .setTitle(`🌐 Translated ${translations.length} message${translations.length > 1 ? 's' : ''} → ${getLanguageName(targetLang)}`)
-      .setTimestamp();
+    const container = new ContainerBuilder().setAccentColor(0x4285F4);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### 🌐 Translated ${translations.length} message${translations.length > 1 ? 's' : ''} → ${getLanguageName(targetLang)}`));
 
     for (const t of translations) {
-      embed.addFields({
-        name: `${t.author} (${getLanguageName(t.sourceLang)})`,
-        value: `${t.original}\n**→** ${t.translated}`,
-      });
+      const fieldText = `**${t.author} (${getLanguageName(t.sourceLang)})**\n${t.original}\n**→** ${t.translated}`;
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fieldText));
     }
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {

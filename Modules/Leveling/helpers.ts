@@ -1,12 +1,12 @@
 import { getDb } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { guildMembers } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
-import { EmbedBuilder, GuildMember, AttachmentBuilder } from 'discord.js';
-import { Colors } from '../../Shared/src/utils/embed';
+import { ContainerBuilder, GuildMember, AttachmentBuilder } from 'discord.js';
+import { moduleContainer, addText, addFields, addSeparator, addFooter, addSectionWithThumbnail, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 // Lazy-load canvas — try @napi-rs/canvas first (prebuilt), fall back to node-canvas
 let createCanvas: any;
@@ -349,10 +349,10 @@ export function progressBar(current: number, total: number, length: number = 20)
 }
 
 // ============================================
-// Rank Card Embed (text-based fallback)
+// Rank Card Container (text-based fallback)
 // ============================================
 
-export function rankEmbed(params: {
+export function rankContainer(params: {
   username: string;
   avatarUrl: string;
   level: number;
@@ -363,31 +363,35 @@ export function rankEmbed(params: {
   prestige: number;
   streak?: number;
   style?: string;
-}): EmbedBuilder {
+}): ContainerBuilder {
   const { username, avatarUrl, level, currentXp, xpNeeded, totalXp, rank, prestige } = params;
   const percentage = Math.round((currentXp / xpNeeded) * 100);
   const bar = progressBar(currentXp, xpNeeded, 20);
 
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Leveling)
-    .setTitle(`${prestige > 0 ? `✨P${prestige} ` : ''}${username}`)
-    .setThumbnail(avatarUrl)
-    .addFields(
-      { name: 'Rank', value: `#${rank}`, inline: true },
-      { name: 'Level', value: `${level}`, inline: true },
-      { name: 'Total XP', value: totalXp.toLocaleString(), inline: true },
-      {
-        name: `Progress — ${percentage}%`,
-        value: `${bar}\n${currentXp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`,
-      },
-    )
-    .setTimestamp();
+  const container = moduleContainer('leveling');
+
+  // Title with avatar thumbnail
+  const title = `${prestige > 0 ? `✨ P${prestige} ` : ''}${username}`;
+  addSectionWithThumbnail(container, `### ${title}`, avatarUrl);
+
+  addSeparator(container, 'small');
+
+  // Stats fields
+  addFields(container, [
+    { name: 'Rank', value: `#${rank}`, inline: true },
+    { name: 'Level', value: `${level}`, inline: true },
+    { name: 'Total XP', value: totalXp.toLocaleString(), inline: true },
+    {
+      name: `Progress — ${percentage}%`,
+      value: `${bar}\n${currentXp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`,
+    },
+  ]);
 
   if (prestige > 0) {
-    embed.setFooter({ text: `Prestige ${prestige} • +${prestige * 5}% XP bonus` });
+    addFooter(container, `Prestige ${prestige} • +${prestige * 5}% XP bonus`);
   }
 
-  return embed;
+  return container;
 }
 
 // ============================================
@@ -700,8 +704,7 @@ function roundRect(
 
 export async function getUserCardStyle(guildId: string, userId: string): Promise<string> {
   try {
-    const redis = getRedis();
-    const style = await redis.get(`cardstyle:${guildId}:${userId}`);
+    const style = cache.get<string>(`cardstyle:${guildId}:${userId}`);
     return style || 'default';
   } catch {
     return 'default';
@@ -710,8 +713,7 @@ export async function getUserCardStyle(guildId: string, userId: string): Promise
 
 export async function getUserCardBg(guildId: string, userId: string): Promise<string | null> {
   try {
-    const redis = getRedis();
-    return await redis.get(`cardbg:${guildId}:${userId}`);
+    return cache.get<string>(`cardbg:${guildId}:${userId}`) || null;
   } catch {
     return null;
   }

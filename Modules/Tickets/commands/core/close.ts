@@ -1,15 +1,21 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ComponentType, MessageFlags } from 'discord.js';
+  ComponentType,
+  MessageFlags,
+  ContainerBuilder,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { closeTicket, isTicketChannel } from '../../helpers';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'tickets',
@@ -57,13 +63,8 @@ const command: BotCommand = {
 
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
-    // If confirmation is enabled, send confirmation embed
+    // If confirmation is enabled, send confirmation with traditional buttons (not V2 components)
     if (config.closeConfirmation) {
-      const confirmEmbed = errorEmbed(
-        'Close Ticket Confirmation',
-        `Are you sure you want to close this ticket?\n\n**Reason:** ${reason}`
-      );
-
       const confirmRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId('ticket_confirm_close')
@@ -76,7 +77,7 @@ const command: BotCommand = {
       );
 
       const confirmMessage = await interaction.editReply({
-        embeds: [confirmEmbed],
+        content: `❓ **Close Ticket Confirmation**\n\nAre you sure you want to close this ticket?\n\n**Reason:** ${reason}`,
         components: [confirmRow],
       });
 

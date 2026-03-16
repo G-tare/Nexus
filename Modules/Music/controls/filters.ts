@@ -1,10 +1,9 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
 import {
   getQueue,
   getMusicConfig,
@@ -14,6 +13,7 @@ import {
   isInVoiceChannel,
   getFilterPreset,
 } from '../helpers';
+import { errorContainer, successContainer, moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const FILTER_CHOICES = [
   'bassboost',
@@ -57,53 +57,25 @@ const command: BotCommand = {
 
     // Check if user is in voice
     if (!isInVoiceChannel(member)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Not in Voice Channel')
-            .setDescription('You must be in a voice channel to use this command.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('Not in Voice Channel', 'You must be in a voice channel to use this command.')]));
       return;
     }
 
     // Check if queue exists
     if (!queue) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('No Active Queue')
-            .setDescription('There is no active music queue in this server.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('No Active Queue', 'There is no active music queue in this server.')]));
       return;
     }
 
     // Check if user is in same voice channel
     if (!isInSameVoice(member, queue)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Wrong Voice Channel')
-            .setDescription('You must be in the same voice channel as the bot.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot.')]));
       return;
     }
 
     // Check DJ permissions if required
     if (requiresDJ('filters', config) && !isDJ(member, config)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('DJ Only')
-            .setDescription('Only DJs can apply filters.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('DJ Only', 'Only DJs can apply filters.')]));
       return;
     }
 
@@ -116,28 +88,14 @@ const command: BotCommand = {
       // TODO: Clear all filters on Lavalink player
       // await lavaliinkPlayer.clearFilters();
 
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Success)
-            .setTitle('✨ Filters Cleared')
-            .setDescription('All audio filters have been removed.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([successContainer('✨ Filters Cleared', 'All audio filters have been removed.')]));
       return;
     }
 
     // Get filter preset settings
     const filterSettings = getFilterPreset(preset);
     if (!filterSettings) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Unknown Filter')
-            .setDescription(`The filter preset **${preset}** is not recognized.`),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('Unknown Filter', `The filter preset **${preset}** is not recognized.`)]));
       return;
     }
 
@@ -156,23 +114,16 @@ const command: BotCommand = {
         ? queue.filters.join(', ')
         : 'None';
 
-    await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(Colors.Success)
-          .setTitle('🎚️ Filters Updated')
-          .setDescription(
-            `Filter **${preset}** has been ${
-              queue.filters.includes(preset) ? 'applied' : 'removed'
-            }.`
-          )
-          .addFields({
-            name: 'Active Filters',
-            value: activeFilters,
-            inline: false,
-          }),
-      ],
-    });
+    const container = successContainer('🎚️ Filters Updated', `Filter **${preset}** has been ${queue.filters.includes(preset) ? 'applied' : 'removed'}.`);
+    addFields(container, [
+      {
+        name: 'Active Filters',
+        value: activeFilters,
+        inline: false,
+      },
+    ]);
+
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

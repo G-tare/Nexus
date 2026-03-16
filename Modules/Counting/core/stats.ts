@@ -1,10 +1,16 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   User, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getUserStats, getUserCountingLives } from '../helpers';
+import {
+  moduleContainer,
+  addSectionWithThumbnail,
+  addSeparator,
+  addFields,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('counting-stats')
@@ -37,50 +43,54 @@ const statsCommand: BotCommand = {
           ? ((stats.correctCounts / totalAttempts) * 100).toFixed(2)
           : '0.00';
 
-      const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setTitle(`📈 Counting Stats for ${targetUser.username}`)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-          {
-            name: 'Correct Counts',
-            value: String(stats.correctCounts),
-            inline: true,
-          },
-          {
-            name: 'Wrong Counts',
-            value: String(stats.wrongCounts),
-            inline: true,
-          },
-          {
-            name: 'Accuracy',
-            value: `${accuracy}%`,
-            inline: true,
-          },
-          {
-            name: 'Highest Number Counted',
-            value: String(stats.highestNumber),
-            inline: true,
-          },
-          {
-            name: 'Current Lives',
-            value: String(lives),
-            inline: true,
-          },
-          {
-            name: 'Best Streak',
-            value: String(stats.bestStreak || 0),
-            inline: true,
-          },
-          {
-            name: 'Total Attempts',
-            value: String(totalAttempts),
-            inline: true,
-          }
-        )
-        .setTimestamp();
+      const container = moduleContainer('counting');
+      addSectionWithThumbnail(
+        container,
+        `### 📈 Counting Stats for ${targetUser.username}`,
+        targetUser.displayAvatarURL()
+      );
+      addSeparator(container, 'small');
 
-      return interaction.reply({ embeds: [embed] });
+      const fields = [
+        {
+          name: 'Correct Counts',
+          value: String(stats.correctCounts),
+          inline: true,
+        },
+        {
+          name: 'Wrong Counts',
+          value: String(stats.wrongCounts),
+          inline: true,
+        },
+        {
+          name: 'Accuracy',
+          value: `${accuracy}%`,
+          inline: true,
+        },
+        {
+          name: 'Highest Number Counted',
+          value: String(stats.highestNumber),
+          inline: true,
+        },
+        {
+          name: 'Current Lives',
+          value: String(lives),
+          inline: true,
+        },
+        {
+          name: 'Best Streak',
+          value: String(stats.bestStreak || 0),
+          inline: true,
+        },
+        {
+          name: 'Total Attempts',
+          value: String(totalAttempts),
+          inline: true,
+        }
+      ];
+      addFields(container, fields);
+
+      return interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('[Counting] Error in /counting-stats:', error);
       return interaction.reply({

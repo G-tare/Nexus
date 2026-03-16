@@ -1,8 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getRepHistory, formatDelta, relativeTimestamp } from '../helpers';
 
 const command: BotCommand = {
@@ -38,14 +39,11 @@ const command: BotCommand = {
       return `${delta} by ${who} ${relativeTimestamp(h.createdAt)}${reason}`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle(`⭐ ${target.displayName}'s Rep History`)
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: `Showing last ${history.length} changes` })
-      .setTimestamp();
+    const container = moduleContainer('reputation');
+    addText(container, `### ⭐ ${target.displayName}'s Rep History\n${lines.join('\n')}`);
+    addFooter(container, `Showing last ${history.length} changes`);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

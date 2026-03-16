@@ -37,6 +37,14 @@ enum CommandRegistry {
     static let commands: [String: [CommandDef]] = [
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // CORE
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "core": [
+            CommandDef("report-user", desc: "Report a user", module: "core"),
+            CommandDef("report-bug", desc: "Report a bug", module: "core"),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // MODERATION
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         "moderation": [
@@ -186,6 +194,7 @@ enum CommandRegistry {
             CommandDef("paneledit", desc: "Edit a ticket panel", module: "tickets", access: .adminOnly),
             CommandDef("transcript", desc: "Generate ticket transcript", module: "tickets", access: .staffOnly),
             CommandDef("transcriptlog", desc: "View transcript log", module: "tickets", access: .staffOnly),
+            CommandDef("ticket-notice", desc: "Add a staff notice to ticket", module: "tickets", access: .staffOnly),
             CommandDef("ticket-config", desc: "Configure ticket system", module: "tickets",
                        subs: ["view", "max-tickets", "auto-close", "close-behavior", "claim-toggle", "priority-toggle", "transcript-toggle", "feedback-toggle", "log-channel", "add-category", "remove-category", "edit-category", "staff-role", "naming-format", "welcome-message"], access: .adminOnly),
             CommandDef("ticket-staffrole", desc: "Manage staff roles", module: "tickets",
@@ -226,6 +235,9 @@ enum CommandRegistry {
             CommandDef("musicconfig", desc: "Music configuration", module: "music", access: .adminOnly),
             CommandDef("forceplay", desc: "Force play a track now", module: "music", access: .staffOnly),
             CommandDef("djrole", desc: "Set the DJ role", module: "music", access: .adminOnly),
+            CommandDef("radio-play", desc: "Play a radio station", module: "music"),
+            CommandDef("radio-stop", desc: "Stop radio", module: "music"),
+            CommandDef("radio-list", desc: "List radio stations", module: "music"),
         ],
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -244,6 +256,27 @@ enum CommandRegistry {
             CommandDef("currency-reset", desc: "Reset all currency balances to 0 for a user", module: "currency", access: .staffOnly),
             CommandDef("currency-config", desc: "Configure currency settings", module: "currency", access: .adminOnly),
             CommandDef("currency-audit", desc: "View transaction history for a user", module: "currency", access: .staffOnly),
+            CommandDef("bank-deposit", desc: "Deposit coins into your bank", module: "currency"),
+            CommandDef("bank-withdraw", desc: "Withdraw coins from your bank", module: "currency"),
+            CommandDef("bank-balance", desc: "View bank and savings balances", module: "currency"),
+            CommandDef("bank-savings", desc: "Deposit into savings account", module: "currency",
+                       subs: ["deposit", "check", "collect"]),
+            CommandDef("bank-collect", desc: "Collect matured savings with interest", module: "currency"),
+            CommandDef("bank-upgrade", desc: "Upgrade your deposit limit", module: "currency"),
+            CommandDef("earn-beg", desc: "Beg for coins", module: "currency"),
+            CommandDef("earn-fish", desc: "Go fishing for coins", module: "currency"),
+            CommandDef("earn-hunt", desc: "Hunt for coins", module: "currency"),
+            CommandDef("earn-crime", desc: "Commit a crime for coins", module: "currency"),
+            CommandDef("earn-rob", desc: "Rob another user's wallet", module: "currency"),
+            CommandDef("earn-dig", desc: "Dig for buried treasure", module: "currency"),
+            CommandDef("earn-search", desc: "Search for coins in random locations", module: "currency"),
+            CommandDef("earn-monthly", desc: "Claim monthly bonus", module: "currency"),
+            CommandDef("job-apply", desc: "Apply for a job", module: "currency"),
+            CommandDef("job-work", desc: "Complete a work shift", module: "currency"),
+            CommandDef("job-info", desc: "View your job info", module: "currency"),
+            CommandDef("job-quit", desc: "Quit your current job", module: "currency"),
+            CommandDef("job-list", desc: "View available jobs", module: "currency"),
+            CommandDef("job-leaderboard", desc: "Top earners leaderboard", module: "currency"),
         ],
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -260,6 +293,23 @@ enum CommandRegistry {
             CommandDef("shop-edit", desc: "Edit a shop item", module: "shop",
                        subs: ["price", "stock", "description", "toggle", "max-per-user", "requirement"], access: .adminOnly),
             CommandDef("shop-remove", desc: "Remove a shop item", module: "shop", access: .adminOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // CASINO
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "casino": [
+            CommandDef("blackjack", desc: "Play blackjack against the dealer", module: "casino"),
+            CommandDef("slots", desc: "Spin the slot machine", module: "casino"),
+            CommandDef("crash", desc: "Bet on a rising multiplier", module: "casino"),
+            CommandDef("roulette", desc: "Bet on the roulette wheel", module: "casino"),
+            CommandDef("coinflip", desc: "Flip a coin heads or tails", module: "casino"),
+            CommandDef("poker", desc: "Play video poker", module: "casino"),
+            CommandDef("wheel", desc: "Spin the wheel of fortune", module: "casino"),
+            CommandDef("scratchcard", desc: "Scratch a card for prizes", module: "casino"),
+            CommandDef("horserace", desc: "Bet on horse racing", module: "casino"),
+            CommandDef("highlow", desc: "Higher or lower card game", module: "casino"),
+            CommandDef("casino-config", desc: "Configure casino settings", module: "casino", access: .staffOnly),
         ],
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -298,6 +348,31 @@ enum CommandRegistry {
             CommandDef("dog", desc: "Random dog image", module: "fun"),
             CommandDef("cat", desc: "Random cat image", module: "fun"),
             CommandDef("joke", desc: "Random joke", module: "fun"),
+            CommandDef("guess", desc: "Number guessing game", module: "fun"),
+            CommandDef("hangman", desc: "Play hangman", module: "fun"),
+            CommandDef("tord", desc: "Truth or dare", module: "fun"),
+            CommandDef("wordchain", desc: "Word chain game", module: "fun"),
+            CommandDef("snake", desc: "Play snake", module: "fun"),
+            CommandDef("fasttype", desc: "Typing speed challenge", module: "fun"),
+            CommandDef("memory", desc: "Memory match game", module: "fun"),
+            CommandDef("reaction", desc: "Reaction speed test", module: "fun"),
+            CommandDef("mathrace", desc: "Math race game", module: "fun"),
+            CommandDef("scramble", desc: "Word scramble", module: "fun"),
+            CommandDef("quizbowl", desc: "Extended quiz", module: "fun"),
+            CommandDef("puzzle", desc: "Number slide puzzle", module: "fun"),
+            CommandDef("highlow", desc: "Higher or lower cards", module: "fun"),
+            CommandDef("duel", desc: "PvP duel challenge", module: "fun"),
+            CommandDef("activity", desc: "Launch Discord activity", module: "fun"),
+            CommandDef("ascii", desc: "Convert text to ASCII art", module: "fun"),
+            CommandDef("say", desc: "Echo a message", module: "fun", access: .staffOnly),
+            CommandDef("reverse", desc: "Reverse text", module: "fun"),
+            CommandDef("emojify", desc: "Convert text to emojis", module: "fun"),
+            CommandDef("rate", desc: "Rate anything 0-10", module: "fun"),
+            CommandDef("ship", desc: "Ship two users", module: "fun"),
+            CommandDef("hack", desc: "Fake hacking animation", module: "fun"),
+            CommandDef("birdfact", desc: "Random bird fact", module: "fun"),
+            CommandDef("pandafact", desc: "Random panda fact", module: "fun"),
+            CommandDef("fox", desc: "Random fox image", module: "fun"),
         ],
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -597,6 +672,41 @@ enum CommandRegistry {
         ],
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // PROFILE
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "profile": [
+            CommandDef("profile-view", desc: "View a user's profile", module: "profile"),
+            CommandDef("profile-create", desc: "Create your profile", module: "profile"),
+            CommandDef("profile-delete", desc: "Delete your profile", module: "profile"),
+            CommandDef("profile-aboutme", desc: "Set your about me", module: "profile"),
+            CommandDef("profile-age", desc: "Set your age", module: "profile"),
+            CommandDef("profile-gender", desc: "Set your gender", module: "profile"),
+            CommandDef("profile-location", desc: "Set your location", module: "profile"),
+            CommandDef("profile-status", desc: "Set your status", module: "profile"),
+            CommandDef("profile-birthday", desc: "Set your birthday", module: "profile"),
+            CommandDef("profile-color", desc: "Set profile embed color", module: "profile"),
+            CommandDef("profile-banner", desc: "Set banner image", module: "profile"),
+            CommandDef("profile-add", desc: "Add to a favorites list", module: "profile"),
+            CommandDef("profile-remove", desc: "Remove from a favorites list", module: "profile"),
+            CommandDef("profile-config", desc: "Configure profile settings", module: "profile", access: .staffOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // FAMILY
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "family": [
+            CommandDef("family-propose", desc: "Propose marriage", module: "family"),
+            CommandDef("family-adopt", desc: "Adopt a user as your child", module: "family"),
+            CommandDef("family-divorce", desc: "Divorce your partner", module: "family"),
+            CommandDef("family-disown", desc: "Disown a child", module: "family"),
+            CommandDef("family-tree", desc: "View family tree", module: "family"),
+            CommandDef("family-partner", desc: "View partner info", module: "family"),
+            CommandDef("family-children", desc: "View children list", module: "family"),
+            CommandDef("family-family", desc: "View full family overview", module: "family"),
+            CommandDef("family-config", desc: "Configure family settings", module: "family", access: .staffOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // USERPHONE
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         "userphone": [
@@ -617,6 +727,134 @@ enum CommandRegistry {
             CommandDef("backupcompare", desc: "Compare a backup against the current server state", module: "backup", access: .adminOnly),
             CommandDef("backupdelete", desc: "Delete a server backup", module: "backup", access: .adminOnly),
             CommandDef("backupconfig", desc: "Configure backup settings", module: "backup", access: .adminOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // RAFFLES
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "raffles": [
+            CommandDef("raffle", desc: "Create a new raffle", module: "raffles", access: .staffOnly),
+            CommandDef("enterraffle", desc: "Buy tickets for a raffle", module: "raffles"),
+            CommandDef("mytickets", desc: "View your tickets in active raffles", module: "raffles"),
+            CommandDef("raffleinfo", desc: "View raffle details", module: "raffles"),
+            CommandDef("endraffle", desc: "End a raffle early", module: "raffles", access: .staffOnly),
+            CommandDef("cancelraffle", desc: "Cancel and refund a raffle", module: "raffles", access: .staffOnly),
+            CommandDef("rafflelist", desc: "List active raffles", module: "raffles"),
+            CommandDef("raffle-config", desc: "Configure raffle settings", module: "raffles",
+                       subs: ["view", "channel", "ticket-price", "currency", "max-tickets", "max-active", "dm-winners", "ping-role", "color", "refund-on-cancel"], access: .adminOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // DONATION TRACKING
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "donationtracking": [
+            CommandDef("donate", desc: "Donate currency toward a goal", module: "donationtracking"),
+            CommandDef("donationleaderboard", desc: "View top donors", module: "donationtracking"),
+            CommandDef("donationprogress", desc: "View donation progress toward goal", module: "donationtracking"),
+            CommandDef("mydonations", desc: "View your donation history", module: "donationtracking"),
+            CommandDef("donationgoal", desc: "Set/view/clear donation goal", module: "donationtracking",
+                       subs: ["set", "view", "clear"], access: .staffOnly),
+            CommandDef("donationlist", desc: "List donation campaigns", module: "donationtracking"),
+            CommandDef("donationconfig", desc: "Configure donation settings", module: "donationtracking",
+                       subs: ["view", "channel", "currency", "goal-amount", "goal-name", "goal-toggle", "min-donation", "max-donation", "milestone-toggle", "leaderboard-size", "color", "log-channel"], access: .adminOnly),
+            CommandDef("donationreset", desc: "Reset all donation data", module: "donationtracking", access: .adminOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // TIMERS
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "timers": [
+            CommandDef("timer", desc: "Start a countdown timer", module: "timers"),
+            CommandDef("timerlist", desc: "List your active timers", module: "timers"),
+            CommandDef("timercancel", desc: "Cancel a timer", module: "timers"),
+            CommandDef("timercheck", desc: "Check time remaining on a timer", module: "timers"),
+            CommandDef("timerserverlist", desc: "View all active timers in the server", module: "timers", access: .staffOnly),
+            CommandDef("timerconfig", desc: "Configure timer settings", module: "timers",
+                       subs: ["view", "max-per-user", "max-duration", "notify-channel", "allow-dm", "color", "log-channel"], access: .adminOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // IMAGES
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "images": [
+            CommandDef("cat", desc: "Random cat image", module: "images"),
+            CommandDef("dog", desc: "Random dog image", module: "images"),
+            CommandDef("fox", desc: "Random fox image", module: "images"),
+            CommandDef("bird", desc: "Random bird image", module: "images"),
+            CommandDef("panda", desc: "Random panda image", module: "images"),
+            CommandDef("redpanda", desc: "Random red panda image", module: "images"),
+            CommandDef("drake", desc: "Drake meme format", module: "images"),
+            CommandDef("meme", desc: "Random meme", module: "images"),
+            CommandDef("wasted", desc: "GTA wasted effect on avatar", module: "images"),
+            CommandDef("wanted", desc: "Wanted poster with avatar", module: "images"),
+            CommandDef("triggered", desc: "Triggered effect on avatar", module: "images"),
+            CommandDef("blur", desc: "Blur a user's avatar", module: "images"),
+            CommandDef("greyscale", desc: "Greyscale a user's avatar", module: "images"),
+            CommandDef("invert", desc: "Invert avatar colors", module: "images"),
+            CommandDef("pixelate", desc: "Pixelate a user's avatar", module: "images"),
+            CommandDef("mirror", desc: "Mirror a user's avatar", module: "images"),
+            CommandDef("avatar", desc: "View full-size avatar", module: "images"),
+            CommandDef("banner", desc: "View user banner", module: "images"),
+            CommandDef("servericon", desc: "View server icon", module: "images"),
+            CommandDef("images-config", desc: "Configure image settings", module: "images", access: .staffOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // UTILITIES
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "utilities": [
+            CommandDef("google", desc: "Search Google", module: "utilities"),
+            CommandDef("youtube", desc: "Search YouTube", module: "utilities"),
+            CommandDef("github", desc: "Search GitHub repos", module: "utilities"),
+            CommandDef("npm", desc: "Search NPM packages", module: "utilities"),
+            CommandDef("steam", desc: "Search Steam games", module: "utilities"),
+            CommandDef("weather", desc: "Get weather forecast", module: "utilities"),
+            CommandDef("crypto", desc: "Cryptocurrency prices", module: "utilities"),
+            CommandDef("translate", desc: "Translate text", module: "utilities"),
+            CommandDef("color", desc: "Color preview", module: "utilities"),
+            CommandDef("calculator", desc: "Math calculator", module: "utilities"),
+            CommandDef("qrcode", desc: "Generate QR code", module: "utilities"),
+            CommandDef("password", desc: "Generate password", module: "utilities"),
+            CommandDef("encode", desc: "Base64 encode", module: "utilities"),
+            CommandDef("decode", desc: "Base64 decode", module: "utilities"),
+            CommandDef("emojify", desc: "Convert text to emojis", module: "utilities"),
+            CommandDef("enlarge", desc: "Enlarge a custom emoji", module: "utilities"),
+            CommandDef("anagram", desc: "Find anagrams", module: "utilities"),
+            CommandDef("minecraft", desc: "Minecraft server status", module: "utilities"),
+            CommandDef("poll", desc: "Create a quick poll", module: "utilities"),
+            CommandDef("notepad-add", desc: "Add a note", module: "utilities"),
+            CommandDef("notepad-view", desc: "View your notes", module: "utilities"),
+            CommandDef("notepad-edit", desc: "Edit a note", module: "utilities"),
+            CommandDef("notepad-delete", desc: "Delete a note", module: "utilities"),
+            CommandDef("utilities-config", desc: "Configure utility settings", module: "utilities", access: .staffOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // SOUNDBOARD
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "soundboard": [
+            CommandDef("soundboard-play", desc: "Play a sound effect", module: "soundboard"),
+            CommandDef("soundboard-list", desc: "List available sounds", module: "soundboard"),
+            CommandDef("soundboard-random", desc: "Play a random sound", module: "soundboard"),
+            CommandDef("soundboard-add", desc: "Add a custom sound", module: "soundboard"),
+            CommandDef("soundboard-remove", desc: "Remove a sound", module: "soundboard"),
+            CommandDef("soundboard-rename", desc: "Rename a sound", module: "soundboard"),
+            CommandDef("soundboard-config", desc: "Configure soundboard settings", module: "soundboard", access: .staffOnly),
+        ],
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // AUTOSETUP
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "autosetup": [
+            CommandDef("autosetup-logs", desc: "Auto-setup logging channels", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-welcome", desc: "Auto-setup welcome system", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-tickets", desc: "Auto-setup ticket system", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-fun", desc: "Auto-setup fun channels", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-music", desc: "Auto-setup music channels", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-moderation", desc: "Auto-setup moderation", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-leveling", desc: "Auto-setup leveling system", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-all", desc: "Run all setup wizards", module: "autosetup", access: .staffOnly),
+            CommandDef("autosetup-config", desc: "Configure autosetup settings", module: "autosetup", access: .staffOnly),
         ],
     ]
 

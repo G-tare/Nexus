@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer, addText, addSeparator, addSectionWithThumbnail } from '../../../Shared/src/utils/componentsV2';
 import { getCurrencyConfig, getBalance, setCurrency, ensureMember, formatCurrency, CurrencyType } from '../helpers';
 
 export default {
@@ -53,26 +53,30 @@ export default {
 
       const result = await setCurrency(interaction.guildId!, user.id, type, amount, 'admin_set');
 
-      if (!(result as any).success) {
+      if (!result) {
         return interaction.editReply({
-          embeds: [errorEmbed(`Failed to set balance: ${(result as any).error}`)],
+          components: [errorContainer('Failed', 'Failed to set balance.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
       const currencyInfo = config.currencies[type];
-      const embed = successEmbed(`Balance Set`)
-        .addFields(
-          { name: 'User', value: user.toString(), inline: true },
-          { name: 'Old Balance', value: formatCurrency(oldAmount, currencyInfo), inline: true },
-          { name: 'New Balance', value: formatCurrency(amount, currencyInfo), inline: true }
-        )
-        .setThumbnail(user.avatarURL());
+      const container = successContainer('Balance Set');
+      addText(container, `**User:** ${user.toString()}`);
+      addText(container, `**Old Balance:** ${formatCurrency(oldAmount, currencyInfo)}`);
+      addText(container, `**New Balance:** ${formatCurrency(amount, currencyInfo)}`);
+      addSeparator(container);
+      addSectionWithThumbnail(container, `${user.username}`, user.displayAvatarURL({ size: 256 }));
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Error in setbalance command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while setting balance.')],
+        components: [errorContainer('Error', 'An error occurred while setting balance.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

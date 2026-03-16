@@ -1,13 +1,14 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
   ChannelType,
   PermissionFlagsBits,
-  Role, MessageFlags } from 'discord.js';
+  Role,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { getAntiRaidConfig, saveAntiRaidConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AntiRaid');
 
@@ -72,26 +73,23 @@ const command: BotCommand = {
       const config = await getAntiRaidConfig(guildId);
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor('#0099FF')
-          .setTitle('AntiRaid Configuration')
-          .setDescription(`Raid protection settings for ${interaction.guild.name}`)
-          .addFields(
-            { name: 'Status', value: config.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Join Threshold', value: `${config.joinThreshold} joins`, inline: true },
-            { name: 'Join Window', value: `${config.joinWindow}s`, inline: true },
-            { name: 'Min Account Age', value: `${config.minAccountAge}h`, inline: true },
-            { name: 'Auto-Lockdown', value: config.autoLockdown ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Lockdown Duration', value: `${config.lockdownDuration}s`, inline: true },
-            { name: 'Action on Raid', value: config.action.toUpperCase(), inline: true },
-            { name: 'Verification', value: config.verificationEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: 'Alert Channel', value: config.alertChannelId ? `<#${config.alertChannelId}>` : 'Not set', inline: true },
-            { name: 'Quarantine Role', value: config.quarantineRoleId ? `<@&${config.quarantineRoleId}>` : 'Not set', inline: true }
-          )
-          .setFooter({ text: 'AntiRaid System' })
-          .setTimestamp();
+        const container = moduleContainer('anti_raid');
+        addText(container, '### AntiRaid Configuration');
+        addText(container, `Raid protection settings for ${interaction.guild.name}`);
+        addFields(container, [
+          { name: 'Status', value: config.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Join Threshold', value: `${config.joinThreshold} joins`, inline: true },
+          { name: 'Join Window', value: `${config.joinWindow}s`, inline: true },
+          { name: 'Min Account Age', value: `${config.minAccountAge}h`, inline: true },
+          { name: 'Auto-Lockdown', value: config.autoLockdown ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Lockdown Duration', value: `${config.lockdownDuration}s`, inline: true },
+          { name: 'Action on Raid', value: config.action.toUpperCase(), inline: true },
+          { name: 'Verification', value: config.verificationEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: 'Alert Channel', value: config.alertChannelId ? `<#${config.alertChannelId}>` : 'Not set', inline: true },
+          { name: 'Quarantine Role', value: config.quarantineRoleId ? `<@&${config.quarantineRoleId}>` : 'Not set', inline: true }
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
         return;
       }
 
@@ -133,15 +131,10 @@ const command: BotCommand = {
         verification: `✅ Verification ${config.verificationEnabled ? 'Enabled' : 'Disabled'}`,
       };
 
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(subcommand === 'disable' ? '#FF0000' : '#0099FF')
-            .setTitle(labels[subcommand] || '✅ Configuration Updated')
-            .setFooter({ text: `Updated by ${interaction.user.username}` })
-            .setTimestamp(),
-        ],
-      });
+      const container = moduleContainer('anti_raid');
+      addText(container, `### ${labels[subcommand] || '✅ Configuration Updated'}`);
+
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in antiraidconfig command:', error);
       await interaction.reply({ content: '❌ An error occurred while updating the configuration.' });

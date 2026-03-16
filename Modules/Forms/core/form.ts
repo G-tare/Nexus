@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getActiveFormsByGuild } from '../helpers';
+import { moduleContainer, addText, addFields, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -46,41 +47,30 @@ const command: BotCommand = {
         const baseUrl = process.env.FORM_BASE_URL || 'https://your-bot-domain.com';
         const formUrl = `${baseUrl}/forms/${guildId}/${form.id}`;
 
-        const embed = new EmbedBuilder()
-          .setTitle(form.name)
-          .setDescription(form.description || 'No description provided')
-          .setColor('#5865F2')
-          .addFields({
-            name: 'Form Link',
-            value: formUrl,
-            inline: false,
-          })
-          .setFooter({ text: `Form ID: ${form.id}` })
-          .setTimestamp();
+        const container = moduleContainer('forms');
+        addText(container, `### ${form.name}\n${form.description || 'No description provided'}`);
+        addFields(container, [{
+          name: 'Form Link',
+          value: formUrl,
+          inline: false,
+        }]);
 
-        const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder().setLabel('Open Form').setStyle(ButtonStyle.Link).setURL(formUrl),
-          new ButtonBuilder().setLabel('Copy Link').setStyle(ButtonStyle.Secondary).setCustomId('copy_form_link')
-        );
+        const openBtn = new ButtonBuilder().setLabel('Open Form').setStyle(ButtonStyle.Link).setURL(formUrl);
+        const copyBtn = new ButtonBuilder().setLabel('Copy Link').setStyle(ButtonStyle.Secondary).setCustomId('copy_form_link');
 
-        await interaction.editReply({
-          embeds: [embed],
-          components: [buttons],
-        });
+        addButtons(container, [openBtn, copyBtn]);
+
+        await interaction.editReply(v2Payload([container]));
       } else {
         // Show all available forms
-        const embed = new EmbedBuilder()
-          .setTitle('Available Forms')
-          .setColor('#5865F2')
-          .setDescription(
-            forms
-              .map((f) => `**${f.name}**\n${f.description || 'No description'}\nID: \`${f.id}\``)
-              .join('\n\n')
-          )
-          .setFooter({ text: `Use /form <form> to get the link to a specific form` })
-          .setTimestamp();
+        const container = moduleContainer('forms');
+        const description = forms
+          .map((f) => `**${f.name}**\n${f.description || 'No description'}\nID: \`${f.id}\``)
+          .join('\n\n');
 
-        await interaction.editReply({ embeds: [embed] });
+        addText(container, `### Available Forms\n${description}\n\n-# Use /form <form> to get the link to a specific form`);
+
+        await interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       logger.error('[Forms] /form error:', error);

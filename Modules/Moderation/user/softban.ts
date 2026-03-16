@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer, addFields } from '../../../Shared/src/utils/componentsV2';
 import { canModerate, createModCase, ensureGuild, ensureGuildMember } from '../helpers';
 
 export default {
@@ -49,7 +49,8 @@ export default {
       // Hierarchy check
       if (!canModerate(interaction.member as GuildMember, targetMember, 'softban')) {
         await interaction.editReply({
-          embeds: [errorEmbed('Cannot moderate this user - they are equal or higher in hierarchy')]
+          components: [errorContainer('Cannot moderate this user', 'They are equal or higher in hierarchy')],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -72,17 +73,18 @@ export default {
         reason,
       });
 
-      const embed = successEmbed(`User ${targetUser.tag} has been soft banned`);
-      embed.addFields(
+      const container = successContainer(`User ${targetUser.tag} has been soft banned`);
+      addFields(container, [
         { name: 'Reason', value: reason },
         { name: 'Messages Deleted', value: `Last ${deleteDays} day(s)` }
-      );
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in softban command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while soft banning the user')]
+        components: [errorContainer('An error occurred while soft banning the user')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

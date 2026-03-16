@@ -1,11 +1,9 @@
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  ColorResolvable,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getInviteConfig, getTopInviters, buildLeaderboardEmbed } from '../helpers';
+import { getInviteConfig, getTopInviters, buildLeaderboardContainer } from '../helpers';
 
 const command: BotCommand = {
   module: 'invitetracker',
@@ -51,14 +49,12 @@ const command: BotCommand = {
         });
       }
 
-      const embed = buildLeaderboardEmbed(
+      return interaction.editReply(buildLeaderboardContainer(
         topInviters,
         interaction.guild!.name,
         page,
         days
-      );
-
-      return interaction.editReply({ embeds: [embed] });
+      ));
     } catch (error) {
       console.error('Error in /invite-leaderboard command:', error);
       return interaction.editReply({

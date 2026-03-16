@@ -2,10 +2,10 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { compareBackup, getBackupList, BackupDiff } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -43,11 +43,10 @@ const command: BotCommand = {
       diff.settings.length;
 
     if (totalChanges === 0) {
-      const embed = new EmbedBuilder()
-        .setColor(0x2ECC71)
-        .setTitle('✅ No Differences Found')
-        .setDescription('The current server matches this backup perfectly.');
-      await interaction.editReply({ embeds: [embed] });
+      const container = moduleContainer('backup');
+      container.setAccentColor(0x2ECC71);
+      addText(container, '### ✅ No Differences Found\nThe current server matches this backup perfectly.');
+      await interaction.editReply(v2Payload([container]));
       return;
     }
 
@@ -118,13 +117,12 @@ const command: BotCommand = {
       sections.push(lines.join('\n'));
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xE67E22)
-      .setTitle(`🔍 Backup Comparison — ${totalChanges} differences`)
-      .setDescription(sections.join('\n\n').slice(0, 4000))
-      .setFooter({ text: '🟢 = new since backup • 🔴 = missing since backup • 🟡 = changed' });
+    const container = moduleContainer('backup');
+    container.setAccentColor(0xE67E22);
+    const description = sections.join('\n\n').slice(0, 4000);
+    addText(container, `### 🔍 Backup Comparison — ${totalChanges} differences\n${description}\n\n-# 🟢 = new since backup • 🔴 = missing since backup • 🟡 = changed`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

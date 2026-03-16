@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   TextChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -35,7 +35,8 @@ const command: BotCommand = {
     // Check if channel is a text channel
     if (!channel || !channel.isTextBased() || channel.isDMBased()) {
       await interaction.reply({
-        embeds: [errorEmbed('Invalid Channel', 'This command only works in text channels.')],
+        components: [errorContainer('Invalid Channel', 'This command only works in text channels.')],
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -55,7 +56,8 @@ const command: BotCommand = {
 
       if (userMessages.length === 0) {
         await interaction.editReply({
-          embeds: [errorEmbed('No Messages', `No messages found from ${targetUser} that are less than 14 days old.`)],
+          components: [errorContainer('No Messages', `No messages found from ${targetUser} that are less than 14 days old.`)],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
@@ -63,16 +65,18 @@ const command: BotCommand = {
       // Delete messages
       await channel.bulkDelete(userMessages, true);
 
-      const embed = successEmbed(
-        'User Messages Purged',
-        `Successfully deleted **${userMessages.length}** message(s) from ${targetUser} in ${channel}.`
-      ).setColor(Colors.Moderation);
-
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [successContainer(
+          'User Messages Purged',
+          `Successfully deleted **${userMessages.length}** message(s) from ${targetUser} in ${channel}.`
+        )],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Purge user command error:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('Purge Failed', 'An error occurred while deleting messages.')],
+        components: [errorContainer('Purge Failed', 'An error occurred while deleting messages.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

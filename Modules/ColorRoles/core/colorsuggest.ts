@@ -1,10 +1,13 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle, MessageFlags } from 'discord.js';
+  ButtonStyle,
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   validateHex,
@@ -15,6 +18,7 @@ import {
   findSimilarColor,
   getColorConfig,
 } from '../helpers';
+import { moduleContainer, addText, addFields, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -90,23 +94,20 @@ const command: BotCommand = {
       }
     }
 
-    // Create suggestion embed for staff to review
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(hex))
-      .setTitle('🎨 Color Suggestion')
-      .setDescription(`**${interaction.user.tag}** suggests adding a new color:`)
-      .addFields(
-        { name: 'Name', value: name, inline: true },
-        { name: 'Hex', value: `\`#${hex}\``, inline: true },
-        { name: 'Suggested By', value: `<@${interaction.user.id}>`, inline: true },
-      )
-      .setTimestamp();
-
+    // Create suggestion container for staff to review
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(hex));
+    addText(container, `### 🎨 Color Suggestion\n**${interaction.user.tag}** suggests adding a new color:`);
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Name', value: name, inline: true },
+      { name: 'Hex', value: `\`#${hex}\``, inline: true },
+      { name: 'Suggested By', value: `<@${interaction.user.id}>`, inline: true },
+    ];
     if (similarWarning) {
-      embed.addFields({ name: 'Warning', value: similarWarning });
+      fields.push({ name: 'Warning', value: similarWarning });
     }
+    addFields(container, fields);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    const buttons = [
       new ButtonBuilder()
         .setCustomId(`colorroles:approve:${name}:${hex}:${interaction.user.id}`)
         .setLabel('Approve')
@@ -117,7 +118,8 @@ const command: BotCommand = {
         .setLabel('Deny')
         .setStyle(ButtonStyle.Danger)
         .setEmoji('❌'),
-    );
+    ];
+    addButtons(container, buttons);
 
     // Post in the channel (staff will see the buttons)
     await interaction.reply({
@@ -125,13 +127,10 @@ const command: BotCommand = {
       flags: MessageFlags.Ephemeral,
     });
 
-    // Also post the suggestion embed publicly
+    // Also post the suggestion container publicly
     const channel = interaction.channel as any;
     if (channel?.send) {
-      await channel.send({
-        embeds: [embed],
-        components: [row],
-      });
+      await channel.send(v2Payload([container]));
     }
   },
 };

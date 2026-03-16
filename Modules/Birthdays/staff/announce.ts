@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -9,10 +9,11 @@ import {
   getBirthday,
   getAge,
   parseAnnouncementMessage,
-  buildBirthdayAnnouncementEmbed,
+  buildBirthdayAnnouncementContainer,
   markBirthdayAnnounced,
   trackBirthdayRole,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { eventBus } from '../../../Shared/src/events/eventBus';
 
 const command: BotCommand = {
@@ -77,17 +78,15 @@ const command: BotCommand = {
         showAge ? age : null
       ).replace(/\{server\}/g, interaction.guild!.name);
 
-      const embed = buildBirthdayAnnouncementEmbed(
+      const container = buildBirthdayAnnouncementContainer(
         targetUser.id,
         displayName,
         message,
         showAge ? age : null,
         config.showAge
       );
-      embed.setThumbnail(targetUser.displayAvatarURL({ size: 256 }));
-      embed.setFooter({ text: `Manually announced by ${interaction.user.username}` });
 
-      await (channel as any).send({ embeds: [embed] });
+      await (channel as any).send(v2Payload([container]));
       await markBirthdayAnnounced(interaction.guildId!, targetUser.id);
 
       // Assign birthday role if configured

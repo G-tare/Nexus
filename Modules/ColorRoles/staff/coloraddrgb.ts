@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   rgbToHex,
@@ -14,6 +17,7 @@ import {
   findSimilarColor,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -98,12 +102,11 @@ const command: BotCommand = {
 
     await addColor({ guild, name, hex, createdBy: interaction.user.id });
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(hex))
-      .setDescription(`✅ Color **${name}** (\`rgb(${r}, ${g}, ${b})\` / \`#${hex}\`) added!${warning}`)
-      .setFooter({ text: `Color #${colors.length + 1} • Role created` });
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(hex));
+    addText(container, `✅ Color **${name}** (\`rgb(${r}, ${g}, ${b})\` / \`#${hex}\`) added!${warning}`);
+    addFooter(container, `Color #${colors.length + 1} • Role created`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

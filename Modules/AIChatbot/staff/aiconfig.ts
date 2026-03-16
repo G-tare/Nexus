@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAIConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
@@ -6,6 +6,7 @@ import { toolRegistry } from '../tools/registry';
 import { config as globalConfig } from '../../../Shared/src/config';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { encrypt, maskKey } from '../../../Shared/src/utils/encryption';
+import { moduleContainer, addFields, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AIChatbot');
 
@@ -223,33 +224,31 @@ const command: BotCommand = {
 
       switch (subcommand) {
         case 'view': {
-          const embed = new EmbedBuilder()
-            .setColor('#7289DA')
-            .setTitle('🤖 AI Chatbot Configuration')
-            .addFields(
-              { name: 'Status', value: config.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-              { name: 'Provider', value: config.provider, inline: true },
-              { name: 'Model', value: config.model || '(provider default)', inline: true },
-              { name: 'Temperature', value: config.temperature.toString(), inline: true },
-              { name: 'Max Tokens', value: config.maxTokens.toString(), inline: true },
-              { name: 'Cooldown', value: `${config.cooldown}s`, inline: true },
-              { name: 'Auto-reply', value: config.autoReply ? '✅' : '❌', inline: true },
-              { name: 'Mention Reply', value: config.mentionReply ? '✅' : '❌', inline: true },
-              { name: 'Max History', value: config.maxHistory.toString(), inline: true },
-              { name: 'API Key', value: config.apiKey ? `✅ \`${maskKey(config.apiKey)}\`` : '❌ Not set (using global)', inline: true },
-              { name: 'Agent Mode', value: config.agentEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
-              { name: 'Trigger Phrase', value: `"${config.triggerPhrase}"`, inline: true },
-              { name: 'Confirm Destructive', value: config.confirmDestructive ? '✅' : '❌', inline: true },
-              { name: 'Max Tool Calls', value: config.maxToolCalls.toString(), inline: true },
-              { name: 'Disabled Tools', value: config.disabledTools.length > 0 ? config.disabledTools.join(', ') : 'None', inline: true },
-              { name: 'Session Timeout', value: `${config.conversationTimeout ?? 5} min`, inline: true },
-              { name: 'Authorized Users', value: config.authorizedUsers.length > 0 ? config.authorizedUsers.map((id) => `<@${id}>`).join(', ') : 'Bot owners only', inline: true },
-              { name: 'AI Channels', value: config.allowedChannels.length > 0 ? config.allowedChannels.map((id) => `<#${id}>`).join(', ') : 'None', inline: false }
-            )
-            .setFooter({ text: `Viewed by ${interaction.user.username}` })
-            .setTimestamp();
+          const container = moduleContainer('ai_chatbot');
+          addText(container, '### 🤖 AI Chatbot Configuration');
+          addFields(container, [
+            { name: 'Status', value: config.enabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+            { name: 'Provider', value: config.provider, inline: true },
+            { name: 'Model', value: config.model || '(provider default)', inline: true },
+            { name: 'Temperature', value: config.temperature.toString(), inline: true },
+            { name: 'Max Tokens', value: config.maxTokens.toString(), inline: true },
+            { name: 'Cooldown', value: `${config.cooldown}s`, inline: true },
+            { name: 'Auto-reply', value: config.autoReply ? '✅' : '❌', inline: true },
+            { name: 'Mention Reply', value: config.mentionReply ? '✅' : '❌', inline: true },
+            { name: 'Max History', value: config.maxHistory.toString(), inline: true },
+            { name: 'API Key', value: config.apiKey ? `✅ \`${maskKey(config.apiKey)}\`` : '❌ Not set (using global)', inline: true },
+            { name: 'Agent Mode', value: config.agentEnabled ? '✅ Enabled' : '❌ Disabled', inline: true },
+            { name: 'Trigger Phrase', value: `"${config.triggerPhrase}"`, inline: true },
+            { name: 'Confirm Destructive', value: config.confirmDestructive ? '✅' : '❌', inline: true },
+            { name: 'Max Tool Calls', value: config.maxToolCalls.toString(), inline: true },
+            { name: 'Disabled Tools', value: config.disabledTools.length > 0 ? config.disabledTools.join(', ') : 'None', inline: true },
+            { name: 'Session Timeout', value: `${config.conversationTimeout ?? 5} min`, inline: true },
+            { name: 'Authorized Users', value: config.authorizedUsers.length > 0 ? config.authorizedUsers.map((id) => `<@${id}>`).join(', ') : 'Bot owners only', inline: true },
+            { name: 'AI Channels', value: config.allowedChannels.length > 0 ? config.allowedChannels.map((id) => `<#${id}>`).join(', ') : 'None', inline: false }
+          ]);
+          addText(container, `-# Viewed by ${interaction.user.username}`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -382,21 +381,15 @@ const command: BotCommand = {
             categories.set(t.category, lines);
           }
 
-          const embed = new EmbedBuilder()
-            .setColor('#7289DA')
-            .setTitle(`🛠️ AI Tools (${allTools.length})`)
-            .setDescription('✅ = enabled, ❌ = disabled, ⚠️ = destructive\nUse `/aiconfig tool <id>` to toggle.');
+          const container = moduleContainer('ai_chatbot');
+          addText(container, `### 🛠️ AI Tools (${allTools.length})\n✅ = enabled, ❌ = disabled, ⚠️ = destructive\nUse \`/aiconfig tool <id>\` to toggle.`);
 
           for (const [cat, lines] of categories) {
-            embed.addFields({
-              name: cat.charAt(0).toUpperCase() + cat.slice(1),
-              value: lines.join('\n'),
-              inline: false,
-            });
+            addText(container, `**${cat.charAt(0).toUpperCase() + cat.slice(1)}**\n${lines.join('\n')}`);
           }
 
-          embed.setFooter({ text: `${config.disabledTools.length} tools disabled` }).setTimestamp();
-          await interaction.reply({ embeds: [embed] });
+          addText(container, `-# ${config.disabledTools.length} tools disabled`);
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -428,25 +421,13 @@ const command: BotCommand = {
           const users = config.authorizedUsers;
           const ownerIds = globalConfig.discord.ownerIds;
 
-          const embed = new EmbedBuilder()
-            .setColor('#7289DA')
-            .setTitle('🔐 Authorized AI Users')
-            .addFields(
-              {
-                name: 'Bot Owners (always authorized)',
-                value: ownerIds.length > 0 ? ownerIds.map(id => `<@${id}>`).join(', ') : 'None configured',
-                inline: false,
-              },
-              {
-                name: 'Authorized Users',
-                value: users.length > 0 ? users.map(id => `<@${id}>`).join(', ') : 'None — use `/aiconfig authorize` to add users',
-                inline: false,
-              },
-            )
-            .setFooter({ text: `Total: ${ownerIds.length + users.length} authorized` })
-            .setTimestamp();
+          const container = moduleContainer('ai_chatbot');
+          addText(container, '### 🔐 Authorized AI Users');
+          addText(container, `**Bot Owners (always authorized)**\n${ownerIds.length > 0 ? ownerIds.map(id => `<@${id}>`).join(', ') : 'None configured'}`);
+          addText(container, `**Authorized Users**\n${users.length > 0 ? users.map(id => `<@${id}>`).join(', ') : 'None — use \`/aiconfig authorize\` to add users'}`);
+          addText(container, `-# Total: ${ownerIds.length + users.length} authorized`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 

@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActivityConfig, updateActivityConfig, ActivityConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('ActivityTracking');
 
@@ -82,23 +83,19 @@ const command: BotCommand = {
       const config = await getActivityConfig(interaction.guild.id);
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2')
-          .setTitle('Activity Tracking Configuration')
-          .addFields(
-            { name: '🎤 Track Voice', value: config.trackVoice ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: '💬 Track Messages', value: config.trackMessages ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: '👍 Track Reactions', value: config.trackReactions ? '✅ Enabled' : '❌ Disabled', inline: true },
-            { name: '⏰ Inactivity Threshold', value: `\`${config.inactiveThresholdDays} days\``, inline: true },
-            { name: '📝 Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : '`Not set`', inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: '🚫 Excluded Channels', value: config.excludedChannels.length > 0 ? config.excludedChannels.map((id) => `<#${id}>`).join(', ') : '`None`', inline: false },
-            { name: '🚫 Excluded Roles', value: config.excludedRoles.length > 0 ? config.excludedRoles.map((id) => `<@&${id}>`).join(', ') : '`None`', inline: false }
-          )
-          .setFooter({ text: `Viewed by ${interaction.user.username}` })
-          .setTimestamp();
+        const container = moduleContainer('activity_tracking');
+        addText(container, '### Activity Tracking Configuration');
+        addFields(container, [
+          { name: '🎤 Track Voice', value: config.trackVoice ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: '💬 Track Messages', value: config.trackMessages ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: '👍 Track Reactions', value: config.trackReactions ? '✅ Enabled' : '❌ Disabled', inline: true },
+          { name: '⏰ Inactivity Threshold', value: `\`${config.inactiveThresholdDays} days\``, inline: true },
+          { name: '📝 Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : '`Not set`', inline: true },
+          { name: '🚫 Excluded Channels', value: config.excludedChannels.length > 0 ? config.excludedChannels.map((id) => `<#${id}>`).join(', ') : '`None`', inline: false },
+          { name: '🚫 Excluded Roles', value: config.excludedRoles.length > 0 ? config.excludedRoles.map((id) => `<@&${id}>`).join(', ') : '`None`', inline: false }
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'excludechannel') {
         const channel = interaction.options.getChannel('channel', true);
         const isExcluded = config.excludedChannels.includes(channel.id);

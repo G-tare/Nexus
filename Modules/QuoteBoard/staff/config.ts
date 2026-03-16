@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   TextChannel,
-  Role, MessageFlags } from 'discord.js';
+  Role,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBoardConfig,
@@ -12,6 +12,7 @@ import {
   Board,
   BoardConfig,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   data: new SlashCommandBuilder()
@@ -244,43 +245,46 @@ async function handleView(interaction: ChatInputCommandInteraction, config: Boar
     return;
   }
 
-  const embeds = config.boards.map((board) => {
-    const embed = new EmbedBuilder()
-      .setTitle(`${board.emoji} ${board.name}`)
-      .setColor(board.color as any)
-      .addFields(
-        { name: 'ID', value: board.id, inline: true },
-        { name: 'Emoji', value: board.emoji, inline: true },
-        { name: 'Threshold', value: board.threshold.toString(), inline: true },
-        { name: 'Self-React', value: board.selfReact ? 'Yes' : 'No', inline: true },
-        { name: 'NSFW Enabled', value: board.nsfw ? 'Yes' : 'No', inline: true },
-        {
-          name: 'Target Channel',
-          value: `<#${board.channelId}>`,
-          inline: true,
-        }
-      );
+  const containers = config.boards.map((board) => {
+    const container = moduleContainer('quote_board');
+    addText(container, `### ${board.emoji} ${board.name}`);
+    addFields(container, [
+      { name: 'ID', value: board.id, inline: true },
+      { name: 'Emoji', value: board.emoji, inline: true },
+      { name: 'Threshold', value: board.threshold.toString(), inline: true },
+      { name: 'Self-React', value: board.selfReact ? 'Yes' : 'No', inline: true },
+      { name: 'NSFW Enabled', value: board.nsfw ? 'Yes' : 'No', inline: true },
+      {
+        name: 'Target Channel',
+        value: `<#${board.channelId}>`,
+        inline: true,
+      },
+    ]);
 
     if (board.ignoredChannels.length > 0) {
-      embed.addFields({
-        name: 'Ignored Channels',
-        value: board.ignoredChannels.map((id) => `<#${id}>`).join(', '),
-        inline: false,
-      });
+      addFields(container, [
+        {
+          name: 'Ignored Channels',
+          value: board.ignoredChannels.map((id) => `<#${id}>`).join(', '),
+          inline: false,
+        },
+      ]);
     }
 
     if (board.ignoredRoles.length > 0) {
-      embed.addFields({
-        name: 'Ignored Roles',
-        value: board.ignoredRoles.map((id) => `<@&${id}>`).join(', '),
-        inline: false,
-      });
+      addFields(container, [
+        {
+          name: 'Ignored Roles',
+          value: board.ignoredRoles.map((id) => `<@&${id}>`).join(', '),
+          inline: false,
+        },
+      ]);
     }
 
-    return embed;
+    return container;
   });
 
-  await interaction.editReply({ embeds });
+  await interaction.editReply(v2Payload(containers));
 }
 
 async function handleCreate(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {
@@ -323,17 +327,16 @@ async function handleCreate(interaction: ChatInputCommandInteraction, config: Bo
   config.boards.push(newBoard);
   await saveBoardConfig(interaction.guildId!, config);
 
-  const embed = new EmbedBuilder()
-    .setTitle('Board Created')
-    .setColor('#00FF00')
-    .addFields(
-      { name: 'Name', value: name, inline: true },
-      { name: 'Emoji', value: emoji, inline: true },
-      { name: 'Threshold', value: threshold.toString(), inline: true },
-      { name: 'Channel', value: `<#${channel.id}>`, inline: true }
-    );
+  const container = moduleContainer('quote_board');
+  addText(container, `### ✅ Board Created`);
+  addFields(container, [
+    { name: 'Name', value: name, inline: true },
+    { name: 'Emoji', value: emoji, inline: true },
+    { name: 'Threshold', value: threshold.toString(), inline: true },
+    { name: 'Channel', value: `<#${channel.id}>`, inline: true },
+  ]);
 
-  await interaction.editReply({ embeds: [embed] });
+  await interaction.editReply(v2Payload([container]));
 }
 
 async function handleDelete(interaction: ChatInputCommandInteraction, config: BoardConfig): Promise<void> {

@@ -128,15 +128,15 @@ const command: BotCommand = {
         return interaction.editReply('❌ Panel message not found.');
       }
 
-      // Build updated embed
+      // Build updated container
       const updatedPanel = { ...panel, title: updatedTitle, description: updatedDescription, color: updatedColor };
-      const { embed, components } = buildPanelEmbed(
+      const panelPayload = buildPanelEmbed(
         updatedPanel,
         config.categories || []
       );
 
       // Edit the message
-      await message.edit({ embeds: [embed], components });
+      await message.edit(panelPayload);
 
       // Update config
       panel.title = updatedTitle;

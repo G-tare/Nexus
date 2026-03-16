@@ -1,13 +1,14 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 interface WYRScenario {
@@ -200,28 +201,18 @@ export default {
         .setStyle(ButtonStyle.Primary)
     );
 
-    const embed = new EmbedBuilder()
-      .setTitle('🤔 Would You Rather?')
-      .setDescription(scenario.question)
-      .addFields({
-        name: 'A)',
-        value: scenario.optionA,
-        inline: false,
-      })
-      .addFields({
-        name: 'B)',
-        value: scenario.optionB,
-        inline: false,
-      })
-      .addFields({
-        name: 'Results',
-        value: 'Click a button to vote!',
-        inline: false,
-      });
+    const container = moduleContainer('fun');
+    addText(container, '### 🤔 Would You Rather?');
+    addText(container, scenario.question);
+    addFields(container, [
+      { name: 'A)', value: scenario.optionA },
+      { name: 'B)', value: scenario.optionB },
+      { name: 'Results', value: 'Click a button to vote!' },
+    ]);
+    container.addActionRowComponents(buttons);
 
     const message = await interaction.reply({
-      embeds: [embed],
-      components: [buttons],
+      ...v2Payload([container]),
       fetchReply: true,
     });
 
@@ -255,35 +246,16 @@ export default {
       const barA = '█'.repeat(progressA) + '░'.repeat(emptyA);
       const barB = '█'.repeat(progressB) + '░'.repeat(emptyB);
 
-      const updatedEmbed = new EmbedBuilder()
-        .setTitle('🤔 Would You Rather?')
-        .setDescription(scenario.question)
-        .addFields({
-          name: 'A)',
-          value: scenario.optionA,
-          inline: false,
-        })
-        .addFields({
-          name: 'B)',
-          value: scenario.optionB,
-          inline: false,
-        })
-        .addFields(
-          {
-            name: `Results (${total} votes)`,
-            value: `\`${barA}\` **${percentA}%** (${voteA.size})`,
-            inline: false,
-          },
-          {
-            name: '\u200B',
-            value: `\`${barB}\` **${percentB}%** (${voteB.size})`,
-            inline: false,
-          }
-        );
+      const updatedContainer = moduleContainer('fun');
+      addText(updatedContainer, '### 🤔 Would You Rather?');
+      addText(updatedContainer, scenario.question);
+      addFields(updatedContainer, [
+        { name: 'A)', value: scenario.optionA },
+        { name: 'B)', value: scenario.optionB },
+        { name: `Results (${total} votes)`, value: `\`${barA}\` **${percentA}%** (${voteA.size})\n\`${barB}\` **${percentB}%** (${voteB.size})` },
+      ]);
 
-      await buttonInteraction.update({
-        embeds: [updatedEmbed],
-      });
+      await buttonInteraction.update(v2Payload([updatedContainer]));
     });
 
     collector.on('end', async () => {
@@ -310,31 +282,16 @@ export default {
         winner = '❌ No votes cast!';
       }
 
-      const finalEmbed = new EmbedBuilder()
-        .setTitle('🤔 Would You Rather? - Final Results')
-        .setDescription(scenario.question)
-        .addFields({
-          name: 'A)',
-          value: scenario.optionA,
-          inline: false,
-        })
-        .addFields({
-          name: 'B)',
-          value: scenario.optionB,
-          inline: false,
-        })
-        .addFields(
-          {
-            name: `Results (${total} total votes)`,
-            value: `\`${barA}\` **${percentA}%** (${voteA.size})\n\`${barB}\` **${percentB}%** (${voteB.size})\n\n${winner}`,
-            inline: false,
-          }
-        );
+      const finalContainer = moduleContainer('fun');
+      addText(finalContainer, '### 🤔 Would You Rather? - Final Results');
+      addText(finalContainer, scenario.question);
+      addFields(finalContainer, [
+        { name: 'A)', value: scenario.optionA },
+        { name: 'B)', value: scenario.optionB },
+        { name: `Results (${total} total votes)`, value: `\`${barA}\` **${percentA}%** (${voteA.size})\n\`${barB}\` **${percentB}%** (${voteB.size})\n\n${winner}` },
+      ]);
 
-      await message.edit({
-        embeds: [finalEmbed],
-        components: [],
-      });
+      await message.edit(v2Payload([finalContainer]));
     });
 
     await setCooldown(interaction.guildId!, interaction.user.id, 'wouldyourather', 3);

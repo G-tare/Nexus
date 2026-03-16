@@ -1,9 +1,7 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-
-const getRandomGif = (action: string): string => {
-  return 'https://media.giphy.com/media/placeholder.gif';
-};
+import { moduleContainer, addText, addMediaGallery, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { getInteractionGif } from './gifProvider';
 
 export default {
   module: 'fun',
@@ -21,17 +19,17 @@ export default {
   async execute(interaction) {
     try {
       const targetUser = interaction.options.getUser('user');
+      const gifUrl = await getInteractionGif('cry');
 
       const description = targetUser
         ? `${interaction.user.username} is crying because of ${targetUser.username}! 😭`
         : `${interaction.user.username} is crying! 😭`;
 
-      const embed = new EmbedBuilder()
-        .setDescription(description)
-        .setImage(getRandomGif('cry'))
-        .setColor('#4169E1');
+      const container = moduleContainer('fun');
+      addText(container, `### ${description}`);
+      addMediaGallery(container, [{ url: gifUrl }]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Cry command error:', error);
       await interaction.reply({

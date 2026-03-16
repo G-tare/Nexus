@@ -7,7 +7,6 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  EmbedBuilder,
   Interaction,
   ButtonInteraction,
   ModalBuilder,
@@ -38,7 +37,8 @@ import {
   deleteDirectCallRequest,
   startCall,
 } from './helpers';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { moduleContainer, addText, addSectionWithThumbnail, errorContainer, v2Payload, addButtons } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Userphone:Events');
 
@@ -96,9 +96,9 @@ const messageRelayHandler: ModuleEvent = {
     // Check max duration
     const elapsed = (Date.now() - call.startedAt) / 1000;
     if (call.maxDuration > 0 && elapsed > call.maxDuration) {
-      const redis = getRedis();
+      // Using global cache;
       const promptKey = `userphone:extend_prompt:${call.callId}`;
-      const alreadyPrompted = await redis.get(promptKey);
+      const alreadyPrompted = cache.get<string>(promptKey);
 
       if (alreadyPrompted === 'pending') {
         return;
@@ -133,7 +133,7 @@ const messageRelayHandler: ModuleEvent = {
       }
 
       // First time hitting the limit — send confirmation buttons
-      await redis.setex(promptKey, 120, 'pending');
+      cache.set(promptKey, 'pending', 120);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -167,7 +167,7 @@ const messageRelayHandler: ModuleEvent = {
         if (response.customId === `userphone_extend_${call.callId}`) {
           const extended = await extendCall(call.callId);
           if (extended) {
-            await redis.del(promptKey);
+            cache.del(promptKey);
             await response.update({
               content: `📞 **Call extended!** You have another ${Math.floor(call.maxDuration / 60)} minutes. Keep chatting!`,
               components: [],
@@ -176,7 +176,7 @@ const messageRelayHandler: ModuleEvent = {
             await response.update({ content: '📞 **Call already ended.**', components: [] });
           }
         } else {
-          await redis.setex(promptKey, 10, 'declined');
+          cache.set(promptKey, 'declined', 10);
 
           // Store last call info for reporting
           const mySide = call.side1.channelId === message.channel.id ? call.side1 : call.side2;
@@ -204,7 +204,7 @@ const messageRelayHandler: ModuleEvent = {
           } catch {}
         }
       } catch {
-        await redis.setex(promptKey, 10, 'declined');
+        cache.set(promptKey, 'declined', 10);
 
         const mySide = call.side1.channelId === message.channel.id ? call.side1 : call.side2;
         await storeLastCallInfo(mySide.channelId, call.callId, otherSide.guildId, otherSide.guildName);
@@ -333,19 +333,15 @@ const reportButtonHandler: ModuleEvent = {
           reason,
         );
 
-        // Confirmation embed with blacklist option
-        const confirmEmbed = new EmbedBuilder()
-          .setColor(0xE74C3C)
-          .setTitle('🚩 Report Submitted')
-          .setDescription(
-            `Your report (#${reportId}) has been filed and will be reviewed by the bot staff.\n\n` +
-            `**Reported Server:** ${lastCall.otherGuildName} (\`${lastCall.otherGuildId}\`)\n` +
-            `**Reason:** ${reason}\n\n` +
-            `Would you also like to **blacklist** this server so they can't match with your server again?`,
-          )
-          .setFooter({ text: 'The transcript has been saved with the report.' });
+        // Confirmation container with blacklist option
+        const container = errorContainer('🚩 Report Submitted',
+          `Your report (#${reportId}) has been filed and will be reviewed by the bot staff.\n\n` +
+          `**Reported Server:** ${lastCall.otherGuildName} (\`${lastCall.otherGuildId}\`)\n` +
+          `**Reason:** ${reason}\n\n` +
+          `Would you also like to **blacklist** this server so they can't match with your server again?`
+        );
 
-        const blacklistRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        const blacklistButtons = [
           new ButtonBuilder()
             .setCustomId(`userphone_blacklist_yes_${lastCall.otherGuildId}`)
             .setLabel('Yes, Blacklist')
@@ -355,12 +351,12 @@ const reportButtonHandler: ModuleEvent = {
             .setCustomId(`userphone_blacklist_no_${lastCall.otherGuildId}`)
             .setLabel('No, Skip')
             .setStyle(ButtonStyle.Secondary),
-        );
+        ];
 
-        await interaction.editReply({
-          embeds: [confirmEmbed],
-          components: [blacklistRow],
-        });
+        addButtons(container, blacklistButtons);
+        const payload = v2Payload([container]);
+
+        await interaction.editReply(payload);
       } catch (err: any) {
         logger.error('Failed to submit report', { error: err.message });
         await interaction.editReply({ content: '❌ Failed to submit report. Please try again.' });
@@ -477,16 +473,11 @@ const reportButtonHandler: ModuleEvent = {
           return;
         }
 
-        const consentEmbed = new EmbedBuilder()
-          .setColor(0x2ECC71)
-          .setTitle('📒 Contact Request')
-          .setDescription(
-            `**${interaction.guild.name}** wants to save your server as a userphone contact!\n\n` +
-            `If you accept, both servers will be able to use \`/directcall\` to request calls with each other.`,
-          )
-          .setFooter({ text: 'This request expires in 5 minutes.' });
+        const consentContainer = moduleContainer('userphone');
+        addText(consentContainer, `### 📒 Contact Request\n**${interaction.guild.name}** wants to save your server as a userphone contact!\n\nIf you accept, both servers will be able to use \`/directcall\` to request calls with each other.`);
+        addText(consentContainer, '-# This request expires in 5 minutes.');
 
-        const consentRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        const consentButtons = [
           new ButtonBuilder()
             .setCustomId(`userphone_contact_accept_${requestId}`)
             .setLabel('Accept')
@@ -496,9 +487,11 @@ const reportButtonHandler: ModuleEvent = {
             .setCustomId(`userphone_contact_deny_${requestId}`)
             .setLabel('Decline')
             .setStyle(ButtonStyle.Secondary),
-        );
+        ];
 
-        await (targetChannel as TextChannel).send({ embeds: [consentEmbed], components: [consentRow] });
+        addButtons(consentContainer, consentButtons);
+        const consentPayload = v2Payload([consentContainer]);
+        await (targetChannel as TextChannel).send(consentPayload);
 
         await interaction.editReply({
           content: `📒 Contact request sent to **${lastCall.otherGuildName}**! They need to accept for both servers to be saved.`,
@@ -596,27 +589,20 @@ const reportButtonHandler: ModuleEvent = {
           { guildId: interaction.guild.id, channelId: request.targetChannelId, guildName: interaction.guild.name },
         );
 
-        const connectedEmbed = new EmbedBuilder()
-          .setColor(0x2ECC71)
-          .setTitle('📞 Connected!')
-          .setDescription(`You're now on a direct call with **${request.requesterGuildName}**.\n\nType messages here to talk. Use \`/hangup\` to end the call.`)
-          .setFooter({ text: `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}` });
+        const connectedContainer = moduleContainer('userphone');
+        addText(connectedContainer, `### 📞 Connected!\nYou're now on a direct call with **${request.requesterGuildName}**.\n\nType messages here to talk. Use \`/hangup\` to end the call.`);
+        addText(connectedContainer, `-# Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}`);
 
-        await (interaction as ButtonInteraction).update({
-          embeds: [connectedEmbed],
-          components: [],
-        });
+        await (interaction as ButtonInteraction).update(v2Payload([connectedContainer]));
 
         // Notify the requester
         const requesterChannel = await requesterGuild.channels.fetch(request.requesterChannelId).catch(() => null);
         if (requesterChannel && 'send' in requesterChannel) {
-          const reqEmbed = new EmbedBuilder()
-            .setColor(0x2ECC71)
-            .setTitle('📞 Connected!')
-            .setDescription(`**${interaction.guild.name}** accepted your call!\n\nType messages here to talk. Use \`/hangup\` to end the call.`)
-            .setFooter({ text: `Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}` });
+          const reqContainer = moduleContainer('userphone');
+          addText(reqContainer, `### 📞 Connected!\n**${interaction.guild.name}** accepted your call!\n\nType messages here to talk. Use \`/hangup\` to end the call.`);
+          addText(reqContainer, `-# Max duration: ${call.maxDuration > 0 ? `${Math.floor(call.maxDuration / 60)}m` : 'Unlimited'}`);
 
-          await (requesterChannel as TextChannel).send({ embeds: [reqEmbed] });
+          await (requesterChannel as TextChannel).send(v2Payload([reqContainer]));
         }
       } catch (err: any) {
         logger.error('Failed to start direct call', { error: err.message });

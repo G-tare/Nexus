@@ -1,7 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -12,6 +12,7 @@ import {
   emitGameLost,
   getFunConfig,
 } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 const CHOICES = {
@@ -89,57 +90,40 @@ export default {
       result = 'lose';
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle('🎮 Rock Paper Scissors')
-      .addFields(
-        {
-          name: 'Your Choice',
-          value: `${CHOICES[choice]} ${choice.toUpperCase()}`,
-          inline: true,
-        },
-        {
-          name: 'Bot Choice',
-          value: `${CHOICES[botChoice]} ${botChoice.toUpperCase()}`,
-          inline: true,
-        }
-      );
+    const container = moduleContainer('fun');
+    let title = '🎮 Rock Paper Scissors';
+
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Your Choice', value: `${CHOICES[choice]} ${choice.toUpperCase()}`, inline: true },
+      { name: 'Bot Choice', value: `${CHOICES[botChoice]} ${botChoice.toUpperCase()}`, inline: true }
+    ];
 
     if (result === 'win') {
-      embed
-        .setColor(0x00ff00)
-        .setTitle('✅ You Won!')
-        .setDescription('Great job!');
+      title = '### ✅ You Won!';
 
       if (bet && bet > 0) {
         const winnings = bet * 2;
         await awardWinnings(interaction.guildId!, interaction.user.id, winnings);
         emitGameWon(interaction.guildId!, interaction.user.id, 'rps', bet, winnings);
-        embed.addFields({
-          name: 'Winnings',
-          value: `+${winnings}`,
-          inline: false,
-        });
+        fields.push({ name: 'Winnings', value: `+${winnings}`, inline: false });
       }
     } else if (result === 'lose') {
-      embed.setColor(0xff0000).setTitle('❌ You Lost!');
+      title = '### ❌ You Lost!';
 
       if (bet && bet > 0) {
         emitGameLost(interaction.guildId!, interaction.user.id, 'rps', bet);
       }
     } else {
-      embed.setColor(0xffff00).setTitle('🤝 It\'s a Draw!');
+      title = '### 🤝 It\'s a Draw!';
 
       if (bet && bet > 0) {
-        // Return bet on draw
-        embed.addFields({
-          name: 'Bet Returned',
-          value: `+${bet}`,
-          inline: false,
-        });
+        fields.push({ name: 'Bet Returned', value: `+${bet}`, inline: false });
       }
     }
 
-    await interaction.reply({ embeds: [embed] });
+    addText(container, title);
+    addFields(container, fields);
+    await interaction.reply(v2Payload([container]));
     await setCooldown(interaction.guildId!, interaction.user.id, 'rps', 3);
   },
   category: 'fun',

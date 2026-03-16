@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { getTempVCByChannelId, auditLog } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vclimit')
@@ -64,17 +65,15 @@ export const vclimit: BotCommand = {
       });
 
       const limitText = limit === 0 ? 'Unlimited' : limit.toString();
-      const embed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('User Limit Updated')
-        .setDescription(`User limit set to **${limitText}**`)
-        .addFields(
-          { name: 'Old Limit', value: oldLimit === 0 ? 'Unlimited' : oldLimit.toString(), inline: true },
-          { name: 'New Limit', value: limitText, inline: true }
-        );
+      const container = moduleContainer('temp_voice').setAccentColor(0x0099ff);
+      addText(container, `### User Limit Updated\nUser limit set to **${limitText}**`);
+      addFields(container, [
+        { name: 'Old Limit', value: oldLimit === 0 ? 'Unlimited' : oldLimit.toString(), inline: true },
+        { name: 'New Limit', value: limitText, inline: true }
+      ]);
 
       logger.info('[TempVoice] User set limit for temp VC:', voiceChannel.id, 'limit:');
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vclimit command:', error);
       return interaction.editReply('An error occurred while setting the user limit.');

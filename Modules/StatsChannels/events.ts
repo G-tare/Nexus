@@ -4,7 +4,8 @@ import {
   GuildMember,
 } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import {
@@ -91,12 +92,11 @@ const memberJoinHandler: ModuleEvent = { event: Events.GuildMemberAdd,
     if (relevantChannels.length === 0) return;
 
     // Debounce: wait 3 seconds to batch multiple joins
-    const redis = getRedis();
     const debounceKey = `stats:debounce:join:${member.guild.id}`;
-    const debouncing = await redis.get(debounceKey);
+    const debouncing = cache.has(debounceKey);
     if (debouncing) return;
 
-    await redis.setex(debounceKey, 3, '1');
+    cache.set(debounceKey, '1', 3);
 
     setTimeout(async () => {
       try {
@@ -121,12 +121,11 @@ const memberLeaveHandler: ModuleEvent = { event: Events.GuildMemberRemove,
     const relevantChannels = channels.filter(c => memberTypes.includes(c.statType));
     if (relevantChannels.length === 0) return;
 
-    const redis = getRedis();
     const debounceKey = `stats:debounce:leave:${member.guild.id}`;
-    const debouncing = await redis.get(debounceKey);
+    const debouncing = cache.has(debounceKey);
     if (debouncing) return;
 
-    await redis.setex(debounceKey, 3, '1');
+    cache.set(debounceKey, '1', 3);
 
     setTimeout(async () => {
       try {
@@ -147,14 +146,13 @@ const channelDeleteHandler: ModuleEvent = { event: Events.ChannelDelete,
     if (!channel.guild) return;
 
     const db = getDb();
-    const redis = getRedis();
 
     try {
       await db.execute(sql`
         DELETE FROM stats_channels
         WHERE guild_id = ${channel.guild.id} AND channel_id = ${channel.id}
       `);
-      await redis.del(`stats:channels:${channel.guild.id}`);
+      cache.del(`stats:channels:${channel.guild.id}`);
     } catch { /* ignore */ }
   },
 };

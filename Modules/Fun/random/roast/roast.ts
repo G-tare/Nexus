@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const roasts = [
   'You\'re proof that evolution can go in reverse.',
@@ -55,13 +56,12 @@ export default {
       const target = targetUser ? `${targetUser.username}` : 'you';
       const message = `${target}: ${roast}`;
 
-      const embed = new EmbedBuilder()
-        .setTitle('🔥 Roast')
-        .setDescription(message)
-        .setColor('#FF4500')
-        .setFooter({ text: 'It\'s all in good fun!' });
+      const container = moduleContainer('fun');
+      addText(container, '### 🔥 Roast');
+      addText(container, message);
+      addFooter(container, 'It\'s all in good fun!');
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Roast command error:', error);
       await interaction.reply({

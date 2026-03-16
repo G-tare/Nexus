@@ -28,6 +28,17 @@ struct StatCard: View {
     let icon: String
     var accentColor: Color = NexusColors.cyan
 
+    /// Compatibility: accept subtitle (ignored for display) and color/iconColor aliases
+    init(title: String, value: String, subtitle: String? = nil, icon: String, color: Color) {
+        self.title = title; self.value = value; self.icon = icon; self.accentColor = color
+    }
+    init(title: String, value: String, subtitle: String? = nil, icon: String, iconColor: Color) {
+        self.title = title; self.value = value; self.icon = icon; self.accentColor = iconColor
+    }
+    init(title: String, value: String, icon: String, accentColor: Color = NexusColors.cyan) {
+        self.title = title; self.value = value; self.icon = icon; self.accentColor = accentColor
+    }
+
     var body: some View {
         NexusCard(glowColor: accentColor) {
             VStack(alignment: .leading, spacing: NexusSpacing.sm) {
@@ -285,6 +296,7 @@ struct ModCaseRow: View {
 
 struct NexusSectionHeader: View {
     let title: String
+    var subtitle: String? = nil
     var action: String? = nil
     var onAction: (() -> Void)? = nil
 
@@ -349,6 +361,31 @@ struct EmptyStateView: View {
     let title: String
     let message: String
 
+    /// Default init
+    init(icon: String, title: String, message: String) {
+        self.icon = icon; self.title = title; self.message = message
+    }
+
+    /// Compatibility: subtitle instead of message
+    init(icon: String = "tray", title: String, subtitle: String) {
+        self.icon = icon; self.title = title; self.message = subtitle
+    }
+
+    /// Compatibility: description + optional action
+    init(icon: String, title: String, description: String, action: (() -> Void)? = nil, actionLabel: String? = nil) {
+        self.icon = icon; self.title = title; self.message = description
+    }
+
+    /// Compatibility: title + subtitle + explicit iconName
+    init(title: String, subtitle: String, iconName: String) {
+        self.icon = iconName; self.title = title; self.message = subtitle
+    }
+
+    /// Compatibility: with action
+    init(title: String, subtitle: String, actionTitle: String, action: @escaping () -> Void) {
+        self.icon = "tray"; self.title = title; self.message = subtitle
+    }
+
     var body: some View {
         VStack(spacing: NexusSpacing.lg) {
             Image(systemName: icon)
@@ -362,11 +399,16 @@ struct EmptyStateView: View {
                 .foregroundStyle(NexusColors.textSecondary)
                 .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity, alignment: .top)
         .padding(NexusSpacing.xxl)
     }
 }
 
 // MARK: - Badge
+
+enum NexusBadgeStyle {
+    case primary, secondary, highlight, success, destructive
+}
 
 struct NexusBadge: View {
     let text: String
@@ -381,5 +423,35 @@ struct NexusBadge: View {
             .padding(.vertical, NexusSpacing.xs)
             .background(color.opacity(0.15))
             .clipShape(RoundedRectangle(cornerRadius: NexusRadius.sm))
+    }
+
+    /// Compatibility: (text:, backgroundColor:, textColor:)
+    init(text: String, backgroundColor: Color, textColor: Color = .white) {
+        self.text = text
+        self.color = textColor
+    }
+
+    /// Compatibility: (text:, backgroundColor:)
+    init(text: String, backgroundColor: Color) {
+        self.text = text
+        self.color = backgroundColor
+    }
+
+    /// Compatibility: (text:, style:)
+    init(text: String, style: NexusBadgeStyle) {
+        self.text = text
+        switch style {
+        case .primary: self.color = NexusColors.cyan
+        case .secondary: self.color = NexusColors.textSecondary
+        case .highlight: self.color = NexusColors.purple
+        case .success: self.color = NexusColors.success
+        case .destructive: self.color = NexusColors.error
+        }
+    }
+
+    /// Default init
+    init(text: String, color: Color = NexusColors.cyan) {
+        self.text = text
+        self.color = color
     }
 }

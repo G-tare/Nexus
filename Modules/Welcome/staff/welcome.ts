@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -7,7 +7,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getWelcomeConfig, WelcomeConfig } from '../helpers';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'welcome',
@@ -17,6 +17,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('welcome')
     .setDescription('Configure welcome messages')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(subcommand =>
       subcommand
         .setName('toggle')
@@ -146,12 +147,12 @@ const command: BotCommand = {
           config.welcome.enabled = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Welcome Messages',
-            `Welcome messages are now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome Messages',
+              `Welcome messages are now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'channel': {
@@ -159,12 +160,12 @@ const command: BotCommand = {
           config.welcome.channelId = channel.id;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Welcome Channel Updated',
-            `Welcome messages will now be sent to ${channel}.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome Channel Updated',
+              `Welcome messages will now be sent to ${channel}.`
+            )
+          );
         }
 
         case 'message': {
@@ -173,12 +174,12 @@ const command: BotCommand = {
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
           const placeholders = '{user}, {username}, {server}, {membercount}, {usertag}, {createdate}, {joindate}, {id}';
-          const embed = successEmbed(
-            'Welcome Message Updated',
-            `Available placeholders:\n\`${placeholders}\``
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome Message Updated',
+              `Available placeholders:\n\`${placeholders}\``
+            )
+          );
         }
 
         case 'embed': {
@@ -186,12 +187,12 @@ const command: BotCommand = {
           config.welcome.useEmbed = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Welcome Embed Mode',
-            `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome Embed Mode',
+              `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'embed-color': {
@@ -199,22 +200,23 @@ const command: BotCommand = {
 
           // Validate hex color
           if (!/^#[0-9A-F]{6}$/i.test(color)) {
-            const embed = errorEmbed(
-              'Invalid Color',
-              'Please provide a valid hex color (e.g., #FF0000).'
-            ).setColor(Colors.Error);
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply(
+              errorReply(
+                'Invalid Color',
+                'Please provide a valid hex color (e.g., #FF0000).'
+              )
+            );
           }
 
           config.welcome.embedColor = color;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Color Updated',
-            `Embed color is now set to \`${color}\`.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Color Updated',
+              `Embed color is now set to \`${color}\`.`
+            )
+          );
         }
 
         case 'embed-title': {
@@ -222,12 +224,12 @@ const command: BotCommand = {
           config.welcome.embedTitle = title;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Title Updated',
-            `Embed title is now: **${title}**`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Title Updated',
+              `Embed title is now: **${title}**`
+            )
+          );
         }
 
         case 'embed-footer': {
@@ -235,12 +237,12 @@ const command: BotCommand = {
           config.welcome.embedFooter = footer;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Footer Updated',
-            `Embed footer is now: **${footer}**`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Footer Updated',
+              `Embed footer is now: **${footer}**`
+            )
+          );
         }
 
         case 'embed-thumbnail': {
@@ -248,12 +250,12 @@ const command: BotCommand = {
           config.welcome.embedThumbnail = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Embed Thumbnail',
-            `User avatar thumbnail is now **${enabled ? 'shown' : 'hidden'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Embed Thumbnail',
+              `User avatar thumbnail is now **${enabled ? 'shown' : 'hidden'}**.`
+            )
+          );
         }
 
         case 'image': {
@@ -261,12 +263,12 @@ const command: BotCommand = {
           config.welcome.showImage = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Canvas Welcome Image',
-            `Canvas images are now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Canvas Welcome Image',
+              `Canvas images are now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         case 'image-background': {
@@ -274,26 +276,28 @@ const command: BotCommand = {
           config.welcome.imageBackground = url;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Image Background Updated',
-            `Custom background URL has been set.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Image Background Updated',
+              `Custom background URL has been set.`
+            )
+          );
         }
 
         default: {
-          const embed = errorEmbed('Unknown Subcommand', 'An unknown subcommand was provided.').setColor(Colors.Error);
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            errorReply('Unknown Subcommand', 'An unknown subcommand was provided.')
+          );
         }
       }
     } catch (error) {
       console.error('[Welcome Command Error]', error);
-      const embed = errorEmbed(
-        'Error',
-        'An error occurred while processing your command.'
-      ).setColor(Colors.Error);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(
+        errorReply(
+          'Error',
+          'An error occurred while processing your command.'
+        )
+      );
     }
   },
 };

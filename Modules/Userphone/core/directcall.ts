@@ -1,7 +1,6 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -18,6 +17,7 @@ import {
   getContacts,
   createDirectCallRequest,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload, addButtons } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -155,16 +155,11 @@ const command: BotCommand = {
         return;
       }
 
-      const requestEmbed = new EmbedBuilder()
-        .setColor(0x9B59B6)
-        .setTitle('📞 Incoming Call Request')
-        .setDescription(
-          `**${guild.name}** wants to start a direct userphone call!\n\n` +
-          `Accept to connect immediately, or decline to ignore.`,
-        )
-        .setFooter({ text: 'This request expires in 2 minutes.' });
+      const requestContainer = moduleContainer('userphone');
+      addText(requestContainer, `### 📞 Incoming Call Request\n**${guild.name}** wants to start a direct userphone call!\n\nAccept to connect immediately, or decline to ignore.`);
+      addText(requestContainer, '-# This request expires in 2 minutes.');
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const buttons = [
         new ButtonBuilder()
           .setCustomId(`userphone_dc_accept_${requestId}`)
           .setLabel('Accept Call')
@@ -174,19 +169,17 @@ const command: BotCommand = {
           .setCustomId(`userphone_dc_deny_${requestId}`)
           .setLabel('Decline')
           .setStyle(ButtonStyle.Secondary),
-      );
+      ];
 
-      await (targetChannel as TextChannel).send({ embeds: [requestEmbed], components: [row] });
+      addButtons(requestContainer, buttons);
+      const requestPayload = v2Payload([requestContainer]);
 
-      const waitEmbed = new EmbedBuilder()
-        .setColor(0xF39C12)
-        .setTitle('📞 Call Request Sent')
-        .setDescription(
-          `Waiting for **${targetGuild.name}** to accept your call...\n\n` +
-          `The request expires in **2 minutes**.`,
-        );
+      await (targetChannel as TextChannel).send(requestPayload);
 
-      await interaction.editReply({ embeds: [waitEmbed] });
+      const waitContainer = moduleContainer('userphone');
+      addText(waitContainer, `### 📞 Call Request Sent\nWaiting for **${targetGuild.name}** to accept your call...\n\nThe request expires in **2 minutes**.`);
+
+      await interaction.editReply(v2Payload([waitContainer]));
     } catch (err: any) {
       await interaction.editReply({ content: '❌ Failed to send call request. Please try again.' });
     }

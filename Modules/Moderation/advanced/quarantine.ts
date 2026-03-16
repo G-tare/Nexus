@@ -1,7 +1,7 @@
 import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { canModerate, createModCase, ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
 
 export default {
@@ -55,15 +55,13 @@ export default {
         return;
       }
 
-      // Store current roles in Redis
-      const redis = await getRedis();
+      // Store current roles in cache
       const quarantineKey = `quarantine:${guild.id}:${targetUser.id}`;
       const roleIds = Array.from(targetMember.roles.cache.values())
         .filter(r => r.id !== guild.id) // Exclude @everyone
         .map(r => r.id);
 
-      await redis.hset(quarantineKey, 'roles', JSON.stringify(roleIds));
-      await redis.expire(quarantineKey, 7 * 24 * 60 * 60); // 7 days expiry
+      cache.set(quarantineKey, { roles: roleIds }, 7 * 24 * 60 * 60); // 7 days expiry
 
       // Remove all roles
       for (const role of targetMember.roles.cache.values()) {

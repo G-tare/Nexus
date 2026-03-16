@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const compliments = [
   'You\'re the most thoughtful person I know.',
@@ -50,13 +51,12 @@ export default {
       const target = targetUser ? `${targetUser.username}` : interaction.user.username;
       const message = `${target}, ${compliment}`;
 
-      const embed = new EmbedBuilder()
-        .setTitle('💚 Compliment')
-        .setDescription(message)
-        .setColor('#FFB6C1')
-        .setFooter({ text: 'Spread positivity!' });
+      const container = moduleContainer('fun');
+      addText(container, '### 💚 Compliment');
+      addText(container, message);
+      addFooter(container, 'Spread positivity!');
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Compliment command error:', error);
       await interaction.reply({

@@ -42,14 +42,16 @@ router.post('/:guildId', async (req: Request, res: Response) => {
       return;
     }
 
+    const guildId = req.params.guildId as string;
     await permissionManager.setPermission(
-      req.params.guildId as string,
+      guildId,
       command,
       targetType,
       targetId,
       allowed
     );
-
+    const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
+    await CacheInvalidator.publish(`perms:${guildId}:*`);
     res.json({ success: true });
   } catch (err: any) {
     logger.error('Set permission error', { error: err.message });
@@ -72,7 +74,10 @@ router.delete('/:guildId', async (req: Request, res: Response) => {
       return;
     }
 
-    await permissionManager.removePermission(req.params.guildId as string, command, targetId);
+    const gid = req.params.guildId as string;
+    await permissionManager.removePermission(gid, command, targetId);
+    const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
+    await CacheInvalidator.publish(`perms:${gid}:*`);
     res.json({ success: true });
   } catch (err: any) {
     logger.error('Remove permission error', { error: err.message });

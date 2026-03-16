@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   createStatsChannel,
   getStatsChannels,
@@ -77,18 +78,14 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('📊 Stats Channel Created')
-      .setDescription(
-        `${STAT_TYPE_EMOJIS[statType]} Created a **${STAT_TYPE_LABELS[statType]}** counter!\n\n` +
-        `**Channel:** <#${entry.channelId}>\n` +
-        `**Label:** \`${entry.labelTemplate}\`\n` +
-        `**Type:** ${statType}`
-      )
-      .setFooter({ text: 'Updates automatically every 5 minutes' });
+    const container = successContainer('📊 Stats Channel Created',
+      `${STAT_TYPE_EMOJIS[statType]} Created a **${STAT_TYPE_LABELS[statType]}** counter!\n\n` +
+      `**Channel:** <#${entry.channelId}>\n` +
+      `**Label:** \`${entry.labelTemplate}\`\n` +
+      `**Type:** ${statType}\n\n-# Updates automatically every 5 minutes`
+    );
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

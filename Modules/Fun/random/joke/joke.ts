@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const jokes = {
   dad: [
@@ -63,13 +64,12 @@ export default {
       const jokeArray = jokes[category];
       const joke = jokeArray[Math.floor(Math.random() * jokeArray.length)];
 
-      const embed = new EmbedBuilder()
-        .setTitle('😂 ' + joke.setup)
-        .setDescription(`||${joke.punchline}||`)
-        .setColor('#FFD700')
-        .setFooter({ text: `Category: ${category}` });
+      const container = moduleContainer('fun');
+      addText(container, `### 😂 ${joke.setup}`);
+      addText(container, `||${joke.punchline}||`);
+      addFooter(container, `Category: ${category}`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Joke command error:', error);
       await interaction.reply({

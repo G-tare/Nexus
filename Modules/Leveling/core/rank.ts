@@ -1,13 +1,13 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and } from 'drizzle-orm';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorReply, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   levelFromTotalXp,
   getRankPosition,
-  rankEmbed,
+  rankContainer,
   generateRankCard,
   getUserCardStyle,
   getUserCardBg,
@@ -36,12 +36,7 @@ const command: BotCommand = {
       const guildId = interaction.guildId!;
 
       if (!guildId) {
-        return interaction.editReply({
-          embeds: [
-            errorEmbed('Error', 'This command can only be used in a server.')
-              .setColor(Colors.Error)
-          ]
-        });
+        return interaction.editReply(errorReply('Error', 'This command can only be used in a server.'));
       }
 
       const db = getDb();
@@ -62,16 +57,7 @@ const command: BotCommand = {
         .limit(1);
 
       if (!memberData || memberData.length === 0) {
-        return interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Warning)
-              .setTitle(`${targetUser.username}'s Rank`)
-              .setDescription(`${targetUser.username} hasn't earned any XP yet.`)
-              .setThumbnail(targetUser.displayAvatarURL())
-              .setTimestamp()
-          ]
-        });
+        return interaction.editReply(errorReply(`${targetUser.username}'s Rank`, `${targetUser.username} hasn't earned any XP yet.`));
       }
 
       const member = memberData[0];
@@ -107,8 +93,8 @@ const command: BotCommand = {
         return interaction.editReply({ files: [cardImage] });
       }
 
-      // Fall back to text embed if canvas is unavailable
-      const embed = rankEmbed({
+      // Fall back to text container if canvas is unavailable
+      const container = rankContainer({
         username: targetUser.username,
         avatarUrl: targetUser.displayAvatarURL(),
         level: levelInfo.level,
@@ -119,15 +105,10 @@ const command: BotCommand = {
         prestige,
       });
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Rank Command Error]', error);
-      return interaction.editReply({
-        embeds: [
-          errorEmbed('Error', 'An error occurred while fetching rank data.')
-            .setColor(Colors.Error)
-        ]
-      });
+      return interaction.editReply(errorReply('Error', 'An error occurred while fetching rank data.'));
     }
   }
 };

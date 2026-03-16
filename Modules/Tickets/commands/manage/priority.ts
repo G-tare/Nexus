@@ -1,11 +1,17 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
-import { Colors } from '../../../../Shared/src/utils/embed';
-import { getDb, getRedis } from '../../../../Shared/src/database/connection';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
+import { getDb } from '../../../../Shared/src/database/connection';
+import { cache } from '../../../../Shared/src/cache/cacheManager';
 import { tickets } from '../../../../Shared/src/database/models/schema';
 import { eq } from 'drizzle-orm';
 
@@ -82,7 +88,6 @@ const command: BotCommand = {
 
     try {
       const db = getDb();
-      const redis = getRedis();
 
       // Update database
       await db
@@ -93,7 +98,7 @@ const command: BotCommand = {
       // Update cache
       const cacheKey = `ticket:channel:${interaction.guildId!}:${interaction.channel.id}`;
       const updatedTicketData = { ...ticketData, priority: priorityLevel };
-      await redis.setex(cacheKey, 3600, JSON.stringify(updatedTicketData));
+      cache.set(cacheKey, updatedTicketData, 3600);
 
       // Get current channel name and update prefix if needed
       const prefix = PRIORITY_PREFIXES[priorityLevel];
@@ -118,25 +123,21 @@ const command: BotCommand = {
         await (interaction.channel as any).setName(newName);
       }
 
-      // Send success embed
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('Priority Updated')
-        .setDescription(`Priority set to **${priorityLevel.toUpperCase()}** ${prefix}`)
-        .setTimestamp();
+      // Send success container
+      const successContainer = moduleContainer('tickets');
+      addText(successContainer, '### ✅ Priority Updated');
+      addText(successContainer, `Priority set to **${priorityLevel.toUpperCase()}** ${prefix}`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([successContainer]));
 
       // Log in channel
-      const logEmbed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle('Priority Changed')
-        .setDescription(`${interaction.user} set the ticket priority to **${priorityLevel.toUpperCase()}** ${prefix}`)
-        .setTimestamp();
+      const logContainer = moduleContainer('tickets');
+      addText(logContainer, '### Priority Changed');
+      addText(logContainer, `${interaction.user} set the ticket priority to **${priorityLevel.toUpperCase()}** ${prefix}`);
 
       const channel = interaction.channel as any;
       if (channel?.send) {
-        await channel.send({ embeds: [logEmbed] });
+        await channel.send(v2Payload([logContainer]));
       }
     } catch (error) {
       console.error('Error setting ticket priority:', error);

@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -49,14 +49,11 @@ const command: BotCommand = {
       `**${ban.user.tag}** (${ban.user.id})\n> ${ban.reason || 'No reason'}`
     );
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Moderation)
-      .setTitle(`Ban List${search ? ` — "${search}"` : ''}`)
-      .setDescription(lines.join('\n\n'))
-      .setFooter({ text: `Showing ${page.length} of ${filtered.length} bans` })
-      .setTimestamp();
+    const container = moduleContainer('moderation');
+    addText(container, `### Ban List${search ? ` — "${search}"` : ''}\n${lines.join('\n\n')}`);
+    addFooter(container, `Showing ${page.length} of ${filtered.length} bans`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

@@ -1,5 +1,6 @@
 import { GuildMember } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
@@ -74,25 +75,22 @@ export async function updateActivityConfig(guildId: string, updates: Partial<Act
 // ── Voice Session Tracking ──────────────────────────────────────────────────
 
 export async function startVoiceSession(guildId: string, userId: string, channelId: string): Promise<void> {
-  const redis = getRedis();
   const sessionKey = `activity:voice:${guildId}:${userId}`;
   const startTime = Date.now();
 
-  await redis.set(sessionKey, JSON.stringify({ channelId, startTime }), 'EX', 86400 * 7);
+  cache.set(sessionKey, { channelId, startTime }, 86400 * 7);
   logger.debug(`Voice session started for ${userId} in guild ${guildId}`);
 }
 
 export async function endVoiceSession(guildId: string, userId: string): Promise<number> {
-  const redis = getRedis();
   const sessionKey = `activity:voice:${guildId}:${userId}`;
 
-  const sessionData = await redis.get(sessionKey);
+  const sessionData = cache.get<{ channelId: string; startTime: number }>(sessionKey);
   if (!sessionData) {
     return 0;
   }
 
-  const session = JSON.parse(sessionData);
-  const duration = Math.max(1, Math.floor((Date.now() - session.startTime) / 60000));
+  const duration = Math.max(1, Math.floor((Date.now() - sessionData.startTime) / 60000));
 
   const db = getDb();
   const today = new Date().toISOString().split('T')[0];
@@ -105,7 +103,7 @@ export async function endVoiceSession(guildId: string, userId: string): Promise<
         voice_minutes = activity_tracking.voice_minutes + ${duration}
     `);
 
-    await redis.del(sessionKey);
+    cache.del(sessionKey);
     logger.debug(`Voice session ended for ${userId} in guild ${guildId}: ${duration} minutes`);
 
     emitActivityUpdate(guildId, userId, 'voice');

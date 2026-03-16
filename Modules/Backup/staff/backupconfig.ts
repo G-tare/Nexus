@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getBackupConfig, getBackupList } from '../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -60,16 +61,14 @@ const command: BotCommand = {
       case 'view': {
         const backups = await getBackupList(guild.id);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x3498DB)
-          .setTitle('💾 Backup Configuration')
-          .addFields(
-            { name: 'Backups', value: `${backups.length}/${config.maxBackups}`, inline: true },
-            { name: 'Auto-Backup', value: config.autoBackupInterval > 0 ? `Every ${config.autoBackupInterval}h` : 'Disabled', inline: true },
-            { name: 'Backup on Change', value: config.backupOnChange ? `On (${config.changeCooldown}min cooldown)` : 'Off', inline: true },
-          );
+        const container = moduleContainer('backup');
+        addFields(container, [
+          { name: 'Backups', value: `${backups.length}/${config.maxBackups}`, inline: true },
+          { name: 'Auto-Backup', value: config.autoBackupInterval > 0 ? `Every ${config.autoBackupInterval}h` : 'Disabled', inline: true },
+          { name: 'Backup on Change', value: config.backupOnChange ? `On (${config.changeCooldown}min cooldown)` : 'Off', inline: true },
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
         break;
       }
 

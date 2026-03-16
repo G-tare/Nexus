@@ -1,7 +1,7 @@
-import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { snoozeReminder, parseDuration, formatDuration, getReminder } from '../helpers';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { snoozeReminder, parseDuration, formatDuration } from '../helpers';
+import { moduleContainer, errorReply, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('snooze')
@@ -20,47 +20,35 @@ const command = new SlashCommandBuilder()
   );
 
 const execute = async (interaction: ChatInputCommandInteraction, ...args: any[]): Promise<void> => {
-  const redis = await getRedis();
-
   const reminderId = interaction.options.getString('id', true);
   const timeStr = interaction.options.getString('time') || '10m';
 
   // Parse duration
   const duration = parseDuration(timeStr);
   if (!duration || duration <= 0) {
-    await interaction.reply({
-      content: '❌ Invalid time format. Use "30m", "2h", "1d", "1w", or "tomorrow".',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Invalid time format', 'Use "30m", "2h", "1d", "1w", or "tomorrow".'));
     return;
   }
 
   // Snooze the reminder
-  const snoozed = await snoozeReminder(redis, reminderId, interaction.user.id, duration);
+  const snoozed = await snoozeReminder(interaction.client, reminderId, interaction.user.id, duration);
 
   if (!snoozed) {
-    await interaction.reply({
-      content: '❌ Reminder not found or does not belong to you.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Not found', 'Reminder not found or does not belong to you.'));
     return;
   }
 
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2')
-    .setTitle('⏰ Reminder Snoozed')
-    .setDescription(`Snoozed for ${formatDuration(duration)}`)
-    .addFields({
+  const container = moduleContainer('reminders');
+  addText(container, `### ⏰ Reminder Snoozed\nSnoozed for ${formatDuration(duration)}`);
+  addFields(container, [
+    {
       name: 'New Fire Time',
       value: `<t:${Math.floor(snoozed.triggerAt.getTime() / 1000)}:f>`,
       inline: false,
-    })
-    .setTimestamp();
+    }
+  ]);
 
-  await interaction.reply({
-    embeds: [embed],
-    flags: MessageFlags.Ephemeral,
-  });
+  await interaction.reply(v2Payload([container]));
 };
 
 export default {

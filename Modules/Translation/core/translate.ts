@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction, MessageFlags } from 'discord.js';
@@ -11,6 +11,7 @@ import {
   getTranslationConfig,
   incrementTranslationStats,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -75,8 +76,8 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = buildTranslationEmbed(result, text, interaction.user.displayName);
-    await interaction.editReply({ embeds: [embed] });
+    const container = buildTranslationEmbed(result, text, interaction.user.displayName);
+    await interaction.editReply(v2Payload([container]));
 
     await incrementTranslationStats(guild.id, result.sourceLang, targetLang);
   },

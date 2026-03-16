@@ -1,5 +1,9 @@
 // ============================================
 // Module data for the landing page
+//
+// All stats (module count, command count, category counts)
+// are COMPUTED from the MODULES array — never hardcoded.
+// Just add/edit entries in MODULES and everything updates.
 // ============================================
 
 export interface Module {
@@ -12,60 +16,97 @@ export interface Module {
 
 export const MODULES: Module[] = [
   { name: "Moderation", description: "Ban, kick, mute, warn, purge, lockdown, case management & more", icon: "\u{1F6E1}", category: "moderation", commandCount: 45 },
-  { name: "Auto Mod", description: "Anti-spam, anti-raid, word filters, link blocking, anti-nuke", icon: "\u{1F916}", category: "moderation", commandCount: 12 },
-  { name: "Anti-Raid", description: "Automatic raid detection, lockdown, mass-join protection", icon: "\u26A0\uFE0F", category: "moderation", commandCount: 4 },
+  { name: "Auto Mod", description: "Anti-spam, anti-raid, word filters, link blocking, anti-nuke", icon: "\u{1F916}", category: "moderation", commandCount: 15 },
+  { name: "Anti-Raid", description: "Automatic raid detection, lockdown, mass-join protection", icon: "\u26A0\uFE0F", category: "moderation", commandCount: 14 },
   { name: "Logging", description: "Message edits, deletes, joins, leaves, role changes & more", icon: "\u{1F4DD}", category: "moderation", commandCount: 5 },
-  { name: "Leveling", description: "XP system, level roles, leaderboards, double XP events", icon: "\u2B50", category: "engagement", commandCount: 13 },
-  { name: "Leaderboards", description: "Global and server leaderboards across all systems", icon: "\u{1F3C6}", category: "engagement", commandCount: 3 },
-  { name: "Activity Tracking", description: "Track voice & message activity, see who's most active", icon: "\u{1F4CA}", category: "engagement", commandCount: 4 },
-  { name: "Reputation", description: "Rep system, give/remove rep, reputation leaderboards", icon: "\u{1F31F}", category: "engagement", commandCount: 8 },
-  { name: "Fun", description: "Trivia, games, social actions, memes, jokes, 8ball & more", icon: "\u{1F3AE}", category: "fun", commandCount: 36 },
-  { name: "Music", description: "Play, queue, filters, playlists, lyrics, DJ controls", icon: "\u{1F3B5}", category: "fun", commandCount: 27 },
-  { name: "Polls", description: "Create polls with reactions, timed polls, poll results", icon: "\u{1F4CA}", category: "fun", commandCount: 5 },
+  { name: "Leveling", description: "XP system, level roles, leaderboards, double XP events", icon: "\u2B50", category: "engagement", commandCount: 26 },
+  { name: "Leaderboards", description: "Global and server leaderboards across all systems", icon: "\u{1F3C6}", category: "engagement", commandCount: 7 },
+  { name: "Activity Tracking", description: "Track voice & message activity, see who's most active", icon: "\u{1F4CA}", category: "engagement", commandCount: 5 },
+  { name: "Reputation", description: "Rep system, give/remove rep, reputation leaderboards", icon: "\u{1F31F}", category: "engagement", commandCount: 3 },
+  { name: "Fun", description: "Trivia, games, social actions, memes, jokes, 8ball & more", icon: "\u{1F3AE}", category: "fun", commandCount: 58 },
+  { name: "Music", description: "Play, queue, filters, playlists, lyrics, DJ controls", icon: "\u{1F3B5}", category: "fun", commandCount: 30 },
+  { name: "Polls", description: "Create polls with reactions, timed polls, poll results", icon: "\u{1F4CA}", category: "fun", commandCount: 10 },
   { name: "Userphone", description: "Anonymous cross-server calling and messaging", icon: "\u{1F4DE}", category: "fun", commandCount: 4 },
   { name: "Voice Phone", description: "Cross-server voice calling with real-time audio relay", icon: "\u{1F4F1}", category: "social", commandCount: 2 },
-  { name: "Currency", description: "Economy system, daily/work rewards, gambling, transfers", icon: "\u{1F4B0}", category: "economy", commandCount: 12 },
-  { name: "Shop", description: "Create custom shops, buy/sell items, inventory management", icon: "\u{1F6D2}", category: "economy", commandCount: 8 },
-  { name: "Giveaways", description: "Timed giveaways, requirements, rerolls, multiple winners", icon: "\u{1F381}", category: "utility", commandCount: 13 },
-  { name: "Tickets", description: "Support tickets, panels, categories, transcripts, auto-close", icon: "\u{1F3AB}", category: "utility", commandCount: 18 },
-  { name: "Forms", description: "Custom application forms, staff review, approval workflow", icon: "\u{1F4CB}", category: "utility", commandCount: 8 },
-  { name: "Suggestions", description: "Suggestion box, staff approval, status tracking", icon: "\u{1F4A1}", category: "utility", commandCount: 7 },
+  { name: "Currency", description: "Economy system, daily/work rewards, banking, jobs, gambling & transfers", icon: "\u{1F4B0}", category: "economy", commandCount: 34 },
+  { name: "Shop", description: "Create custom shops, buy/sell items, inventory management", icon: "\u{1F6D2}", category: "economy", commandCount: 21 },
+  { name: "Casino", description: "Blackjack, slots, roulette, crash, poker, horse racing & more", icon: "\u{1F3B0}", category: "economy", commandCount: 11 },
+  { name: "Donation Tracking", description: "Track server donations, campaigns, goals & leaderboards", icon: "\u{1F49D}", category: "economy", commandCount: 21 },
+  { name: "Giveaways", description: "Timed giveaways, requirements, rerolls, multiple winners", icon: "\u{1F381}", category: "utility", commandCount: 15 },
+  { name: "Tickets", description: "Support tickets, panels, categories, transcripts, auto-close", icon: "\u{1F3AB}", category: "utility", commandCount: 35 },
+  { name: "Forms", description: "Custom application forms, staff review, approval workflow", icon: "\u{1F4CB}", category: "utility", commandCount: 15 },
+  { name: "Suggestions", description: "Suggestion box, staff approval, status tracking", icon: "\u{1F4A1}", category: "utility", commandCount: 15 },
   { name: "Reminders", description: "Personal and server reminders, recurring reminders", icon: "\u23F0", category: "utility", commandCount: 5 },
-  { name: "Scheduled Messages", description: "Schedule messages for future delivery, recurring posts", icon: "\u{1F4C5}", category: "utility", commandCount: 5 },
-  { name: "Welcome", description: "Custom welcome/leave messages, autorole, DM greetings", icon: "\u{1F44B}", category: "utility", commandCount: 10 },
-  { name: "Auto Roles", description: "Assign roles on join, by reaction, by level, delayed", icon: "\u{1F3AD}", category: "utility", commandCount: 7 },
+  { name: "Scheduled Messages", description: "Schedule messages for future delivery, recurring posts", icon: "\u{1F4C5}", category: "utility", commandCount: 6 },
+  { name: "Welcome", description: "Custom welcome/leave messages, autorole, DM greetings", icon: "\u{1F44B}", category: "utility", commandCount: 41 },
+  { name: "Auto Roles", description: "Assign roles on join, by reaction, by level, delayed", icon: "\u{1F3AD}", category: "utility", commandCount: 11 },
   { name: "Reaction Roles", description: "Reaction-based role assignment with custom panels", icon: "\u{1F3AF}", category: "utility", commandCount: 6 },
-  { name: "Color Roles", description: "Custom color roles, color picker, presets, hex codes", icon: "\u{1F308}", category: "utility", commandCount: 25 },
+  { name: "Color Roles", description: "Custom color roles, color picker, presets, hex codes", icon: "\u{1F308}", category: "utility", commandCount: 20 },
   { name: "Backup", description: "Full server backup and restore, scheduled backups", icon: "\u{1F4BE}", category: "utility", commandCount: 7 },
   { name: "Confessions", description: "Anonymous confessions, staff moderation, blacklist", icon: "\u{1F5E3}\uFE0F", category: "social", commandCount: 6 },
-  { name: "Quote Board", description: "Starboard-style quote system, reaction threshold", icon: "\u2728", category: "social", commandCount: 3 },
+  { name: "Quote Board", description: "Starboard-style quote system, reaction threshold", icon: "\u2728", category: "social", commandCount: 11 },
   { name: "Birthdays", description: "Birthday tracker, announcements, birthday roles", icon: "\u{1F382}", category: "social", commandCount: 7 },
-  { name: "AFK", description: "AFK status with auto-response when mentioned", icon: "\u{1F4A4}", category: "social", commandCount: 5 },
+  { name: "AFK", description: "AFK status with auto-response when mentioned", icon: "\u{1F4A4}", category: "social", commandCount: 13 },
   { name: "AI Chatbot", description: "AI-powered conversation, per-channel setup, context memory", icon: "\u{1F9E0}", category: "social", commandCount: 5 },
-  { name: "Custom Commands", description: "Create custom commands with variables and embeds", icon: "\u2699\uFE0F", category: "utility", commandCount: 6 },
-  { name: "Invite Tracker", description: "Track who invited whom, invite leaderboard, fake detection", icon: "\u{1F517}", category: "utility", commandCount: 6 },
-  { name: "Counting", description: "Counting channels with saves, math mode, milestones", icon: "\u{1F522}", category: "fun", commandCount: 4 },
+  { name: "Custom Commands", description: "Create custom commands with variables and embeds", icon: "\u2699\uFE0F", category: "utility", commandCount: 7 },
+  { name: "Invite Tracker", description: "Track who invited whom, invite leaderboard, fake detection", icon: "\u{1F517}", category: "utility", commandCount: 15 },
+  { name: "Counting", description: "Counting channels with saves, math mode, milestones", icon: "\u{1F522}", category: "fun", commandCount: 2 },
   { name: "Sticky Messages", description: "Pin messages that stay at the bottom of a channel", icon: "\u{1F4CC}", category: "utility", commandCount: 4 },
-  { name: "Temp Voice", description: "Temporary voice channels, custom names, limits, permissions", icon: "\u{1F50A}", category: "utility", commandCount: 11 },
-  { name: "Translation", description: "Real-time message translation, auto-translate channels", icon: "\u{1F30D}", category: "utility", commandCount: 6 },
-  { name: "Stats Channels", description: "Auto-updating stat channels for members, roles, etc.", icon: "\u{1F4C8}", category: "utility", commandCount: 5 },
-  { name: "Message Tracking", description: "Snipe deleted/edited messages, message history", icon: "\u{1F50D}", category: "utility", commandCount: 3 },
+  { name: "Temp Voice", description: "Temporary voice channels, custom names, limits, permissions", icon: "\u{1F50A}", category: "utility", commandCount: 12 },
+  { name: "Translation", description: "Real-time message translation, auto-translate channels", icon: "\u{1F30D}", category: "utility", commandCount: 12 },
+  { name: "Stats Channels", description: "Auto-updating stat channels for members, roles, etc.", icon: "\u{1F4C8}", category: "utility", commandCount: 9 },
+  { name: "Message Tracking", description: "Snipe deleted/edited messages, message history", icon: "\u{1F50D}", category: "utility", commandCount: 7 },
+  { name: "Timers", description: "Countdown timers, stopwatches, timed events & reminders", icon: "\u23F1\uFE0F", category: "utility", commandCount: 12 },
+  { name: "Auto Setup", description: "One-click server setup with templates, channels & roles", icon: "\u26A1", category: "utility", commandCount: 9 },
+  { name: "Raffles", description: "Create raffles with entry requirements, timed draws & prizes", icon: "\u{1F39F}\uFE0F", category: "fun", commandCount: 17 },
+  { name: "Profile", description: "Customizable user profiles with badges, bios, banners & lists", icon: "\u{1F464}", category: "social", commandCount: 14 },
+  { name: "Family", description: "Propose, adopt, build family trees & view relationships", icon: "\u{1F46A}", category: "social", commandCount: 9 },
+  { name: "Images", description: "Animal pics, meme generators, image effects & avatars", icon: "\u{1F5BC}\uFE0F", category: "fun", commandCount: 20 },
+  { name: "Soundboard", description: "Custom sound effects, server sounds & audio clips in voice", icon: "\u{1F50A}", category: "fun", commandCount: 7 },
+  { name: "Utilities", description: "Search, calculator, QR codes, notepad, weather & more", icon: "\u{1F527}", category: "utility", commandCount: 24 },
 ];
 
+// ─── Computed stats (never hardcode these) ───
+
+/** Total module count, derived from the MODULES array. */
+export const MODULE_COUNT = MODULES.length;
+
+/** Total command count, summed from each module's commandCount. */
+export const COMMAND_COUNT = MODULES.reduce((sum, m) => sum + m.commandCount, 0);
+
+/** Category counts, computed from MODULES. */
+function computeCategories() {
+  const counts: Record<string, number> = {};
+  for (const m of MODULES) {
+    counts[m.category] = (counts[m.category] ?? 0) + 1;
+  }
+  return counts;
+}
+
+const categoryCounts = computeCategories();
+
+const CATEGORY_LABELS: Record<string, string> = {
+  moderation: "Moderation",
+  engagement: "Engagement",
+  fun: "Fun & Games",
+  economy: "Economy",
+  utility: "Utility",
+  social: "Social",
+};
+
 export const CATEGORIES = [
-  { id: "all", label: "All Modules", count: 39 },
-  { id: "moderation", label: "Moderation", count: 4 },
-  { id: "engagement", label: "Engagement", count: 4 },
-  { id: "fun", label: "Fun & Games", count: 4 },
-  { id: "economy", label: "Economy", count: 2 },
-  { id: "utility", label: "Utility", count: 16 },
-  { id: "social", label: "Social", count: 5 },
+  { id: "all", label: "All Modules", count: MODULE_COUNT },
+  ...Object.entries(CATEGORY_LABELS).map(([id, label]) => ({
+    id,
+    label,
+    count: categoryCounts[id] ?? 0,
+  })),
 ];
 
 export const STATS = [
-  { label: "Modules", value: 39, suffix: "" },
-  { label: "Commands", value: 370, suffix: "+" },
-  { label: "Features", value: 150, suffix: "+" },
+  { label: "Modules", value: MODULE_COUNT, suffix: "" },
+  { label: "Commands", value: COMMAND_COUNT, suffix: "+" },
+  { label: "Features", value: 200, suffix: "+" },
   { label: "Uptime", value: 99.9, suffix: "%" },
 ];
 
@@ -107,8 +148,8 @@ export const FEATURES: Feature[] = [
   {
     title: "Economy",
     subtitle: "Virtual Economy System",
-    description: "A complete economy with daily rewards, work commands, gambling, custom shops, and item trading.",
-    highlights: ["Currency system", "Custom shop items", "Gambling games", "Trading & transfers"],
+    description: "A complete economy with daily rewards, jobs, banking, a full casino, custom shops, and donation tracking.",
+    highlights: ["Casino with 10 games", "Banking & jobs system", "Custom shop items", "Donation campaigns"],
     color: "#10b981",
     demoType: "economy",
   },

@@ -1,6 +1,7 @@
-import { Collection, TextChannel, Events } from 'discord.js';
+import { Collection, TextChannel, Events, MessageFlags } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addText, addFields, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 // Track leave timers per guild
 const leaveTimers = new Map<string, NodeJS.Timeout>();
@@ -52,23 +53,20 @@ export const musicEvents: ModuleEvent[] = [
             const channel = (await guild.channels.fetch(config.announcementChannelId)) as TextChannel;
 
             if (channel && channel.isTextBased()) {
-              const embed = {
-                color: 0x00ff00,
-                title: '🎵 Now Playing',
-                description: `**${track.title || 'Unknown'}**`,
-                fields: [
-                  { name: 'Duration',
-                    value: `${Math.floor(track.duration / 1000)}s`,
-                    inline: true,
-                  },
-                  { name: 'Author',
-                    value: track.author || 'Unknown',
-                    inline: true,
-                  },
-                ],
-              };
+              const container = moduleContainer('music');
+              addText(container, `### 🎵 Now Playing\n**${track.title || 'Unknown'}**`);
+              addFields(container, [
+                { name: 'Duration',
+                  value: `${Math.floor(track.duration / 1000)}s`,
+                  inline: true,
+                },
+                { name: 'Author',
+                  value: track.author || 'Unknown',
+                  inline: true,
+                },
+              ]);
 
-              await (channel as any).send({ embeds: [embed] });
+              await (channel as any).send(v2Payload([container]));
             }
           } catch (err) {
             console.error('Error sending now playing announcement:', err);

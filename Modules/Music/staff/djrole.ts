@@ -1,11 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
-  EmbedBuilder,
   PermissionFlagsBits,
-  Colors,
   Role, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, errorContainer, moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const MUSIC_COMMANDS = [
   'play',
@@ -115,13 +114,10 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('DJ Role Set')
-            .setDescription(`DJ role set to ${role}.`)
-            .setFooter({ text: 'DJ system is now enabled' });
+          const container = successContainer('DJ Role Set', `DJ role set to ${role}.`);
+          addFooter(container, 'DJ system is now enabled');
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -132,12 +128,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Orange)
-            .setTitle('DJ Role Removed')
-            .setDescription('DJ role has been removed and the DJ system is disabled.');
+          const container = errorContainer('DJ Role Removed', 'DJ role has been removed and the DJ system is disabled.');
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -155,14 +148,9 @@ const command: BotCommand = {
           config.djEnabled = enabled;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(enabled ? Colors.Green : Colors.Red)
-            .setTitle('DJ System Toggled')
-            .setDescription(
-              `DJ system is now **${enabled ? 'enabled' : 'disabled'}**.`
-            );
+          const container = enabled ? successContainer('DJ System Toggled', 'DJ system is now **enabled**.') : errorContainer('DJ System Toggled', 'DJ system is now **disabled**.');
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -188,17 +176,11 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Blue)
-            .setTitle('DJ Command Updated')
-            .setDescription(
-              `**/${cmdName}** now **${required ? 'requires' : 'does not require'}** DJ role.`
-            )
-            .setFooter({
-              text: `${config.djOnlyCommands.length} command(s) require DJ role`,
-            });
+          const container = moduleContainer('music');
+          addText(container, `### DJ Command Updated\n**/${cmdName}** now **${required ? 'requires' : 'does not require'}** DJ role.`);
+          addFooter(container, `${config.djOnlyCommands.length} command(s) require DJ role`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
       }

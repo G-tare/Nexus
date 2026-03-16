@@ -1,14 +1,14 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
+import { moduleContainer, addText, addFooter, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -51,21 +51,19 @@ const command: BotCommand = {
 
       const message = result.rows[0];
 
-      // Create confirmation embed
-      const confirmEmbed = new EmbedBuilder()
-        .setColor('#ff6600')
-        .setTitle('Delete Scheduled Message?')
-        .addFields(
-          { name: 'Message ID', value: `\`${message.id}\``, inline: true },
-          { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
-          { name: 'Type', value: message.isRecurring ? 'Recurring' : 'One-time', inline: true },
-          { name: 'Status', value: message.isActive ? 'Active' : 'Inactive', inline: true },
-          { name: 'Content', value: message.content || '(Embed)', inline: false }
-        )
-        .setFooter({ text: 'This action cannot be undone' });
+      // Create confirmation container
+      const container = moduleContainer('scheduled_messages');
+      container.setAccentColor(0xff6600);
+      addText(container, '### Delete Scheduled Message?');
+      addText(container, `**Message ID**\n\`${message.id}\``);
+      addText(container, `**Channel**\n<#${message.channelId}>`);
+      addText(container, `**Type**\n${message.isRecurring ? 'Recurring' : 'One-time'}`);
+      addText(container, `**Status**\n${message.isActive ? 'Active' : 'Inactive'}`);
+      addText(container, `**Content**\n${message.content || '(Embed)'}`);
+      addFooter(container, 'This action cannot be undone');
 
       // Create confirmation buttons
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const buttons = [
         new ButtonBuilder()
           .setCustomId(`sm_confirm_delete_${id}`)
           .setLabel('Delete')
@@ -74,9 +72,10 @@ const command: BotCommand = {
           .setCustomId('sm_cancel_delete')
           .setLabel('Cancel')
           .setStyle(ButtonStyle.Secondary)
-      );
+      ];
+      addButtons(container, buttons);
 
-      await interaction.editReply({ embeds: [confirmEmbed], components: [row] });
+      await interaction.editReply(v2Payload([container]));
 
       // Create collector for button interaction
       const filter = (i: any) => {
@@ -95,22 +94,19 @@ const command: BotCommand = {
             // Delete the message
             await db.query('DELETE FROM scheduledMessages WHERE id = $1 AND guildId = $2', [id, guildId]);
 
-            const successEmbed = new EmbedBuilder()
-              .setColor('#00aa00')
-              .setTitle('Scheduled Message Deleted')
-              .addFields(
-                { name: 'Message ID', value: `\`${id}\``, inline: true }
-              );
+            const successContainer = moduleContainer('scheduled_messages');
+            successContainer.setAccentColor(0x00aa00);
+            addText(successContainer, '### Scheduled Message Deleted');
+            addText(successContainer, `**Message ID**\n\`${id}\``);
 
-            await i.update({ embeds: [successEmbed], components: [] });
+            await i.update(v2Payload([successContainer]));
             logger.info(`[ScheduledMessages] Deleted scheduled message ${id} from guild ${guildId}`);
           } else if (i.customId === 'sm_cancel_delete') {
-            const cancelEmbed = new EmbedBuilder()
-              .setColor('#0099ff')
-              .setTitle('Deletion Cancelled')
-              .setDescription('The scheduled message was not deleted.');
+            const cancelContainer = moduleContainer('scheduled_messages');
+            cancelContainer.setAccentColor(0x0099ff);
+            addText(cancelContainer, '### Deletion Cancelled\nThe scheduled message was not deleted.');
 
-            await i.update({ embeds: [cancelEmbed], components: [] });
+            await i.update(v2Payload([cancelContainer]));
           }
 
           collector.stop();

@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBackupList, getBackupConfig, formatSize } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -35,13 +36,10 @@ const command: BotCommand = {
       return `**${i + 1}.** ${b.name} — ID: \`${b.id}\`\n   ${date} • ${formatSize(b.size)} • ${by}`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('💾 Server Backups')
-      .setDescription(lines.join('\n\n'))
-      .setFooter({ text: `${backups.length}/${config.maxBackups} backups • /backupinfo <id> for details` });
+    const container = moduleContainer('backup');
+    addText(container, `### 💾 Server Backups\n${lines.join('\n\n')}\n\n-# ${backups.length}/${config.maxBackups} backups • /backupinfo <id> for details`);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

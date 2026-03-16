@@ -1,7 +1,7 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { successContainer, errorContainer, addFields } from '../../../Shared/src/utils/componentsV2';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { createModCase, ensureGuild } from '../helpers';
 
 export default {
@@ -35,17 +35,18 @@ export default {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     try {
-      const redis = await getRedis();
       const autokickSetKey = `autokick:${guild.id}`;
 
-      const removed = await redis.srem(autokickSetKey, targetUser.id);
-
-      if (removed === 0) {
+      // Check if user is on auto-kick list before removing
+      if (!cache.sismember(autokickSetKey, targetUser.id)) {
         await interaction.editReply({
-          embeds: [errorEmbed('User is not on the auto-kick list')]
+          components: [errorContainer('User is not on the auto-kick list')],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
+
+      cache.srem(autokickSetKey, targetUser.id);
 
       // Create mod case
       await createModCase({
@@ -56,14 +57,15 @@ export default {
         reason: `Unautokick: ${reason}`,
       });
 
-      const embed = successEmbed(`User ${targetUser.tag} has been removed from auto-kick`);
-      embed.addFields({ name: 'Reason', value: reason });
+      const container = successContainer(`User ${targetUser.tag} has been removed from auto-kick`);
+      addFields(container, [{ name: 'Reason', value: reason }]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in unautokick command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while removing auto-kick')]
+        components: [errorContainer('An error occurred while removing auto-kick')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

@@ -1,7 +1,7 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, ColorResolvable, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { errorContainer, successContainer, warningContainer, infoContainer, addFields, addSectionWithThumbnail, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { ensureGuild, ensureGuildMember } from '../helpers';
 
 // Simple Levenshtein distance implementation
@@ -60,7 +60,6 @@ export default {
       await ensureGuildMember(guild.id, targetUser.id);
       const targetMember = await guild.members.fetch(targetUser.id);
 
-      const redis = await getRedis();
       const flags: string[] = [];
       let riskScore = 0;
 
@@ -75,7 +74,7 @@ export default {
 
       // Check if manually flagged as alt
       const altsSetKey = `alts:${guild.id}`;
-      const isManuallyFlagged = await redis.sismember(altsSetKey, targetUser.id);
+      const isManuallyFlagged = cache.sismember(altsSetKey, targetUser.id);
       if (isManuallyFlagged) {
         flags.push('🚩 Manually flagged as alt');
         riskScore += 50;
@@ -148,36 +147,31 @@ export default {
 
       // Determine confidence level
       let confidenceLevel: string;
-      let confidenceColor: ColorResolvable;
+      let container: any;
 
       if (riskScore >= 70) {
         confidenceLevel = 'HIGH';
-        confidenceColor = Colors.Error as number;
+        container = errorContainer('Alt Detection Report', `User: ${targetUser.tag}`);
       } else if (riskScore >= 40) {
         confidenceLevel = 'MEDIUM';
-        confidenceColor = Colors.Warning as number;
+        container = warningContainer('Alt Detection Report', `User: ${targetUser.tag}`);
       } else {
         confidenceLevel = 'LOW';
-        confidenceColor = Colors.Success as number;
+        container = successContainer('Alt Detection Report', `User: ${targetUser.tag}`);
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(confidenceColor as any)
-        .setTitle(`Alt Detection Report for ${targetUser.tag}`)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-          { name: 'Confidence Level', value: confidenceLevel, inline: true },
-          { name: 'Risk Score', value: `${riskScore}%`, inline: true },
-          { name: 'Flags', value: flags.length > 0 ? flags.join('\n') : 'No flags detected' }
-        )
-        .setFooter({ text: `Account created: ${targetUser.createdAt.toDateString()}` });
+      addFields(container, [
+        { name: 'Confidence Level', value: confidenceLevel, inline: true },
+        { name: 'Risk Score', value: `${riskScore}%`, inline: true },
+        { name: 'Flags', value: flags.length > 0 ? flags.join('\n') : 'No flags detected' }
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in altdetect command:', error);
-      await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while checking for alts')]
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('An error occurred while checking for alts')
+      ]));
     }
   }
 } as BotCommand;

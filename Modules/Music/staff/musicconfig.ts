@@ -1,13 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
-  EmbedBuilder,
   PermissionFlagsBits,
-  Colors,
   ChannelType,
   TextChannel,
   VoiceChannel, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   name: 'musicconfig',
@@ -231,25 +230,24 @@ const command: BotCommand = {
 
       switch (subcommand) {
         case 'view': {
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Blue)
-            .setTitle('Music Configuration')
-            .addFields(
-              { name: 'Default Volume', value: `${config.defaultVolume ?? 100}%`, inline: true },
-              { name: 'Max Volume', value: `${config.maxVolume ?? 150}%`, inline: true },
-              { name: 'Max Queue Size', value: config.maxQueueSize === 0 ? 'Unlimited' : String(config.maxQueueSize ?? 500), inline: true },
-              { name: 'Max Song Duration', value: config.maxDuration === 0 ? 'Unlimited' : `${config.maxDuration ?? 3600}s`, inline: true },
-              { name: 'Vote Skip Enabled', value: config.voteSkipEnabled ? 'Yes' : 'No', inline: true },
-              { name: 'Vote Skip Percent', value: `${config.voteSkipPercent ?? 50}%`, inline: true },
-              { name: 'Now Playing Announce', value: config.announceNowPlaying ? 'Yes' : 'No', inline: true },
-              { name: 'Autoplay Enabled', value: config.autoplayEnabled ? 'Yes' : 'No', inline: true },
-              { name: 'Server Playlists', value: config.serverPlaylistsEnabled ? 'Yes' : 'No', inline: true },
-              { name: 'Leave on Empty', value: config.leaveOnEmpty ? 'Yes' : 'No', inline: true },
-              { name: 'Leave on Finish', value: config.leaveOnFinish ? 'Yes' : 'No', inline: true },
-              { name: '24/7 Mode', value: config.twentyFourSeven ? 'Yes' : 'No', inline: true }
-            );
+          const container = moduleContainer('music');
+          addText(container, '### Music Configuration');
+          addFields(container, [
+            { name: 'Default Volume', value: `${config.defaultVolume ?? 100}%`, inline: true },
+            { name: 'Max Volume', value: `${config.maxVolume ?? 150}%`, inline: true },
+            { name: 'Max Queue Size', value: config.maxQueueSize === 0 ? 'Unlimited' : String(config.maxQueueSize ?? 500), inline: true },
+            { name: 'Max Song Duration', value: config.maxDuration === 0 ? 'Unlimited' : `${config.maxDuration ?? 3600}s`, inline: true },
+            { name: 'Vote Skip Enabled', value: config.voteSkipEnabled ? 'Yes' : 'No', inline: true },
+            { name: 'Vote Skip Percent', value: `${config.voteSkipPercent ?? 50}%`, inline: true },
+            { name: 'Now Playing Announce', value: config.announceNowPlaying ? 'Yes' : 'No', inline: true },
+            { name: 'Autoplay Enabled', value: config.autoplayEnabled ? 'Yes' : 'No', inline: true },
+            { name: 'Server Playlists', value: config.serverPlaylistsEnabled ? 'Yes' : 'No', inline: true },
+            { name: 'Leave on Empty', value: config.leaveOnEmpty ? 'Yes' : 'No', inline: true },
+            { name: 'Leave on Finish', value: config.leaveOnFinish ? 'Yes' : 'No', inline: true },
+            { name: '24/7 Mode', value: config.twentyFourSeven ? 'Yes' : 'No', inline: true }
+          ]);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -258,12 +256,9 @@ const command: BotCommand = {
           config.defaultVolume = volume;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Default Volume Set')
-            .setDescription(`Default volume set to **${volume}%**.`);
+          const container = successContainer('Default Volume Set', `Default volume set to **${volume}%**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -272,12 +267,9 @@ const command: BotCommand = {
           config.maxVolume = volume;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Max Volume Set')
-            .setDescription(`Maximum volume set to **${volume}%**.`);
+          const container = successContainer('Max Volume Set', `Maximum volume set to **${volume}%**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -286,14 +278,9 @@ const command: BotCommand = {
           config.maxQueueSize = size;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Max Queue Size Set')
-            .setDescription(
-              `Maximum queue size set to **${size === 0 ? 'unlimited' : size}**.`
-            );
+          const container = successContainer('Max Queue Size Set', `Maximum queue size set to **${size === 0 ? 'unlimited' : size}**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -302,14 +289,9 @@ const command: BotCommand = {
           config.maxDuration = seconds;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Max Duration Set')
-            .setDescription(
-              `Maximum song duration set to **${seconds === 0 ? 'unlimited' : `${seconds}s`}**.`
-            );
+          const container = successContainer('Max Duration Set', `Maximum song duration set to **${seconds === 0 ? 'unlimited' : `${seconds}s`}**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -322,14 +304,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Vote Skip Updated')
-            .setDescription(
-              `Vote skip: **${config.voteSkipEnabled ? 'enabled' : 'disabled'}** (${config.voteSkipPercent}%)`
-            );
+          const container = successContainer('Vote Skip Updated', `Vote skip: **${config.voteSkipEnabled ? 'enabled' : 'disabled'}** (${config.voteSkipPercent}%)`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -342,14 +319,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Announcements Updated')
-            .setDescription(
-              `Now playing announcements: **${config.announceNowPlaying ? 'enabled' : 'disabled'}**${channel ? ` (${channel})` : ''}`
-            );
+          const container = successContainer('Announcements Updated', `Now playing announcements: **${config.announceNowPlaying ? 'enabled' : 'disabled'}**${channel ? ` (${channel})` : ''}`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -371,14 +343,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Channel Restriction Updated')
-            .setDescription(
-              `${channel} has been **${action === 'add' ? 'added to' : 'removed from'}** music command restrictions.`
-            );
+          const container = successContainer('Channel Restriction Updated', `${channel} has been **${action === 'add' ? 'added to' : 'removed from'}** music command restrictions.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -400,14 +367,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Voice Channel Restriction Updated')
-            .setDescription(
-              `${channel} has been **${action === 'add' ? 'added to' : 'removed from'}** bot access restrictions.`
-            );
+          const container = successContainer('Voice Channel Restriction Updated', `${channel} has been **${action === 'add' ? 'added to' : 'removed from'}** bot access restrictions.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -424,23 +386,22 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Leave Behavior Updated')
-            .addFields(
-              {
-                name: 'On Empty',
-                value: `${config.leaveOnEmpty ? 'Yes' : 'No'} (${config.leaveOnEmptyDelay ?? 0}s)`,
-                inline: true,
-              },
-              {
-                name: 'On Finish',
-                value: `${config.leaveOnFinish ? 'Yes' : 'No'} (${config.leaveOnFinishDelay ?? 0}s)`,
-                inline: true,
-              }
-            );
+          const container = moduleContainer('music');
+          addText(container, '### Leave Behavior Updated');
+          addFields(container, [
+            {
+              name: 'On Empty',
+              value: `${config.leaveOnEmpty ? 'Yes' : 'No'} (${config.leaveOnEmptyDelay ?? 0}s)`,
+              inline: true,
+            },
+            {
+              name: 'On Finish',
+              value: `${config.leaveOnFinish ? 'Yes' : 'No'} (${config.leaveOnFinishDelay ?? 0}s)`,
+              inline: true,
+            }
+          ]);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -453,14 +414,9 @@ const command: BotCommand = {
 
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('24/7 Mode Updated')
-            .setDescription(
-              `24/7 mode: **${config.twentyFourSeven ? 'enabled' : 'disabled'}**${channel ? ` (${channel})` : ''}`
-            );
+          const container = successContainer('24/7 Mode Updated', `24/7 mode: **${config.twentyFourSeven ? 'enabled' : 'disabled'}**${channel ? ` (${channel})` : ''}`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -469,12 +425,9 @@ const command: BotCommand = {
           config.autoplayEnabled = enabled;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Autoplay Updated')
-            .setDescription(`Autoplay is now **${enabled ? 'enabled' : 'disabled'}**.`);
+          const container = successContainer('Autoplay Updated', `Autoplay is now **${enabled ? 'enabled' : 'disabled'}**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
 
@@ -483,14 +436,9 @@ const command: BotCommand = {
           config.serverPlaylistsEnabled = enabled;
           moduleConfig.setConfig(guildId, 'music', config);
 
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Green)
-            .setTitle('Server Playlists Updated')
-            .setDescription(
-              `Server playlists are now **${enabled ? 'enabled' : 'disabled'}**.`
-            );
+          const container = successContainer('Server Playlists Updated', `Server playlists are now **${enabled ? 'enabled' : 'disabled'}**.`);
 
-          await interaction.reply({ embeds: [embed] });
+          await interaction.reply(v2Payload([container]));
           break;
         }
       }

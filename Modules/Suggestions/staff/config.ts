@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   SlashCommandBuilder,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getSuggestionConfig, setSuggestionConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const configCommand: BotCommand = {
   module: 'suggestions',
@@ -116,36 +117,33 @@ const configCommand: BotCommand = {
       const config = await getSuggestionConfig(interaction.guildId!);
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setTitle('Suggestion Settings')
-          .setColor('#FF9B05')
-          .setFields(
-            { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
-            {
-              name: 'Suggestion Channel',
-              value: config.channelId ? `<#${config.channelId}>` : 'Not set',
-              inline: true,
-            },
-            { name: 'Anonymous Mode', value: config.anonymous ? 'Yes' : 'No', inline: true },
-            {
-              name: 'Vote Emojis',
-              value: `Upvote: ${config.upvoteEmoji} | Downvote: ${config.downvoteEmoji}`,
-              inline: true,
-            },
-            { name: 'Auto-Thread', value: config.autoThread ? 'Yes' : 'No', inline: true },
-            { name: 'Require Reason', value: config.requireReason ? 'Yes' : 'No', inline: true },
-            { name: 'DM Notifications', value: config.dmOnStatusChange ? 'Yes' : 'No', inline: true },
-            { name: 'Author Editing', value: config.allowEditing ? 'Yes' : 'No', inline: true },
-            { name: 'Pending Color', value: config.embedColor, inline: true },
-            { name: 'Approved Color', value: config.approvedColor, inline: true },
-            { name: 'Denied Color', value: config.deniedColor, inline: true },
-            { name: 'Considering Color', value: config.consideringColor, inline: true },
-            { name: 'Implemented Color', value: config.implementedColor, inline: true },
-          );
+        const container = moduleContainer('suggestions');
+        addText(container, `### Suggestion Settings`);
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
+          {
+            name: 'Suggestion Channel',
+            value: config.channelId ? `<#${config.channelId}>` : 'Not set',
+            inline: true,
+          },
+          { name: 'Anonymous Mode', value: config.anonymous ? 'Yes' : 'No', inline: true },
+          {
+            name: 'Vote Emojis',
+            value: `Upvote: ${config.upvoteEmoji} | Downvote: ${config.downvoteEmoji}`,
+            inline: true,
+          },
+          { name: 'Auto-Thread', value: config.autoThread ? 'Yes' : 'No', inline: true },
+          { name: 'Require Reason', value: config.requireReason ? 'Yes' : 'No', inline: true },
+          { name: 'DM Notifications', value: config.dmOnStatusChange ? 'Yes' : 'No', inline: true },
+          { name: 'Author Editing', value: config.allowEditing ? 'Yes' : 'No', inline: true },
+          { name: 'Pending Color', value: config.embedColor, inline: true },
+          { name: 'Approved Color', value: config.approvedColor, inline: true },
+          { name: 'Denied Color', value: config.deniedColor, inline: true },
+          { name: 'Considering Color', value: config.consideringColor, inline: true },
+          { name: 'Implemented Color', value: config.implementedColor, inline: true },
+        ]);
 
-        await interaction.reply({
-          embeds: [embed],
-        });
+        await interaction.reply(v2Payload([container]));
         return;
       }
 

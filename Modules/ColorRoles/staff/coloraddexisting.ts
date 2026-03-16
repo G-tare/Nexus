@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   addExistingRoleAsColor,
@@ -13,6 +16,7 @@ import {
   canManageColors,
   hexToInt,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -89,12 +93,11 @@ const command: BotCommand = {
 
     const hex = fullRole.hexColor.replace('#', '').toUpperCase() || '000000';
 
-    const embed = new EmbedBuilder()
-      .setColor(hexToInt(hex))
-      .setDescription(`✅ Role <@&${role.id}> registered as color **${name}** (\`#${hex}\`)`)
-      .setFooter({ text: 'This role will now appear in the color palette' });
+    const container = moduleContainer('color_roles').setAccentColor(hexToInt(hex));
+    addText(container, `✅ Role <@&${role.id}> registered as color **${name}** (\`#${hex}\`)`);
+    addFooter(container, 'This role will now appear in the color palette');
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

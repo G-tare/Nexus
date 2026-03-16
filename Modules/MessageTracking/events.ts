@@ -1,4 +1,4 @@
-import { Events, Collection, EmbedBuilder, Message } from 'discord.js';
+import { Events, Collection, Message } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import {
@@ -34,39 +34,39 @@ const messageDeleteEvent: ModuleEvent = { event: Events.MessageDelete,
         if (hasMentions) {
           const mentionStr = mentions.map((m) => `${m.type === 'user' ? '@' : '@&'}${m.name}`).join(', ');
 
-          const embed = new EmbedBuilder()
-            .setColor('#FF6B6B')
-            .setTitle('👻 Ghost Ping Detected')
-            .setDescription(`A message with mentions was deleted.\n\n**Mentioned:** ${mentionStr}`)
-            .addFields(
+          await logToChannel(message.guild, {
+            title: '👻 Ghost Ping Detected',
+            description: `A message with mentions was deleted.\n\n**Mentioned:** ${mentionStr}`,
+            color: '#FF6B6B',
+            fields: [
               { name: 'Author', value: `<@${message.author?.id}>`, inline: true },
               { name: 'Channel', value: `<#${message.channel.id}>`, inline: true },
               { name: 'Message Content', value: message.content || '*(no text)*', inline: false }
-            )
-            .setTimestamp();
-
-          await logToChannel(message.guild, embed);
+            ],
+            timestamp: new Date()
+          });
         }
       }
 
       // Log deletion
       if (config.logDeletes && config.logChannelId) {
-        const embed = new EmbedBuilder()
-          .setColor('#FFA500')
-          .setTitle('🗑️ Message Deleted')
-          .setDescription(message.content || '*(no text)*')
-          .addFields(
-            { name: 'Author', value: `<@${message.author?.id}>`, inline: true },
-            { name: 'Channel', value: `<#${message.channel.id}>`, inline: true }
-          )
-          .setThumbnail(message.author?.displayAvatarURL({ size: 256 }) || null)
-          .setTimestamp();
+        const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+          { name: 'Author', value: `<@${message.author?.id}>`, inline: true },
+          { name: 'Channel', value: `<#${message.channel.id}>`, inline: true }
+        ];
 
         if (message.attachments.size > 0) {
-          embed.addFields({ name: 'Attachments', value: message.attachments.map((a) => a.name).join(', ') });
+          fields.push({ name: 'Attachments', value: message.attachments.map((a) => a.name).join(', ') });
         }
 
-        await logToChannel(message.guild, embed);
+        await logToChannel(message.guild, {
+          title: '🗑️ Message Deleted',
+          description: message.content || '*(no text)*',
+          color: '#FFA500',
+          fields,
+          thumbnail: message.author?.displayAvatarURL({ size: 256 }) || null,
+          timestamp: new Date()
+        });
       }
     } catch (error) {
       logger.error(`Error in MessageDelete handler:`, error);
@@ -92,19 +92,19 @@ const messageUpdateEvent: ModuleEvent = { event: Events.MessageUpdate,
 
       // Log edit
       if (config.logEdits && config.logChannelId) {
-        const embed = new EmbedBuilder()
-          .setColor('#4DA6FF')
-          .setTitle('✏️ Message Edited')
-          .addFields(
+        await logToChannel(newMessage.guild, {
+          title: '✏️ Message Edited',
+          description: '',
+          color: '#4DA6FF',
+          fields: [
             { name: 'Author', value: `<@${newMessage.author?.id}>`, inline: true },
             { name: 'Channel', value: `<#${newMessage.channel.id}>`, inline: true },
             { name: 'Before', value: (oldMessage.content || '*(no text)*').slice(0, 1024), inline: false },
             { name: 'After', value: (newMessage.content || '*(no text)*').slice(0, 1024), inline: false }
-          )
-          .setThumbnail(newMessage.author?.displayAvatarURL({ size: 256 }) || null)
-          .setTimestamp();
-
-        await logToChannel(newMessage.guild, embed);
+          ],
+          thumbnail: newMessage.author?.displayAvatarURL({ size: 256 }) || null,
+          timestamp: new Date()
+        });
       }
     } catch (error) {
       logger.error(`Error in MessageUpdate handler:`, error);
@@ -128,17 +128,17 @@ const messageBulkDeleteEvent: ModuleEvent = { event: Events.MessageBulkDelete,
           ?.map((m) => `**${m.author?.username}:** ${m.content || '*(no text)*'}`)
           .join('\n');
 
-        const embed = new EmbedBuilder()
-          .setColor('#FF4444')
-          .setTitle('🗑️ Bulk Delete')
-          .addFields(
+        await logToChannel(sample.guild, {
+          title: '🗑️ Bulk Delete',
+          description: '',
+          color: '#FF4444',
+          fields: [
             { name: 'Count', value: `${messages.size} messages`, inline: true },
             { name: 'Channel', value: `<#${sample.channel.id}>`, inline: true },
             { name: 'Sample Messages', value: sampleMessages || '*(no messages)*', inline: false }
-          )
-          .setTimestamp();
-
-        await logToChannel(sample.guild, embed);
+          ],
+          timestamp: new Date()
+        });
       }
     } catch (error) {
       logger.error(`Error in MessageBulkDelete handler:`, error);

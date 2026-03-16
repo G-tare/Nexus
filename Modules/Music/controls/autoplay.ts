@@ -1,10 +1,18 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import {
+  errorContainer,
+  successContainer,
+  warningContainer,
+  moduleContainer,
+  addText,
+  addFields,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 import {
   getQueue,
   getMusicConfig,
@@ -37,40 +45,25 @@ const command: BotCommand = {
 
     // Check if user is in voice
     if (!isInVoiceChannel(member)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Not in Voice Channel')
-            .setDescription('You must be in a voice channel to use this command.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
       return;
     }
 
     // Check if queue exists
     if (!queue) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('No Active Queue')
-            .setDescription('There is no active music queue in this server.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('No Queue', 'There is no active music queue in this server.')])
+      );
       return;
     }
 
     // Check if user is in same voice channel
     if (!isInSameVoice(member, queue)) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('Wrong Voice Channel')
-            .setDescription('You must be in the same voice channel as the bot.'),
-        ],
-      });
+      await interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot.')])
+      );
       return;
     }
 
@@ -94,22 +87,20 @@ const command: BotCommand = {
 
     const statusEmoji = newAutoplay ? '✅' : '❌';
     const statusText = newAutoplay ? 'enabled' : 'disabled';
+    const description = `Autoplay has been **${statusText}**.\n\nWhen the queue ends, ${newAutoplay ? 'related tracks will automatically be queued.' : 'the bot will stop playing.'}`;
+
+    const container = newAutoplay ? successContainer('Autoplay', description) : warningContainer('Autoplay', description);
+    addFields(container, [
+      {
+        name: 'Status',
+        value: `${statusEmoji} ${newAutoplay ? 'Enabled' : 'Disabled'}`,
+        inline: true,
+      },
+    ]);
 
     await interaction.editReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(newAutoplay ? Colors.Success : Colors.Warning)
-          .setTitle('🎵 Autoplay')
-          .setDescription(
-            `Autoplay has been **${statusText}**.\n\n` +
-            `When the queue ends, ${newAutoplay ? 'related tracks will automatically be queued.' : 'the bot will stop playing.'}`
-          )
-          .addFields({
-            name: 'Status',
-            value: `${statusEmoji} ${newAutoplay ? 'Enabled' : 'Disabled'}`,
-            inline: true,
-          }),
-      ],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
   },
 };

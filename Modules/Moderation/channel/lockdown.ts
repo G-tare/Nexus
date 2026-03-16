@@ -3,11 +3,13 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder,
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { successContainer, errorContainer, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -36,9 +38,9 @@ const command: BotCommand = {
       );
 
       if (textChannels.size === 0) {
-        await interaction.editReply({
-          embeds: [errorEmbed('No Channels', 'No text channels found to lock.')],
-        });
+        await interaction.editReply(v2Payload([
+          errorContainer('No Channels', 'No text channels found to lock.')
+        ]));
         return;
       }
 
@@ -58,47 +60,43 @@ const command: BotCommand = {
           successCount++;
 
           // Send lock notice in channel
-          const notice = new EmbedBuilder()
-            .setColor(Colors.Warning)
-            .setTitle('🔒 Server Lockdown')
-            .setDescription(reason)
-            .addFields(
-              { name: 'Initiated By', value: `${interaction.user.tag}`, inline: true },
-              { name: 'Time', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }
-            )
-            .setFooter({ text: 'All channels have been locked.' });
+          const noticeContainer = new ContainerBuilder();
+          noticeContainer.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### 🔒 Server Lockdown\n${reason}`)
+          );
+          noticeContainer.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`**Initiated By:** ${interaction.user.tag}\n**Time:** <t:${Math.floor(Date.now() / 1000)}:f>\n\n-# All channels have been locked.`)
+          );
 
-          await (channel as any).send({ embeds: [notice] }).catch(() => {});
+          await (channel as any).send({ components: [noticeContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
         } catch {
           failureCount++;
         }
       }
 
-      // Store locked channel IDs in Redis for unlockdown command
-      const redis = getRedis();
+      // Store locked channel IDs in cache for unlockdown command
       const lockdownKey = `lockdown:${guild.id}`;
-      await redis.setex(lockdownKey, 7 * 24 * 60 * 60, JSON.stringify({
+      cache.set(lockdownKey, {
         channelIds: lockedChannelIds,
         initiatedBy: interaction.user.id,
         initiatedAt: Date.now(),
         reason,
-      }));
+      }, 7 * 24 * 60 * 60);
 
       // Reply to user
-      const embed = successEmbed('Lockdown Initiated', `Server-wide lockdown has been activated.`)
-        .addFields(
-          { name: 'Channels Locked', value: `${successCount}`, inline: true },
-          { name: 'Failed', value: `${failureCount}`, inline: true },
-          { name: 'Reason', value: reason }
-        )
-        .setColor(Colors.Warning);
+      const container = successContainer('Lockdown Initiated', 'Server-wide lockdown has been activated.');
+      addFields(container, [
+        { name: 'Channels Locked', value: `${successCount}`, inline: true },
+        { name: 'Failed', value: `${failureCount}`, inline: true },
+        { name: 'Reason', value: reason }
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Lockdown error:', error);
-      await interaction.editReply({
-        embeds: [errorEmbed('Failed', 'Could not initiate server lockdown. Please check my permissions.')],
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('Failed', 'Could not initiate server lockdown. Please check my permissions.')
+      ]));
     }
   },
 };

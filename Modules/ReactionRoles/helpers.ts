@@ -1,5 +1,5 @@
 import { Guild, TextChannel } from 'discord.js';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 
 export type RRType = 'reaction' | 'button' | 'dropdown';
 export type RRMode = 'normal' | 'unique' | 'verify' | 'drop';
@@ -46,15 +46,15 @@ const DEFAULT_CONFIG: ReactionRolesConfig = {
 
 export async function getReactionRolesConfig(guildId: string): Promise<ReactionRolesConfig> {
   try {
-    const stored = await (await getRedis()).get(`rr:config:${guildId}`);
-    return stored ? JSON.parse(stored) : { ...DEFAULT_CONFIG };
+    const stored = cache.get<ReactionRolesConfig>(`rr:config:${guildId}`);
+    return stored || { ...DEFAULT_CONFIG };
   } catch {
     return { ...DEFAULT_CONFIG };
   }
 }
 
 export async function saveReactionRolesConfig(guildId: string, config: ReactionRolesConfig): Promise<void> {
-  await (await getRedis()).set(`rr:config:${guildId}`, JSON.stringify(config));
+  cache.set(`rr:config:${guildId}`, config);
 }
 
 export function getPanelById(config: ReactionRolesConfig, panelId: string): RRPanel | null {
@@ -63,10 +63,9 @@ export function getPanelById(config: ReactionRolesConfig, panelId: string): RRPa
 
 export async function getPanelByMessage(messageId: string): Promise<RRPanel | null> {
   try {
-    const cached = await (await getRedis()).get(`rr:message:${messageId}`);
+    const cached = cache.get<RRPanel>(`rr:message:${messageId}`);
     if (cached) {
-      const data = JSON.parse(cached);
-      return data;
+      return cached;
     }
   } catch {
     // Continue with search
@@ -75,7 +74,7 @@ export async function getPanelByMessage(messageId: string): Promise<RRPanel | nu
 }
 
 export async function cachePanelByMessage(messageId: string, panel: RRPanel): Promise<void> {
-  await (await getRedis()).set(`rr:message:${messageId}`, JSON.stringify(panel), 'EX', 86400 * 7);
+  cache.set(`rr:message:${messageId}`, panel, 86400 * 7);
 }
 
 export async function createPanel(
@@ -83,9 +82,10 @@ export async function createPanel(
   channel: TextChannel,
   panelData: Omit<RRPanel, 'id' | 'guildId' | 'channelId' | 'messageId'>,
 ): Promise<RRPanel> {
+  const { v2Payload, MessageFlags } = require('discord.js');
   const panelId = `panel_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-  const embed = buildPanelEmbed({
+  const container = buildPanelEmbed({
     ...panelData,
     id: panelId,
     guildId: guild.id,
@@ -101,10 +101,22 @@ export async function createPanel(
     messageId: '',
   });
 
-  const message = await (channel as any).send({
-    embeds: [embed],
-    components: panelData.type === 'reaction' ? [] : components,
-  });
+  // For V2 compatibility - add components to container if not reaction type
+  if (panelData.type !== 'reaction') {
+    const { addButtons, addSelectMenu } = require('../../Shared/src/utils/componentsV2');
+    if (panelData.type === 'button') {
+      for (const row of components) {
+        const buttons = row.components;
+        addButtons(container, buttons);
+      }
+    } else if (panelData.type === 'dropdown') {
+      const menu = components[0].components[0];
+      addSelectMenu(container, menu);
+    }
+  }
+
+  const payload = v2Payload([container]);
+  const message = await (channel as any).send(payload);
 
   const panel: RRPanel = {
     ...panelData,
@@ -127,16 +139,29 @@ export async function updatePanelMessage(
   panel: RRPanel,
 ): Promise<void> {
   try {
+    const { v2Payload, MessageFlags } = require('discord.js');
+    const { addButtons, addSelectMenu } = require('../../Shared/src/utils/componentsV2');
     const channel = await guild.channels.fetch(panel.channelId) as TextChannel;
     const message = await channel.messages.fetch(panel.messageId);
 
-    const embed = buildPanelEmbed(panel);
+    const container = buildPanelEmbed(panel);
     const components = buildPanelComponents(panel);
 
-    await message.edit({
-      embeds: [embed],
-      components: panel.type === 'reaction' ? message.components : components,
-    });
+    // For V2 compatibility - add components to container if not reaction type
+    if (panel.type !== 'reaction') {
+      if (panel.type === 'button') {
+        for (const row of components) {
+          const buttons = row.components;
+          addButtons(container, buttons);
+        }
+      } else if (panel.type === 'dropdown') {
+        const menu = components[0].components[0];
+        addSelectMenu(container, menu);
+      }
+    }
+
+    const payload = v2Payload([container]);
+    await message.edit(payload);
 
     await cachePanelByMessage(message.id, panel);
   } catch (error) {
@@ -153,21 +178,22 @@ export async function deletePanel(guild: Guild, panel: RRPanel): Promise<void> {
     // Message already deleted
   }
 
-  await (await getRedis()).del(`rr:message:${panel.messageId}`);
+  cache.del(`rr:message:${panel.messageId}`);
 }
 
 export function buildPanelEmbed(panel: RRPanel) {
-  const { EmbedBuilder } = require('discord.js');
+  const { moduleContainer, addText, addFields, addFooter } = require('../../Shared/src/utils/componentsV2');
 
-  const embed = new EmbedBuilder()
-    .setTitle(panel.title)
-    .setColor(panel.color || '#2F3136')
-    .setFooter({ text: `Panel ID: ${panel.id}` });
+  const container = moduleContainer('reaction_roles');
+
+  // Title
+  addText(container, `### ${panel.title}`);
 
   if (panel.description) {
-    embed.setDescription(panel.description);
+    addText(container, panel.description);
   }
 
+  // Available roles
   const roleList = panel.roles
     .map(role => {
       let text = `<@&${role.roleId}>`;
@@ -178,29 +204,23 @@ export function buildPanelEmbed(panel: RRPanel) {
     .join('\n');
 
   if (roleList) {
-    embed.addFields({
-      name: 'Available Roles',
-      value: roleList || 'No roles yet',
-    });
+    addText(container, `**Available Roles**\n${roleList}`);
   }
 
+  // Mode info
   if (panel.mode !== 'normal') {
-    embed.addFields({
-      name: 'Mode',
-      value: `**${panel.mode.toUpperCase()}** - ${getModeDescription(panel.mode)}`,
-      inline: false,
-    });
+    addText(container, `**Mode:** ${panel.mode.toUpperCase()} - ${getModeDescription(panel.mode)}`);
   }
 
+  // Max roles
   if (panel.maxRoles > 0) {
-    embed.addFields({
-      name: 'Max Roles',
-      value: `You can have up to **${panel.maxRoles}** role(s)`,
-      inline: false,
-    });
+    addText(container, `**Max Roles:** You can have up to **${panel.maxRoles}** role(s)`);
   }
 
-  return embed;
+  // Footer
+  addFooter(container, `Panel ID: ${panel.id}`);
+
+  return container;
 }
 
 export function buildPanelComponents(panel: RRPanel) {
@@ -357,21 +377,22 @@ export async function logRoleAction(
 
   try {
     const channel = await guild.channels.fetch(config.logChannelId) as TextChannel;
-    const { EmbedBuilder } = require('discord.js');
+    const { moduleContainer, addText, addFields, addFooter, v2Payload } = require('../../Shared/src/utils/componentsV2');
 
-    const embed = new EmbedBuilder()
-      .setTitle('Reaction Role Action')
-      .setColor('#2F3136')
-      .addFields(
-        { name: 'User', value: `<@${userId}>`, inline: true },
-        { name: 'Role', value: `<@&${roleId}>`, inline: true },
-        { name: 'Action', value: action, inline: true },
-        { name: 'Panel', value: panelId, inline: true },
-        { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: false },
-      )
-      .setFooter({ text: 'Reaction Roles Log' });
+    const container = moduleContainer('reaction_roles');
 
-    await (channel as any).send({ embeds: [embed] });
+    addText(container, `### Reaction Role Action`);
+    addFields(container, [
+      { name: 'User', value: `<@${userId}>`, inline: true },
+      { name: 'Role', value: `<@&${roleId}>`, inline: true },
+      { name: 'Action', value: action, inline: true },
+      { name: 'Panel', value: panelId, inline: true },
+      { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: false },
+    ]);
+    addFooter(container, 'Reaction Roles Log');
+
+    const payload = v2Payload([container]);
+    await (channel as any).send(payload);
   } catch (error) {
     console.error('Failed to log role action:', error);
   }

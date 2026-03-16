@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, moduleContainer, addText, addSeparator, addSectionWithThumbnail, addFooter } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { transactions } from '../../../Shared/src/database/models/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -54,15 +54,16 @@ export default {
 
       if (userTransactions.length === 0) {
         return interaction.editReply({
-          embeds: [errorEmbed('No transaction history found for this user.')],
+          components: [errorContainer('No History', 'No transaction history found for this user.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Economy)
-        .setTitle(`Transaction History for ${user.username}`)
-        .setThumbnail(user.avatarURL())
-        .setDescription(`Showing ${userTransactions.length} transaction${userTransactions.length !== 1 ? 's' : ''}`);
+      const container = moduleContainer('currency');
+      addSectionWithThumbnail(container, `### Transaction History for ${user.username}`, user.displayAvatarURL({ size: 256 }));
+      addSeparator(container, 'small');
+      addText(container, `Showing ${userTransactions.length} transaction${userTransactions.length !== 1 ? 's' : ''}`);
+      addSeparator(container, 'small');
 
       for (const tx of userTransactions) {
         const currencyInfo = config.currencies[tx.currencyType as 'coins' | 'gems' | 'event_tokens'];
@@ -73,20 +74,20 @@ export default {
         const sourceLabel = `${tx.type} (${tx.source})`;
         const timestamp = tx.createdAt ? discordTimestamp(tx.createdAt) : 'Unknown';
 
-        embed.addFields({
-          name: `${currencyInfo.emoji} ${sourceLabel}`,
-          value: `${txDescription}\n${timestamp}`,
-          inline: false,
-        });
+        addText(container, `**${currencyInfo.emoji} ${sourceLabel}**\n${txDescription}\n${timestamp}`);
       }
 
-      embed.setTimestamp();
+      addFooter(container, `Requested by ${interaction.user.username}`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Error in audit command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while retrieving transaction history.')],
+        components: [errorContainer('Error', 'An error occurred while retrieving transaction history.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

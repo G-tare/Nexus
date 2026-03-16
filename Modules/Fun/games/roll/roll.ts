@@ -1,9 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import { checkCooldown, setCooldown } from '../../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 interface DiceResult {
@@ -74,35 +75,14 @@ export default {
         ? result.rolls.join(', ')
         : `${result.rolls.slice(0, 10).join(', ')}... (${result.rolls.length} total)`;
 
-    const embed = new EmbedBuilder()
-      .setTitle('🎲 Dice Roll')
-      .addFields({
-        name: 'Notation',
-        value: `${result.count}d${result.sides}`,
-        inline: true,
-      })
-      .addFields({
-        name: 'Total',
-        value: result.total.toString(),
-        inline: true,
-      })
-      .addFields({
-        name: 'Rolls',
-        value: rollsDisplay,
-        inline: false,
-      });
+    const container = moduleContainer('fun');
+    addFields(container, [
+      { name: 'Notation', value: `${result.count}d${result.sides}`, inline: true },
+      { name: 'Total', value: result.total.toString(), inline: true },
+      { name: 'Rolls', value: rollsDisplay, inline: false }
+    ]);
 
-    if (result.count === 1) {
-      embed.setColor(0x3498db);
-    } else if (result.total >= result.count * result.sides * 0.8) {
-      embed.setColor(0x00ff00);
-    } else if (result.total <= result.count * result.sides * 0.2) {
-      embed.setColor(0xff0000);
-    } else {
-      embed.setColor(0xffff00);
-    }
-
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
     await setCooldown(interaction.guildId!, interaction.user.id, 'roll', 2);
   },
   category: 'fun',

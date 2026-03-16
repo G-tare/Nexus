@@ -1,12 +1,14 @@
-import { Guild, GuildMember, EmbedBuilder, Colors } from 'discord.js';
+import { Guild, GuildMember, ContainerBuilder } from 'discord.js';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { getDb } from '../../Shared/src/database/connection';
 import { shopItems, userInventory, guildMembers } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { getBalance, addCurrency, CurrencyType } from '../Currency/helpers';
 import { addLives } from '../Counting/helpers';
 import { eventBus } from '../../Shared/src/events/eventBus';
+import { moduleContainer, addText, addFields } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Shop');
 
@@ -542,16 +544,15 @@ export const shopHelpers = {
         }
 
         case 'xp_boost': {
-          const redis = getRedis();
           const durationMs = parseDuration(item.itemData.duration as string);
           const key = `xp_boost:${guildId}:${userId}`;
-          await redis.setex(
+          await cache.set(
             key,
-            Math.ceil(durationMs / 1000),
-            JSON.stringify({
+            {
               multiplier: item.itemData.multiplier,
               expiresAt: new Date(Date.now() + durationMs),
-            })
+            },
+            Math.ceil(durationMs / 1000)
           );
           break;
         }
@@ -591,10 +592,9 @@ export const shopHelpers = {
     giveawayId: string
   ): Promise<boolean> {
     try {
-      const redis = getRedis();
       const key = `shop:gentry:${guildId}:${giveawayId}:${userId}`;
-      const exists = await redis.exists(key);
-      return exists === 1;
+      const exists = await cache.has(key);
+      return exists;
     } catch (error) {
       logger.error('checkGiveawayEntryLimit error:', error);
       return false;
@@ -607,9 +607,8 @@ export const shopHelpers = {
     giveawayId: string
   ): Promise<boolean> {
     try {
-      const redis = getRedis();
       const key = `shop:gentry:${guildId}:${giveawayId}:${userId}`;
-      await redis.setex(key, 86400 * 30, '1');
+      await cache.set(key, '1', 86400 * 30);
       return true;
     } catch (error) {
       logger.error('addGiveawayEntry error:', error);
@@ -621,7 +620,7 @@ export const shopHelpers = {
     items: ShopItem[],
     page: number = 1,
     _config: ShopConfig
-  ): EmbedBuilder {
+  ): ContainerBuilder {
     const itemsPerPage = 10;
     const totalPages = Math.ceil(items.length / itemsPerPage);
     const safePage = Math.max(1, Math.min(page, totalPages || 1));
@@ -630,14 +629,14 @@ export const shopHelpers = {
     const end = start + itemsPerPage;
     const pageItems = items.slice(start, end);
 
-    const embed = new EmbedBuilder()
-      .setTitle('Shop')
-      .setColor(Colors.Gold)
-      .setFooter({ text: `Page ${safePage} / ${totalPages || 1}` });
+    const container = moduleContainer('shop').setAccentColor(0xF1C40F);
+
+    addText(container, '### Shop');
 
     if (pageItems.length === 0) {
-      embed.setDescription('No items available in the shop.');
-      return embed;
+      addText(container, 'No items available in the shop.');
+      addText(container, `-# Page ${safePage} / ${totalPages || 1}`);
+      return container;
     }
 
     const descriptions = pageItems.map((item) => {
@@ -645,30 +644,30 @@ export const shopHelpers = {
       return `**${item.name}** - \`${item.price}\` ${item.currencyType}\nStock: ${stock} | ${item.description || 'No description'}`;
     });
 
-    embed.setDescription(descriptions.join('\n\n'));
+    addText(container, descriptions.join('\n\n'));
+    addText(container, `-# Page ${safePage} / ${totalPages || 1}`);
 
-    return embed;
+    return container;
   },
 
-  buildItemEmbed(item: ShopItem): EmbedBuilder {
-    const embed = new EmbedBuilder()
-      .setTitle(item.name)
-      .setColor(Colors.Blurple)
-      .addFields(
-        { name: 'Description', value: item.description || 'No description', inline: false },
-        { name: 'Price', value: `${item.price} ${item.currencyType}`, inline: true },
-        { name: 'Type', value: item.itemType, inline: true },
-        { name: 'Stock', value: item.stock === null ? 'Unlimited' : `${item.stock}`, inline: true }
-      );
+  buildItemEmbed(item: ShopItem): ContainerBuilder {
+    const container = moduleContainer('shop').setAccentColor(0x5865F2);
+    addText(container, `### ${item.name}`);
+    addFields(container, [
+      { name: 'Description', value: item.description || 'No description', inline: false },
+      { name: 'Price', value: `${item.price} ${item.currencyType}`, inline: true },
+      { name: 'Type', value: item.itemType, inline: true },
+      { name: 'Stock', value: item.stock === null ? 'Unlimited' : `${item.stock}`, inline: true }
+    ]);
 
     if (item.requiredLevel) {
-      embed.addFields({ name: 'Min Level', value: `${item.requiredLevel}`, inline: true });
+      addFields(container, [{ name: 'Min Level', value: `${item.requiredLevel}`, inline: true }]);
     }
 
-    return embed;
+    return container;
   },
 
-  buildInventoryEmbed(inventory: UserInventoryItem[], page: number = 1): EmbedBuilder {
+  buildInventoryEmbed(inventory: UserInventoryItem[], page: number = 1): ContainerBuilder {
     const itemsPerPage = 15;
     const totalPages = Math.ceil(inventory.length / itemsPerPage);
     const safePage = Math.max(1, Math.min(page, totalPages || 1));
@@ -677,14 +676,13 @@ export const shopHelpers = {
     const end = start + itemsPerPage;
     const pageItems = inventory.slice(start, end);
 
-    const embed = new EmbedBuilder()
-      .setTitle('Your Inventory')
-      .setColor(Colors.Green)
-      .setFooter({ text: `Page ${safePage} / ${totalPages || 1}` });
+    const container = moduleContainer('shop').setAccentColor(0x57F287);
+    addText(container, '### Your Inventory');
 
     if (pageItems.length === 0) {
-      embed.setDescription('Your inventory is empty.');
-      return embed;
+      addText(container, 'Your inventory is empty.');
+      addText(container, `-# Page ${safePage} / ${totalPages || 1}`);
+      return container;
     }
 
     const descriptions = pageItems.map((item) => {
@@ -700,9 +698,10 @@ export const shopHelpers = {
       return line;
     });
 
-    embed.setDescription(descriptions.join('\n'));
+    addText(container, descriptions.join('\n'));
+    addText(container, `-# Page ${safePage} / ${totalPages || 1}`);
 
-    return embed;
+    return container;
   },
 
   async logShopAction(
@@ -719,21 +718,20 @@ export const shopHelpers = {
       const channel = guild.channels.cache.get(config.logChannelId);
       if (!channel || !channel.isTextBased()) return;
 
-      const embed = new EmbedBuilder()
-        .setTitle('Shop Action')
-        .setColor(Colors.Blue)
-        .addFields(
-          { name: 'Action', value: action, inline: true },
-          { name: 'User', value: `<@${userId}>`, inline: true },
-          { name: 'Item', value: itemName, inline: true }
-        )
-        .setTimestamp();
-
+      const container = moduleContainer('shop').setAccentColor(0x5865F2);
+      addText(container, '### Shop Action');
+      const fields = [
+        { name: 'Action', value: action, inline: true },
+        { name: 'User', value: `<@${userId}>`, inline: true },
+        { name: 'Item', value: itemName, inline: true }
+      ];
       if (price !== undefined) {
-        embed.addFields({ name: 'Price', value: `${price}`, inline: true });
+        fields.push({ name: 'Price', value: `${price}`, inline: true });
       }
+      addFields(container, fields);
 
-      await (channel as any).send({ embeds: [embed] });
+      const { v2Payload } = require('../../Shared/src/utils/componentsV2');
+      await (channel as any).send(v2Payload([container]));
     } catch (error) {
       logger.error('logShopAction error:', error);
     }

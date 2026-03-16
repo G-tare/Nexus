@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -33,7 +33,7 @@ export default {
     await interaction.deferReply({});
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply({ components: [errorContainer('Guild context required')], flags: MessageFlags.IsComponentsV2 });
 
     const db = getDb();
     const targetUser = interaction.options.getUser('user', true);
@@ -66,10 +66,10 @@ export default {
         createdAt: new Date(),
       });
 
-      return interaction.editReply({ embeds: [successEmbed(`Note added for ${targetUser.username}`)] });
+      return interaction.editReply({ components: [successContainer(`Note added for ${targetUser.username}`)], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in note command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while adding the note')] });
+      return interaction.editReply({ components: [errorContainer('An error occurred while adding the note')], flags: MessageFlags.IsComponentsV2 });
     }
   },
 } as BotCommand;

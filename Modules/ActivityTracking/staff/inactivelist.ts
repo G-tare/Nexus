@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActivityConfig, getInactiveMembers } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('ActivityTracking');
 
@@ -53,34 +54,32 @@ const command: BotCommand = {
       // Sort by join date (oldest first)
       const sortedMembers = inactiveMembers.sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0));
 
-      const embedList: EmbedBuilder[] = [];
+      const embedList: any[] = [];
       const membersPerEmbed = 25;
       const memberArray = sortedMembers.toJSON();
 
       for (let i = 0; i < memberArray.length; i += membersPerEmbed) {
         const batch = memberArray.slice(i, i + membersPerEmbed);
 
-        const embed = new EmbedBuilder()
-          .setColor('#FF6B6B')
-          .setTitle(`Inactive Members (${config.inactiveThresholdDays} days) - Page ${Math.floor(i / membersPerEmbed) + 1}`)
-          .setDescription(
-            batch
-              .map(
-                (member, index) =>
-                  `**${i + index + 1}.** ${member.user.username}\nJoined: <t:${Math.floor((member.joinedTimestamp || 0) / 1000)}:R>`
-              )
-              .join('\n\n')
-          )
-          .setFooter({ text: `Total inactive members: ${inactiveMembers.size}` })
-          .setTimestamp();
+        const container = moduleContainer('activity_tracking');
+        addText(container, `### Inactive Members (${config.inactiveThresholdDays} days) - Page ${Math.floor(i / membersPerEmbed) + 1}`);
+        addText(container,
+          batch
+            .map(
+              (member, index) =>
+                `**${i + index + 1}.** ${member.user.username}\nJoined: <t:${Math.floor((member.joinedTimestamp || 0) / 1000)}:R>`
+            )
+            .join('\n\n')
+        );
+        addFooter(container, `Total inactive members: ${inactiveMembers.size}`);
 
-        embedList.push(embed);
+        embedList.push(container as any);
       }
 
-      await interaction.editReply({ embeds: [embedList[0]] });
+      await interaction.editReply(v2Payload([embedList[0]]));
 
       for (let i = 1; i < Math.min(embedList.length, 5); i++) {
-        await interaction.followUp({ embeds: [embedList[i]] });
+        await interaction.followUp(v2Payload([embedList[i]]));
       }
     } catch (error) {
       logger.error('Error executing inactivelist command', error);

@@ -2,12 +2,12 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ChannelType,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getAutoRolesConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -44,7 +44,7 @@ const command: BotCommand = {
           opt.setName('enabled')
             .setDescription('Stack all matching roles')
             .setRequired(true)))
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) as SlashCommandBuilder,
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild) as SlashCommandBuilder,
 
   module: 'autoroles',
   permissionPath: 'autoroles.autoroleconfig',
@@ -58,17 +58,16 @@ const command: BotCommand = {
     if (sub === 'view') {
       const config = await getAutoRolesConfig(guild.id);
 
-      const embed = new EmbedBuilder()
-        .setColor(0x3498DB)
-        .setTitle('🏷️ Auto-Role Settings')
-        .addFields(
-          { name: 'Persistent Roles', value: config.persistentRoles ? '✅ Enabled' : '❌ Disabled', inline: true },
-          { name: 'Ignore Bots', value: config.ignoreBots ? '✅ Yes' : '❌ No', inline: true },
-          { name: 'Stack Roles', value: config.stackRoles ? '✅ All matching' : '❌ First match only', inline: true },
-          { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set', inline: true },
-        );
+      const container = moduleContainer('auto_roles');
+      addText(container, '### 🏷️ Auto-Role Settings');
+      addFields(container, [
+        { name: 'Persistent Roles', value: config.persistentRoles ? '✅ Enabled' : '❌ Disabled', inline: true },
+        { name: 'Ignore Bots', value: config.ignoreBots ? '✅ Yes' : '❌ No', inline: true },
+        { name: 'Stack Roles', value: config.stackRoles ? '✅ All matching' : '❌ First match only', inline: true },
+        { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set', inline: true },
+      ]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 

@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, GuildMember, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed, successEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getQueue } from '../helpers';
 
 const LOOP_EMOJIS: Record<string, string> = {
@@ -30,55 +30,40 @@ const command: BotCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guild) {
-      return interaction.reply({
-        content: 'This command can only be used in a server.',
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([errorContainer('Server Only', 'This command can only be used in a server.')]));
     }
 
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
     if (!member || !member.voice.channel) {
-      return interaction.reply({
-        embeds: [errorEmbed('You must be in a voice channel')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel.')]));
     }
 
     const botVoiceChannel = interaction.guild.members.me?.voice.channel;
     if (!botVoiceChannel) {
-      return interaction.reply({
-        embeds: [errorEmbed('The bot must be in a voice channel')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([errorContainer('Bot Not in Voice', 'The bot must be in a voice channel.')]));
     }
 
     if (member.voice.channel.id !== botVoiceChannel.id) {
-      return interaction.reply({
-        embeds: [errorEmbed('You must be in the same voice channel as the bot')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot.')]));
     }
 
     const mode = interaction.options.getString('mode', true) as 'off' | 'track' | 'queue';
 
     const queue = getQueue(interaction.guildId!);
     if (!queue) {
-      return interaction.reply({
-        embeds: [errorEmbed('No active queue in this server')],
-        flags: MessageFlags.Ephemeral,
-      });
+      return interaction.reply(v2Payload([errorContainer('No Queue', 'No active queue in this server.')]));
     }
 
     queue.loop = mode;
 
-    await interaction.reply({
-      embeds: [
-        successEmbed(
+    await interaction.reply(
+      v2Payload([
+        successContainer(
           'Loop Mode Updated',
           `Loop mode is now set to **${mode}** ${LOOP_EMOJIS[mode]}`
         ),
-      ],
-    });
+      ])
+    );
   },
 };
 

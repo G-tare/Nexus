@@ -5,11 +5,12 @@ import {
   getAFKConfig,
   removeAFK,
   trackPing,
-  buildAFKEmbed,
-  buildPingSummaryEmbed,
+  buildAFKContainer,
+  buildPingSummaryContainer,
   getPings,
   clearPings,
 } from './helpers';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
 
 export const afkEvents: ModuleEvent[] = [
   { event: Events.MessageCreate,
@@ -31,11 +32,11 @@ export const afkEvents: ModuleEvent[] = [
           const afkData = await getAFK(message.guildId!, mentionedUser.id);
           if (afkData) {
             // User is AFK - respond in channel
-            const embed = buildAFKEmbed(afkData);
+            const container = buildAFKContainer(afkData);
 
             try {
               await message.reply({
-                embeds: [embed],
+                ...v2Payload([container]),
                 allowedMentions: { repliedUser: false },
               });
             } catch (err) {
@@ -109,8 +110,8 @@ export const afkEvents: ModuleEvent[] = [
               const pings = await getPings(message.guildId!, message.author.id);
               if (pings.length > 0) {
                 try {
-                  const pingsEmbed = buildPingSummaryEmbed(pings);
-                  await message.author.send({ embeds: [pingsEmbed] });
+                  const pingsContainer = buildPingSummaryContainer(pings);
+                  await message.author.send(v2Payload([pingsContainer]));
                   await clearPings(message.guildId!, message.author.id);
                 } catch (err) {
                   console.error('Error sending ping summary DM:', err);

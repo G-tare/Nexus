@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getQueue } from '../helpers';
+import { errorContainer, successContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -18,44 +19,32 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
     // Check if user is in the same voice channel as the bot
     if (queue.voiceChannelId !== member.voice.channel.id) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to use this command.')])
+      );
     }
 
     // Check if already playing
     if (!queue.paused) {
-      const embed = new EmbedBuilder()
-        .setDescription('Music is already playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Already Playing', 'Music is already playing.')])
+      );
     }
 
     // Resume playback
@@ -63,12 +52,12 @@ const command: BotCommand = {
 
     // Lavalink: player.pause(false);
 
-    const embed = new EmbedBuilder()
-      .setTitle('Playback Resumed')
-      .setDescription('Music is now playing.')
-      .setColor(0x51cf66);
+    const container = successContainer('Playback Resumed', 'Music is now playing.');
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

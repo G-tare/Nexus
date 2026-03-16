@@ -1,7 +1,6 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -9,6 +8,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers, ShopItemType } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { v2Payload, errorContainer } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -82,7 +82,7 @@ const command: BotCommand = {
       );
 
       await interaction.editReply({
-        embeds: [embed],
+        ...v2Payload([embed]),
         components: [buttons],
       });
     } catch (error) {

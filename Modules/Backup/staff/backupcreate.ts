@@ -2,10 +2,10 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createBackup, formatSize } from '../helpers';
+import { moduleContainer, addFields, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -36,24 +36,22 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle('💾 Backup Created')
-      .setDescription(`**${name}**`)
-      .addFields(
-        { name: 'Backup ID', value: `\`${backup.id}\``, inline: true },
-        { name: 'Size', value: formatSize(backup.size), inline: true },
-        { name: 'Roles', value: `${backup.components.roles.length}`, inline: true },
-        { name: 'Categories', value: `${backup.components.categories.length}`, inline: true },
-        { name: 'Channels', value: `${backup.components.channels.length}`, inline: true },
-        { name: 'Emojis', value: `${backup.components.emojis.length}`, inline: true },
-        { name: 'Bots Tracked', value: `${backup.components.bots?.length ?? 0}`, inline: true },
-        { name: 'Stickers', value: `${backup.components.stickers?.length ?? 0}`, inline: true },
-      )
-      .setFooter({ text: 'Use /backuprestore to restore • /backuplist to view all' })
-      .setTimestamp();
+    const container = moduleContainer('backup');
+    container.setAccentColor(0x2ECC71);
+    addText(container, `### 💾 Backup Created\n**${name}**`);
+    addFields(container, [
+      { name: 'Backup ID', value: `\`${backup.id}\``, inline: true },
+      { name: 'Size', value: formatSize(backup.size), inline: true },
+      { name: 'Roles', value: `${backup.components.roles.length}`, inline: true },
+      { name: 'Categories', value: `${backup.components.categories.length}`, inline: true },
+      { name: 'Channels', value: `${backup.components.channels.length}`, inline: true },
+      { name: 'Emojis', value: `${backup.components.emojis.length}`, inline: true },
+      { name: 'Bots Tracked', value: `${backup.components.bots?.length ?? 0}`, inline: true },
+      { name: 'Stickers', value: `${backup.components.stickers?.length ?? 0}`, inline: true },
+    ]);
+    addText(container, `-# Use /backuprestore to restore • /backuplist to view all`);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

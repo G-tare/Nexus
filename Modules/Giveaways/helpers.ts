@@ -1,13 +1,16 @@
 import {
-  Guild, GuildMember, EmbedBuilder, ActionRowBuilder,
-  ButtonBuilder, ButtonStyle, TextChannel,
+  Guild, GuildMember, ActionRowBuilder,
+  ButtonBuilder, ButtonStyle, TextChannel, ContainerBuilder,
 } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { getDb } from '../../Shared/src/database/connection';
 import { giveaways, giveawayEntries, guildMembers } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import {
+  moduleContainer, addText, addFields, addSeparator, v2Payload, addButtons
+} from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Giveaways');
 
@@ -185,8 +188,7 @@ export async function enterGiveaway(giveawayId: number, userId: string): Promise
 
   try {
     await db.insert(giveawayEntries).values({ giveawayId, userId });
-    const redis = getRedis();
-    await redis.incr(`giveaway:${giveawayId}:entries`);
+    await cache.incr(`giveaway:${giveawayId}:entries`);
     return { success: true };
   } catch (error) {
     logger.error(`Failed to enter giveaway ${giveawayId}:`, error);
@@ -274,9 +276,9 @@ export async function endGiveaway(giveaway: GiveawayData, guild: Guild): Promise
     if (channel && giveaway.messageId) {
       const message = await channel.messages.fetch(giveaway.messageId);
       if (message) {
-        const endedEmbed = buildGiveawayEndedEmbed(giveaway, winners);
+        const endedContainer = buildGiveawayEndedContainer(giveaway, winners);
         if (config.endAction === 'edit') {
-          await message.edit({ embeds: [endedEmbed], components: [] });
+          await message.edit(v2Payload([endedContainer]));
         } else {
           await message.delete();
         }
@@ -320,7 +322,8 @@ export async function rerollGiveaway(giveaway: GiveawayData, guild: Guild, count
     if (channel && giveaway.messageId) {
       const message = await channel.messages.fetch(giveaway.messageId);
       if (message) {
-        await message.edit({ embeds: [buildGiveawayEndedEmbed(giveaway, updatedWinners)], components: [] });
+        const endedContainer = buildGiveawayEndedContainer(giveaway, updatedWinners);
+        await message.edit(v2Payload([endedContainer]));
       }
     }
   } catch (error) {
@@ -343,41 +346,41 @@ export async function rerollGiveaway(giveaway: GiveawayData, guild: Guild, count
 // EMBED BUILDERS
 // ============================================================================
 
-export function buildGiveawayEmbed(giveaway: GiveawayData, config: GiveawayConfig): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(giveaway.prize)
-    .setColor(config.defaultColor as any)
-    .addFields(
-      { name: 'Hosted by', value: `<@${giveaway.hostId}>`, inline: true },
-      { name: 'Winners', value: `${giveaway.winnerCount}`, inline: true },
-      { name: 'Entries', value: `${giveaway.entryCount}`, inline: true },
-      { name: 'Ends', value: `<t:${Math.floor(giveaway.endsAt.getTime() / 1000)}:R>`, inline: false },
-    )
-    .setFooter({ text: `Giveaway ID: ${giveaway.id}` });
-  return embed;
+export function buildGiveawayContainer(giveaway: GiveawayData, config: GiveawayConfig): ContainerBuilder {
+  const container = moduleContainer('giveaways');
+  addText(container, `### ${giveaway.prize}`);
+  addSeparator(container, 'small');
+  addFields(container, [
+    { name: 'Hosted by', value: `<@${giveaway.hostId}>`, inline: true },
+    { name: 'Winners', value: `${giveaway.winnerCount}`, inline: true },
+    { name: 'Entries', value: `${giveaway.entryCount}`, inline: true },
+    { name: 'Ends', value: `<t:${Math.floor(giveaway.endsAt.getTime() / 1000)}:R>`, inline: false },
+  ]);
+  addText(container, `-# Giveaway ID: ${giveaway.id}`);
+  return container;
 }
 
-export function buildGiveawayEndedEmbed(giveaway: GiveawayData, winners: string[]): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(giveaway.prize)
-    .setColor('#808080')
-    .addFields(
-      { name: 'Hosted by', value: `<@${giveaway.hostId}>`, inline: true },
-      { name: 'Ended', value: `<t:${Math.floor(giveaway.endsAt.getTime() / 1000)}:R>`, inline: true },
-      { name: 'Winner(s)', value: winners.length ? winners.map((w) => `<@${w}>`).join('\n') : 'No valid entries', inline: false },
-    );
-  return embed;
+export function buildGiveawayEndedContainer(giveaway: GiveawayData, winners: string[]): ContainerBuilder {
+  const container = moduleContainer('giveaways');
+  addText(container, `### ${giveaway.prize}`);
+  addSeparator(container, 'small');
+  addFields(container, [
+    { name: 'Hosted by', value: `<@${giveaway.hostId}>`, inline: true },
+    { name: 'Ended', value: `<t:${Math.floor(giveaway.endsAt.getTime() / 1000)}:R>`, inline: true },
+    { name: 'Winner(s)', value: winners.length ? winners.map((w) => `<@${w}>`).join('\n') : 'No valid entries', inline: false },
+  ]);
+  return container;
 }
 
-export function buildDropEmbed(prize: string, maxWinners: number, currentWinners: string[]): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(`${prize} Drop`)
-    .setColor('#FFD700')
-    .addFields(
-      { name: 'Claimed', value: `${currentWinners.length}/${maxWinners}`, inline: true },
-      { name: 'Remaining', value: `${Math.max(0, maxWinners - currentWinners.length)}`, inline: true },
-    )
-    .setDescription('Click the button below to claim!');
+export function buildDropContainer(prize: string, maxWinners: number, currentWinners: string[]): ContainerBuilder {
+  const container = moduleContainer('giveaways');
+  addText(container, `### ${prize} Drop\n\nClick the button below to claim!`);
+  addSeparator(container, 'small');
+  addFields(container, [
+    { name: 'Claimed', value: `${currentWinners.length}/${maxWinners}`, inline: true },
+    { name: 'Remaining', value: `${Math.max(0, maxWinners - currentWinners.length)}`, inline: true },
+  ]);
+  return container;
 }
 
 export function buildGiveawayComponents(giveaway: GiveawayData, config: GiveawayConfig): ActionRowBuilder<ButtonBuilder>[] {

@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { leaveVC, getConnection } from '../helpers';
+import { errorContainer, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -16,20 +17,16 @@ const command: BotCommand = {
 
     const connection = getConnection(interaction.guild!.id);
     if (!connection) {
-      return interaction.editReply({
-        embeds: [new EmbedBuilder()
-          .setDescription('I\'m not in a voice channel.')
-          .setColor(0xff0000)],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not Connected', 'I\'m not in a voice channel.')])
+      );
     }
 
     leaveVC(interaction.guild!.id);
 
-    return interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setDescription('Disconnected from voice channel. Queue has been cleared.')
-        .setColor(0xe74c3c)],
-    });
+    return interaction.editReply(
+      v2Payload([errorContainer('Disconnected', 'Disconnected from voice channel. Queue has been cleared.')])
+    );
   },
 };
 

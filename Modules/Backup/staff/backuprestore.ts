@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -6,9 +6,10 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { restoreBackup, getBackupInfo, RestoreComponent } from '../helpers';
+import { moduleContainer, addText, addFields, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -95,31 +96,35 @@ const command: BotCommand = {
 
         const result = await restoreBackup(guild, backupId, components, fullSetup);
 
-        const embed = new EmbedBuilder()
-          .setColor(result.success ? 0x2ECC71 : 0xE67E22)
-          .setTitle(result.success ? '✅ Backup Restored' : '⚠️ Backup Partially Restored')
-          .addFields(
-            { name: 'Restored', value: result.restored.join('\n') || 'Nothing' },
-          );
+        const container = moduleContainer('backup');
+        container.setAccentColor(result.success ? 0x2ECC71 : 0xE67E22);
+
+        const fields = [
+          { name: 'Restored', value: result.restored.join('\n') || 'Nothing', inline: false },
+        ];
 
         if (result.errors.length > 0) {
-          embed.addFields({
+          fields.push({
             name: 'Errors',
             value: result.errors.slice(0, 10).join('\n') +
               (result.errors.length > 10 ? `\n...and ${result.errors.length - 10} more` : ''),
+            inline: false
           });
         }
 
         if ((result as any).botInvites && (result as any).botInvites.length > 0) {
           const botLines = (result as any).botInvites.map((b: any) => `• [${b.name}](${b.inviteURL})`).slice(0, 15);
-          embed.addFields({
+          fields.push({
             name: '🤖 Bots to Re-add',
             value: botLines.join('\n') +
               ((result as any).botInvites.length > 15 ? `\n...and ${(result as any).botInvites.length - 15} more` : ''),
+            inline: false
           });
         }
 
-        await interaction.editReply({ embeds: [embed], components: [] });
+        addFields(container, fields);
+
+        await interaction.editReply(v2Payload([container]));
       } else {
         await btn.update({ content: '❌ Cancelled.', components: [] });
       }

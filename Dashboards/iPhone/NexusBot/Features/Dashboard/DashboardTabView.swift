@@ -96,6 +96,11 @@ struct DashboardTabView: View {
         .task {
             // Pre-load ALL guild data in parallel on dashboard entry
             await guildCache.preload()
+            // Start background sync so changes from web dashboard appear automatically
+            guildCache.startPeriodicSync()
+        }
+        .onDisappear {
+            guildCache.stopPeriodicSync()
         }
     }
 

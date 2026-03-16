@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getRedis } from '../../../Shared/src/database/connection';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { cache } from '../../../Shared/src/cache/cacheManager';
+import { successReply, errorReply, moduleContainer, addText, addFooter, addMediaGallery, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const validImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const IMAGE_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -180,18 +180,12 @@ const command: BotCommand = {
       const url = interaction.options.getString('url');
       const reset = interaction.options.getBoolean('reset');
 
-      const redis = getRedis();
       const key = `cardbg:${guildId}:${userId}`;
 
       // Handle reset
       if (reset) {
-        await redis.del(key);
-        return interaction.editReply({
-          embeds: [
-            successEmbed('Background Reset', 'Your rank card background has been reset to default.')
-              .setColor(Colors.Leveling)
-          ]
-        });
+        cache.del(key);
+        return interaction.editReply(successReply('Background Reset', 'Your rank card background has been reset to default.'));
       }
 
       // Handle URL setting
@@ -200,47 +194,36 @@ const command: BotCommand = {
         const { imageUrl, error } = await resolveImageUrl(url);
 
         if (!imageUrl) {
-          return interaction.editReply({
-            embeds: [
-              errorEmbed(
-                'Invalid Image',
-                error || 'Could not resolve an image from that URL. Please use a direct image link.'
-              )
-            ]
-          });
+          return interaction.editReply(errorReply(
+            'Invalid Image',
+            error || 'Could not resolve an image from that URL. Please use a direct image link.'
+          ));
         }
 
-        // Save the resolved URL to Redis with 7-day expiry
-        await redis.setex(key, 7 * 24 * 60 * 60, imageUrl);
+        // Save the resolved URL to cache with 7-day expiry
+        cache.set(key, imageUrl, 7 * 24 * 60 * 60);
 
         const description = imageUrl !== url
           ? 'Your rank card background has been saved.\nThe link was resolved to a direct image automatically.'
           : 'Your custom rank card background has been saved.';
 
-        return interaction.editReply({
-          embeds: [
-            successEmbed('Background Updated', description)
-              .setColor(Colors.Leveling)
-              .setImage(imageUrl)
-              .setFooter({ text: 'Your background will appear on your next rank card' })
-          ]
-        });
+        const container = moduleContainer('leveling');
+        addText(container, `### ✅ Background Updated\n${description}`);
+        // Note: V2 containers use addMediaGallery for images instead of inline embedding
+        addMediaGallery(container, [{ url: imageUrl }]);
+        addFooter(container, 'Your background will appear on your next rank card');
+
+        return interaction.editReply(v2Payload([container]));
       }
 
       // No URL or reset provided
-      return interaction.editReply({
-        embeds: [
-          errorEmbed(
-            'Missing Option',
-            'Please provide either a `url` to set a background or use `reset` to restore the default.'
-          )
-        ]
-      });
+      return interaction.editReply(errorReply(
+        'Missing Option',
+        'Please provide either a `url` to set a background or use `reset` to restore the default.'
+      ));
     } catch (error) {
       console.error('[CardBg Command Error]', error);
-      return interaction.editReply({
-        embeds: [errorEmbed('Error', 'An error occurred while updating your card background.')]
-      });
+      return interaction.editReply(errorReply('Error', 'An error occurred while updating your card background.'));
     }
   }
 };

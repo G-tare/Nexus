@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('Forms');
 import { getFormById, toggleFormActive } from '../helpers';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -42,17 +43,14 @@ const command: BotCommand = {
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Form Status Updated')
-        .setColor(updatedForm.isActive ? '#00FF00' : '#FF0000')
-        .addFields(
-          { name: 'Form Name', value: updatedForm.name, inline: true },
-          { name: 'Form ID', value: updatedForm.id, inline: true },
-          { name: 'Status', value: updatedForm.isActive ? '✅ Active' : '❌ Inactive', inline: false }
-        )
-        .setTimestamp();
+      const container = moduleContainer('forms');
+      addFields(container, [
+        { name: 'Form Name', value: updatedForm.name, inline: true },
+        { name: 'Form ID', value: updatedForm.id, inline: true },
+        { name: 'Status', value: updatedForm.isActive ? '✅ Active' : '❌ Inactive', inline: false }
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
 
       logger.info(
         `[Forms] Form toggled - ID: ${formId}, Guild: ${guildId}, New Status: ${updatedForm.isActive ? 'Active' : 'Inactive'}`

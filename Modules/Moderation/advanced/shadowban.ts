@@ -1,12 +1,13 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, GuildMember, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer, addFields } from '../../../Shared/src/utils/componentsV2';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { modCases, guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { discordTimestamp, formatDuration } from '../../../Shared/src/utils/time';
-import { canModerate, createModCase, modActionEmbed, ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
+import { canModerate, createModCase, ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
 
 export default {
   module: 'moderation',
@@ -44,16 +45,15 @@ export default {
 
       // Hierarchy check
       if (!canModerate(interaction.member as GuildMember, targetMember, 'shadowban')) {
-        await interaction.editReply({
-          embeds: [errorEmbed('Cannot moderate this user - they are equal or higher in hierarchy')]
-        });
+        await interaction.editReply(v2Payload([
+          errorContainer('Cannot moderate this user', 'They are equal or higher in hierarchy')
+        ]));
         return;
       }
 
-      // Get Redis and add to shadowban set
-      const redis = await getRedis();
+      // Add to shadowban set (in-memory)
       const shadowbanSetKey = `shadowban:${guild.id}`;
-      await redis.sadd(shadowbanSetKey, targetUser.id);
+      cache.sadd(shadowbanSetKey, targetUser.id);
 
       // Create mod case
       await createModCase({
@@ -64,15 +64,15 @@ export default {
         reason: `Shadowban: ${reason}`,
       });
 
-      const embed = successEmbed(`User ${targetUser.tag} has been shadow banned`);
-      embed.addFields({ name: 'Reason', value: reason });
+      const container = successContainer(`User ${targetUser.tag} has been shadow banned`);
+      addFields(container, [{ name: 'Reason', value: reason }]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in shadowban command:', error);
-      await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while shadow banning the user')]
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('An error occurred while shadow banning the user')
+      ]));
     }
   }
 } as BotCommand;

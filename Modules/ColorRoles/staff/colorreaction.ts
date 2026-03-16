@@ -1,15 +1,19 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createReactionList,
   getColorPalette,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -66,15 +70,14 @@ const command: BotCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setDescription(
-        `✅ Reaction color message posted in <#${channel.id}>!\n\n` +
-        `Users can react to pick a color. Includes ${Math.min(colors.length, 20)} colors.`
-      )
-      .setFooter({ text: 'Use /colorreactionlist to see all active reaction messages' });
+    const container = moduleContainer('color_roles').setAccentColor(0x3498DB);
+    addText(container,
+      `✅ Reaction color message posted in <#${channel.id}>!\n\n` +
+      `Users can react to pick a color. Includes ${Math.min(colors.length, 20)} colors.`
+    );
+    addFooter(container, 'Use /colorreactionlist to see all active reaction messages');
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

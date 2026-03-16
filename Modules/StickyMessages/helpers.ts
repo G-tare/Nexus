@@ -1,4 +1,4 @@
-import { Client, EmbedBuilder, APIEmbed } from 'discord.js';
+import { Client, APIEmbed } from 'discord.js';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { getPool } from '../../Shared/src/database/connection';
 const logger = createModuleLogger('StickyMessages');
@@ -257,13 +257,14 @@ export class StickyMessagesHelper {
 
   // ===== Utility Methods =====
 
-  buildEmbed(embedData: APIEmbed | null): EmbedBuilder | null {
+  buildEmbedData(embedData: APIEmbed | null): APIEmbed | null {
     if (!embedData) return null;
 
     try {
-      return new EmbedBuilder(embedData);
+      // Return the raw embed data - can be used with V2 or legacy embeds
+      return embedData;
     } catch (error) {
-      logger.error(`Failed to build embed: ${error}`);
+      logger.error(`Failed to process embed data: ${error}`);
       return null;
     }
   }

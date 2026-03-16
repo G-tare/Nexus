@@ -1,10 +1,10 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getLastEditedMessage } from '../helpers';
 
 const logger = createModuleLogger('MessageTracking');
@@ -49,26 +49,24 @@ const command: BotCommand = {
         return;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor('#36393F')
-        .setTitle('Edit Sniped Message')
-        .setAuthor({ name: editedMessage.authorName, iconURL: editedMessage.authorAvatar })
-        .addFields(
-          { name: 'Before', value: editedMessage.oldContent || '*(no text)*', inline: false },
-          { name: 'After', value: editedMessage.newContent || '*(no text)*', inline: false }
-        )
-        .setFooter({ text: `Message edited ${new Date(editedMessage.editedAt).toLocaleString()}` })
-        .setTimestamp(editedMessage.createdAt);
+      const container = moduleContainer('message_tracking');
+      const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        { name: 'Author', value: editedMessage.authorName, inline: false },
+        { name: 'Before', value: editedMessage.oldContent || '*(no text)*', inline: false },
+        { name: 'After', value: editedMessage.newContent || '*(no text)*', inline: false }
+      ];
 
       if (editedMessage.oldEmbeds && editedMessage.oldEmbeds.length > 0) {
-        embed.addFields({ name: 'Old Embedded Content', value: `${editedMessage.oldEmbeds.length} embed(s)`, inline: false });
+        fields.push({ name: 'Old Embedded Content', value: `${editedMessage.oldEmbeds.length} embed(s)`, inline: false });
       }
 
       if (editedMessage.newEmbeds && editedMessage.newEmbeds.length > 0) {
-        embed.addFields({ name: 'New Embedded Content', value: `${editedMessage.newEmbeds.length} embed(s)`, inline: false });
+        fields.push({ name: 'New Embedded Content', value: `${editedMessage.newEmbeds.length} embed(s)`, inline: false });
       }
 
-      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      addFields(container, fields);
+
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       logger.error('Error executing editsnipe command:', error);
       await interaction.reply({ content: '❌ An error occurred while retrieving the edited message.', flags: MessageFlags.Ephemeral });

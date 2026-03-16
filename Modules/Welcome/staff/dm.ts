@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { getWelcomeConfig, WelcomeConfig } from '../helpers';
-import { successEmbed, errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'welcome',
@@ -15,6 +15,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('welcomedm')
     .setDescription('Configure welcome DM messages for new members')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(subcommand =>
       subcommand
         .setName('toggle')
@@ -64,12 +65,12 @@ const command: BotCommand = {
           config.dm.enabled = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Welcome DMs',
-            `Welcome DMs are now **${enabled ? 'enabled' : 'disabled'}**.\n\n${enabled ? '⚠️ Note: Members must have DMs enabled to receive these.' : ''}`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome DMs',
+              `Welcome DMs are now **${enabled ? 'enabled' : 'disabled'}**.\n\n${enabled ? '⚠️ Note: Members must have DMs enabled to receive these.' : ''}`
+            )
+          );
         }
 
         case 'message': {
@@ -78,12 +79,12 @@ const command: BotCommand = {
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
           const placeholders = '{user}, {username}, {server}, {membercount}, {usertag}, {createdate}, {joindate}, {id}';
-          const embed = successEmbed(
-            'Welcome DM Message Updated',
-            `Available placeholders:\n\`${placeholders}\``
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome DM Message Updated',
+              `Available placeholders:\n\`${placeholders}\``
+            )
+          );
         }
 
         case 'embed': {
@@ -91,26 +92,28 @@ const command: BotCommand = {
           config.dm.useEmbed = enabled;
           await moduleConfig.setConfig(guildId, 'welcome', config);
 
-          const embed = successEmbed(
-            'Welcome DM Embed Mode',
-            `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
-          ).setColor(Colors.Success);
-
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            successReply(
+              'Welcome DM Embed Mode',
+              `Embed mode is now **${enabled ? 'enabled' : 'disabled'}**.`
+            )
+          );
         }
 
         default: {
-          const embed = errorEmbed('Unknown Subcommand', 'An unknown subcommand was provided.').setColor(Colors.Error);
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply(
+            errorReply('Unknown Subcommand', 'An unknown subcommand was provided.')
+          );
         }
       }
     } catch (error) {
       console.error('[WelcomeDM Command Error]', error);
-      const embed = errorEmbed(
-        'Error',
-        'An error occurred while processing your command.'
-      ).setColor(Colors.Error);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(
+        errorReply(
+          'Error',
+          'An error occurred while processing your command.'
+        )
+      );
     }
   },
 };

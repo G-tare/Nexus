@@ -3,7 +3,8 @@ import {
   ChatInputCommandInteraction,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { getAllAFK, buildAFKListEmbed } from '../helpers';
+import { getAllAFK, buildAFKListContainer } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'afk',
@@ -17,9 +18,9 @@ const command: BotCommand = {
 
     try {
       const afkUsers = await getAllAFK(interaction.guildId!);
-      const embed = buildAFKListEmbed(afkUsers);
+      const container = buildAFKListContainer(afkUsers);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in /afklist command:', error);
       await interaction.editReply({

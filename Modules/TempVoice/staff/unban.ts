@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('TempVoice');
 import { unbanUser, isUserBanned, auditLog } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('vcunban')
@@ -47,17 +47,15 @@ export const vcunban: BotCommand = {
 
       await auditLog(guild, 'temp_vc_user_unbanned', targetUser.id, user.id);
 
-      const embed = new EmbedBuilder()
-        .setColor('#00ff00')
-        .setTitle('User Unbanned')
-        .setDescription(`${targetUser.username} has been unbanned from creating temporary voice channels.`)
-        .addFields(
-          { name: 'User', value: targetUser.username, inline: true },
-          { name: 'Unbanned By', value: user.username, inline: true }
-        );
+      const container = moduleContainer('temp_voice').setAccentColor(0x00ff00);
+      addText(container, `### User Unbanned\n${targetUser.username} has been unbanned from creating temporary voice channels.`);
+      addFields(container, [
+        { name: 'User', value: targetUser.username, inline: true },
+        { name: 'Unbanned By', value: user.username, inline: true }
+      ]);
 
       logger.info('[TempVoice] Staff unbanned user from creating temp VCs:', targetUser.id);
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('[TempVoice] Error executing /vcunban command:', error);
       return interaction.editReply('An error occurred while unbanning the user.');

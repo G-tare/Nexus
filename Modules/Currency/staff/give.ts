@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, successContainer, addText, addSeparator, addSectionWithThumbnail } from '../../../Shared/src/utils/componentsV2';
 import { getCurrencyConfig, addCurrency, ensureMember, formatCurrency, CurrencyType } from '../helpers';
 
 export default {
@@ -49,26 +49,30 @@ export default {
 
       const result = await addCurrency(interaction.guildId!, user.id, type, amount, 'admin_give');
 
-      if (!(result as any).success) {
+      if (!result) {
         return interaction.editReply({
-          embeds: [errorEmbed(`Failed to give currency: ${(result as any).error}`)],
+          components: [errorContainer('Failed', 'Failed to give currency.')],
+          flags: MessageFlags.IsComponentsV2,
         });
       }
 
       const currencyInfo = config.currencies[type];
-      const embed = successEmbed(`Currency Given`)
-        .addFields(
-          { name: 'User', value: user.toString(), inline: true },
-          { name: 'Amount Given', value: formatCurrency(amount, currencyInfo), inline: true },
-          { name: 'New Balance', value: formatCurrency((result as any).newBalance, currencyInfo), inline: true }
-        )
-        .setThumbnail(user.avatarURL());
+      const container = successContainer('Currency Given');
+      addText(container, `**User:** ${user.toString()}`);
+      addText(container, `**Amount Given:** ${formatCurrency(amount, currencyInfo)}`);
+      addText(container, `**New Balance:** ${formatCurrency(result, currencyInfo)}`);
+      addSeparator(container);
+      addSectionWithThumbnail(container, `${user.username}`, user.displayAvatarURL({ size: 256 }));
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Error in give command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while giving currency.')],
+        components: [errorContainer('Error', 'An error occurred while giving currency.')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   },

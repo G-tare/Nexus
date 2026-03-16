@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addSeparator, successReply, errorReply, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('automod-exempt')
     .setDescription('Manage automod exemptions for roles, channels, and users')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName('add-role')
@@ -102,24 +103,17 @@ const command: BotCommand = {
       if (!config.exemptChannels) config.exemptChannels = [];
       if (!config.exemptUsers) config.exemptUsers = [];
 
-      let responseEmbed: EmbedBuilder;
       let updated = false;
 
       switch (subcommand) {
         case 'add-role': {
           const role = interaction.options.getRole('role', true);
           if (config.exemptRoles.includes(role.id)) {
-            responseEmbed = errorEmbed(
-              'Already Exempt',
-              `${role.name} is already exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Already Exempt', `${role.name} is already exempt from automod.`));
           } else {
             config.exemptRoles.push(role.id);
             updated = true;
-            responseEmbed = successEmbed(
-              'Role Exempted',
-              `${role.name} has been exempted from automod.`
-            );
+            await interaction.editReply(successReply('Role Exempted', `${role.name} has been exempted from automod.`));
           }
           break;
         }
@@ -128,17 +122,11 @@ const command: BotCommand = {
           const role = interaction.options.getRole('role', true);
           const index = config.exemptRoles.indexOf(role.id);
           if (index === -1) {
-            responseEmbed = errorEmbed(
-              'Not Exempt',
-              `${role.name} is not currently exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Not Exempt', `${role.name} is not currently exempt from automod.`));
           } else {
             config.exemptRoles.splice(index, 1);
             updated = true;
-            responseEmbed = successEmbed(
-              'Exemption Removed',
-              `${role.name} is no longer exempt from automod.`
-            );
+            await interaction.editReply(successReply('Exemption Removed', `${role.name} is no longer exempt from automod.`));
           }
           break;
         }
@@ -146,17 +134,11 @@ const command: BotCommand = {
         case 'add-channel': {
           const channel = interaction.options.getChannel('channel', true);
           if (config.exemptChannels.includes(channel.id)) {
-            responseEmbed = errorEmbed(
-              'Already Exempt',
-              `${channel.name} is already exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Already Exempt', `${channel.name} is already exempt from automod.`));
           } else {
             config.exemptChannels.push(channel.id);
             updated = true;
-            responseEmbed = successEmbed(
-              'Channel Exempted',
-              `${channel.name} has been exempted from automod.`
-            );
+            await interaction.editReply(successReply('Channel Exempted', `${channel.name} has been exempted from automod.`));
           }
           break;
         }
@@ -165,17 +147,11 @@ const command: BotCommand = {
           const channel = interaction.options.getChannel('channel', true);
           const index = config.exemptChannels.indexOf(channel.id);
           if (index === -1) {
-            responseEmbed = errorEmbed(
-              'Not Exempt',
-              `${channel.name} is not currently exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Not Exempt', `${channel.name} is not currently exempt from automod.`));
           } else {
             config.exemptChannels.splice(index, 1);
             updated = true;
-            responseEmbed = successEmbed(
-              'Exemption Removed',
-              `${channel.name} is no longer exempt from automod.`
-            );
+            await interaction.editReply(successReply('Exemption Removed', `${channel.name} is no longer exempt from automod.`));
           }
           break;
         }
@@ -183,17 +159,11 @@ const command: BotCommand = {
         case 'add-user': {
           const user = interaction.options.getUser('user', true);
           if (config.exemptUsers.includes(user.id)) {
-            responseEmbed = errorEmbed(
-              'Already Exempt',
-              `${user.username} is already exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Already Exempt', `${user.username} is already exempt from automod.`));
           } else {
             config.exemptUsers.push(user.id);
             updated = true;
-            responseEmbed = successEmbed(
-              'User Exempted',
-              `${user.username} has been exempted from automod.`
-            );
+            await interaction.editReply(successReply('User Exempted', `${user.username} has been exempted from automod.`));
           }
           break;
         }
@@ -202,103 +172,62 @@ const command: BotCommand = {
           const user = interaction.options.getUser('user', true);
           const index = config.exemptUsers.indexOf(user.id);
           if (index === -1) {
-            responseEmbed = errorEmbed(
-              'Not Exempt',
-              `${user.username} is not currently exempt from automod.`
-            );
+            await interaction.editReply(errorReply('Not Exempt', `${user.username} is not currently exempt from automod.`));
           } else {
             config.exemptUsers.splice(index, 1);
             updated = true;
-            responseEmbed = successEmbed(
-              'Exemption Removed',
-              `${user.username} is no longer exempt from automod.`
-            );
+            await interaction.editReply(successReply('Exemption Removed', `${user.username} is no longer exempt from automod.`));
           }
           break;
         }
 
         case 'list': {
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Info)
-            .setTitle('Automod Exemptions')
-            .setDescription(
-              'All roles, channels, and users currently exempted from automod'
-            );
+          const container = moduleContainer('automod');
+          addText(container, '### Automod Exemptions');
+          addText(container, 'All roles, channels, and users currently exempted from automod');
+          addSeparator(container, 'small');
+
+          const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
 
           // Roles
           if (config.exemptRoles.length > 0) {
-            const rolesList = config.exemptRoles
-              .map((id) => `<@&${id}>`)
-              .join(', ');
-            embed.addFields({
-              name: 'Exempt Roles',
-              value: rolesList,
-              inline: false,
-            });
+            const rolesList = config.exemptRoles.map((id) => `<@&${id}>`).join(', ');
+            fields.push({ name: 'Exempt Roles', value: rolesList });
           } else {
-            embed.addFields({
-              name: 'Exempt Roles',
-              value: '*None*',
-              inline: false,
-            });
+            fields.push({ name: 'Exempt Roles', value: '*None*' });
           }
 
           // Channels
           if (config.exemptChannels.length > 0) {
-            const channelsList = config.exemptChannels
-              .map((id) => `<#${id}>`)
-              .join(', ');
-            embed.addFields({
-              name: 'Exempt Channels',
-              value: channelsList,
-              inline: false,
-            });
+            const channelsList = config.exemptChannels.map((id) => `<#${id}>`).join(', ');
+            fields.push({ name: 'Exempt Channels', value: channelsList });
           } else {
-            embed.addFields({
-              name: 'Exempt Channels',
-              value: '*None*',
-              inline: false,
-            });
+            fields.push({ name: 'Exempt Channels', value: '*None*' });
           }
 
           // Users
           if (config.exemptUsers.length > 0) {
-            const usersList = config.exemptUsers
-              .map((id) => `<@${id}>`)
-              .join(', ');
-            embed.addFields({
-              name: 'Exempt Users',
-              value: usersList,
-              inline: false,
-            });
+            const usersList = config.exemptUsers.map((id) => `<@${id}>`).join(', ');
+            fields.push({ name: 'Exempt Users', value: usersList });
           } else {
-            embed.addFields({
-              name: 'Exempt Users',
-              value: '*None*',
-              inline: false,
-            });
+            fields.push({ name: 'Exempt Users', value: '*None*' });
           }
 
-          responseEmbed = embed;
+          addFields(container, fields);
+          await interaction.editReply(v2Payload([container]));
           break;
         }
 
         default:
-          responseEmbed = errorEmbed('Invalid Subcommand', 'An error occurred.');
+          await interaction.editReply(errorReply('Invalid Subcommand', 'An error occurred.'));
       }
 
       if (updated) {
         await moduleConfig.setConfig(guildId, 'automod', config);
       }
-
-      await interaction.editReply({ embeds: [responseEmbed] });
     } catch (error) {
       console.error('Error in automod-exempt command:', error);
-      const embed = errorEmbed(
-        'Command Error',
-        'An error occurred while processing your request.'
-      );
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Command Error', 'An error occurred while processing your request.'));
     }
   },
 };

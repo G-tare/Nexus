@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types/command';
+import { moduleContainer, addText, addMediaGallery, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 const catFallback = {
   image: 'https://cdn2.thecatapi.com/images/MTcyOTI2Mw.jpg',
@@ -27,12 +28,11 @@ export default {
 
       const cat = catFallback;
 
-      const embed = new EmbedBuilder()
-        .setTitle('🐱 Random Cat')
-        .setImage(cat.image)
-        .setColor('#FF69B4');
+      const container = moduleContainer('fun');
+      addText(container, '### 🐱 Random Cat');
+      addMediaGallery(container, [{ url: cat.image }]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Cat command error:', error);
       await interaction.reply({

@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer, addFields } from '../../../Shared/src/utils/componentsV2';
 import { ensureGuild, ensureGuildMember } from '../helpers';
 
 export default {
@@ -40,17 +40,18 @@ export default {
       const oldNickname = targetMember.displayName;
       await targetMember.setNickname(newName);
 
-      const embed = successEmbed(`Nickname changed for ${targetUser.tag}`);
-      embed.addFields(
+      const container = successContainer(`Nickname changed for ${targetUser.tag}`);
+      addFields(container, [
         { name: 'Old Nickname', value: oldNickname || '(none)' },
         { name: 'New Nickname', value: newName || '(reset to none)' }
-      );
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in nickname command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while changing the nickname')]
+        components: [errorContainer('An error occurred while changing the nickname')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

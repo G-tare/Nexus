@@ -1,9 +1,10 @@
-import { EmbedBuilder } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { users, guildMembers, guilds } from '../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { eventBus } from '../../Shared/src/events/eventBus';
+import { moduleContainer, addText, addFields, addSectionWithThumbnail } from '../../Shared/src/utils/componentsV2';
 
 // ============================================
 // Types
@@ -45,10 +46,9 @@ const DEFAULT_CONFIG: BirthdayConfig = {
 // ============================================
 
 export async function getBirthdayConfig(guildId: string): Promise<BirthdayConfig> {
-  const redis = getRedis();
-  const cached = await redis.get(`birthday:config:${guildId}`);
+  const cached = await cache.get<BirthdayConfig>(`birthday:config:${guildId}`);
   if (cached) {
-    return JSON.parse(cached);
+    return cached;
   }
 
   const _storedCfgResult = await moduleConfig.getModuleConfig(guildId, 'birthdays');
@@ -56,17 +56,16 @@ export async function getBirthdayConfig(guildId: string): Promise<BirthdayConfig
   const stored = (_storedCfg?.config ?? {}) as any;
   const config = { ...DEFAULT_CONFIG, ...stored };
 
-  await redis.set(`birthday:config:${guildId}`, JSON.stringify(config), 'EX', 300);
+  await cache.set(`birthday:config:${guildId}`, config, 300);
   return config;
 }
 
 export async function setBirthdayConfig(guildId: string, updates: Partial<BirthdayConfig>): Promise<BirthdayConfig> {
-  const redis = getRedis();
   const current = await getBirthdayConfig(guildId);
   const updated = { ...current, ...updates };
 
   await moduleConfig.setConfig(guildId, 'birthdays', updated);
-  await redis.set(`birthday:config:${guildId}`, JSON.stringify(updated), 'EX', 300);
+  await cache.set(`birthday:config:${guildId}`, updated, 300);
 
   eventBus.emit('auditLog', {
     guildId,
@@ -88,7 +87,6 @@ export async function setBirthday(
   year?: number
 ): Promise<void> {
   const db = getDb();
-  const redis = getRedis();
   const birthday = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
   await db
@@ -101,12 +99,11 @@ export async function setBirthday(
     .where(eq(users.id, userId));
 
   // Invalidate cache
-  await redis.del(`birthday:user:${userId}`);
+  await cache.del(`birthday:user:${userId}`);
 }
 
 export async function removeBirthday(userId: string): Promise<void> {
   const db = getDb();
-  const redis = getRedis();
   await db
     .update(users)
     .set({
@@ -116,15 +113,14 @@ export async function removeBirthday(userId: string): Promise<void> {
     })
     .where(eq(users.id, userId));
 
-  await redis.del(`birthday:user:${userId}`);
+  await cache.del(`birthday:user:${userId}`);
 }
 
 export async function getBirthday(userId: string): Promise<BirthdayEntry | null> {
   const db = getDb();
-  const redis = getRedis();
-  const cached = await redis.get(`birthday:user:${userId}`);
+  const cached = await cache.get<BirthdayEntry>(`birthday:user:${userId}`);
   if (cached) {
-    return JSON.parse(cached);
+    return cached;
   }
 
   const result = await db
@@ -152,7 +148,7 @@ export async function getBirthday(userId: string): Promise<BirthdayEntry | null>
     globalName: result[0].globalName ?? undefined,
   };
 
-  await redis.set(`birthday:user:${userId}`, JSON.stringify(entry), 'EX', 600);
+  await cache.set(`birthday:user:${userId}`, entry, 600);
   return entry;
 }
 
@@ -389,44 +385,50 @@ export function parseAnnouncementMessage(
     .replace(/\{server\}/g, '{server}'); // Replaced at send time with guild name
 }
 
-export function buildBirthdayAnnouncementEmbed(
+export function buildBirthdayAnnouncementContainer(
   userId: string,
   username: string,
   message: string,
   age?: number | null,
   showAge: boolean = true
-): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#FF69B4')
-    .setTitle('🎂 Happy Birthday!')
-    .setDescription(message)
-    .setThumbnail(`https://cdn.discordapp.com/embed/avatars/0.png`) // Placeholder, replaced with user avatar at send time
-    .setTimestamp();
+) {
+  const container = moduleContainer('birthdays');
+  const text = `### 🎂 Happy Birthday!\n${message}`;
+
+  // Add thumbnail section if we have an avatar URL (replaced at send time)
+  addSectionWithThumbnail(
+    container,
+    text,
+    `https://cdn.discordapp.com/embed/avatars/0.png` // Placeholder, replaced with user avatar at send time
+  );
 
   if (age && showAge) {
-    embed.addFields({
-      name: '🎈 Turning',
-      value: `${age} years old!`,
-      inline: true,
-    });
+    addFields(container, [
+      {
+        name: '🎈 Turning',
+        value: `${age} years old!`,
+        inline: true,
+      }
+    ]);
   }
 
-  return embed;
+  return container;
 }
 
-export function buildBirthdayViewEmbed(entry: BirthdayEntry, showAge: boolean): EmbedBuilder {
+export function buildBirthdayViewContainer(entry: BirthdayEntry, showAge: boolean) {
   const displayName = entry.globalName || entry.username || 'Unknown';
   const formattedDate = formatBirthday(entry.birthday, showAge ? entry.birthdayYear : null, showAge);
 
-  const embed = new EmbedBuilder()
-    .setColor('#FF69B4')
-    .setTitle(`🎂 ${displayName}'s Birthday`)
-    .addFields({
+  const container = moduleContainer('birthdays');
+  addText(container, `### 🎂 ${displayName}'s Birthday`);
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
       name: 'Date',
       value: formattedDate,
       inline: true,
-    })
-    .setTimestamp();
+    }
+  ];
 
   // Days until next birthday
   const [mm, dd] = entry.birthday.split('-').map(Number);
@@ -438,23 +440,22 @@ export function buildBirthdayViewEmbed(entry: BirthdayEntry, showAge: boolean): 
   const daysUntil = Math.ceil((nextBirthday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysUntil === 0) {
-    embed.addFields({ name: '🎉', value: "It's their birthday today!", inline: true });
+    fields.push({ name: '🎉', value: "It's their birthday today!", inline: true });
   } else {
-    embed.addFields({ name: 'Days Until', value: `${daysUntil} days`, inline: true });
+    fields.push({ name: 'Days Until', value: `${daysUntil} days`, inline: true });
   }
 
-  return embed;
+  addFields(container, fields);
+  return container;
 }
 
-export function buildUpcomingEmbed(entries: BirthdayEntry[], title: string): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#FF69B4')
-    .setTitle(title)
-    .setTimestamp();
+export function buildUpcomingContainer(entries: BirthdayEntry[], title: string) {
+  const container = moduleContainer('birthdays');
+  addText(container, `### ${title}`);
 
   if (entries.length === 0) {
-    embed.setDescription('No upcoming birthdays found.');
-    return embed;
+    addText(container, 'No upcoming birthdays found.');
+    return container;
   }
 
   const now = new Date();
@@ -471,13 +472,13 @@ export function buildUpcomingEmbed(entries: BirthdayEntry[], title: string): Emb
     return `<@${entry.userId}> — ${formatBirthday(entry.birthday, null, false)} (${dayLabel})`;
   });
 
-  embed.setDescription(lines.join('\n'));
+  addText(container, lines.join('\n'));
 
   if (entries.length > 20) {
-    embed.setFooter({ text: `Showing 20 of ${entries.length} birthdays` });
+    addText(container, `-# Showing 20 of ${entries.length} birthdays`);
   }
 
-  return embed;
+  return container;
 }
 
 // ============================================
@@ -488,33 +489,28 @@ export function buildUpcomingEmbed(entries: BirthdayEntry[], title: string): Emb
  * Mark that a birthday has been announced today so we don't double-announce.
  */
 export async function markBirthdayAnnounced(guildId: string, userId: string): Promise<void> {
-  const redis = getRedis();
   const key = `birthday:announced:${guildId}:${userId}`;
-  await redis.set(key, '1', 'EX', 86400); // Expires in 24 hours
+  await cache.set(key, '1', 86400); // Expires in 24 hours
 }
 
 export async function wasBirthdayAnnounced(guildId: string, userId: string): Promise<boolean> {
-  const redis = getRedis();
   const key = `birthday:announced:${guildId}:${userId}`;
-  return (await redis.get(key)) === '1';
+  return (await cache.get<string>(key)) === '1';
 }
 
 /**
  * Track birthday role assignment for auto-removal after 24h.
  */
 export async function trackBirthdayRole(guildId: string, userId: string): Promise<void> {
-  const redis = getRedis();
   const key = `birthday:role:${guildId}`;
-  await redis.sadd(key, userId);
-  await redis.expire(key, 90000); // 25 hours buffer
+  await cache.sadd(key, userId);
+  await cache.expire(key, 90000); // 25 hours buffer
 }
 
 export async function getBirthdayRoleUsers(guildId: string): Promise<string[]> {
-  const redis = getRedis();
-  return await redis.smembers(`birthday:role:${guildId}`);
+  return await cache.smembers(`birthday:role:${guildId}`);
 }
 
 export async function removeBirthdayRoleTracking(guildId: string, userId: string): Promise<void> {
-  const redis = getRedis();
-  await redis.srem(`birthday:role:${guildId}`, userId);
+  await cache.srem(`birthday:role:${guildId}`, userId);
 }

@@ -1,12 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 
 export default {
   module: 'automod',
@@ -17,6 +17,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('antiraid')
     .setDescription('Configure anti-raid detection settings')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand(sub =>
       sub
         .setName('toggle')
@@ -143,11 +144,9 @@ export default {
 
       await moduleConfig.setConfig(guildId, 'automod', updatedConfig);
 
-      const embed = successEmbed(`Anti-Raid Updated\n${message}`);
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(successReply('Anti-Raid Updated', message));
     } catch (error) {
-      const embed = errorEmbed('Failed to update anti-raid settings');
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Configuration Error', 'Failed to update anti-raid settings'));
       console.error('[Automod] Antiraid command error:', error);
     }
   }

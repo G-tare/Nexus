@@ -1,14 +1,16 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ChannelType,
-  EmbedBuilder,
+  MessageFlags,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle, MessageFlags } from 'discord.js';
+  ButtonStyle,
+  ContainerBuilder,
+  TextDisplayBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { errorEmbed, Colors } from '../../../Shared/src/utils/embed';
+import { errorContainer, warningContainer, successContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -30,18 +32,17 @@ const command: BotCommand = {
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
 
     if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
-      await interaction.reply({
-        embeds: [errorEmbed('Invalid Channel', 'Please specify a valid text channel.')],
-      });
+      await interaction.reply(v2Payload([
+        errorContainer('Invalid Channel', 'Please specify a valid text channel.')
+      ]));
       return;
     }
 
     // Show confirmation warning
-    const warningEmbed = new EmbedBuilder()
-      .setColor(Colors.Warning)
-      .setTitle('⚠️ Confirm Channel Nuke')
-      .setDescription(`Are you sure you want to nuke <#${targetChannel.id}>?\n\nThis will:\n• Clone the channel with the same name, topic, and permissions\n• Delete the original channel\n• This action cannot be undone`)
-      .setFooter({ text: 'You have 30 seconds to confirm.' });
+    const warningContainer = new ContainerBuilder();
+    warningContainer.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`### ⚠️ Confirm Channel Nuke\n\nAre you sure you want to nuke <#${targetChannel.id}>?\n\nThis will:\n• Clone the channel with the same name, topic, and permissions\n• Delete the original channel\n• This action cannot be undone\n\n-# You have 30 seconds to confirm.`)
+    );
 
     const confirmButton = new ButtonBuilder()
       .setCustomId('nuke_confirm')
@@ -56,10 +57,9 @@ const command: BotCommand = {
     const row = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(confirmButton, cancelButton);
 
-    await interaction.reply({
-      embeds: [warningEmbed],
-      components: [row],
-    });
+    warningContainer.addActionRowComponents(row);
+
+    await interaction.reply(v2Payload([warningContainer]));
 
     // Wait for button interaction
     const filter = (i: any) =>
@@ -74,10 +74,9 @@ const command: BotCommand = {
       });
 
       if ((buttonInteraction as any).customId === 'nuke_cancel') {
-        await (buttonInteraction as any).update({
-          embeds: [errorEmbed('Cancelled', 'Channel nuke has been cancelled.')],
-          components: [],
-        });
+        await (buttonInteraction as any).update(v2Payload([
+          errorContainer('Cancelled', 'Channel nuke has been cancelled.')
+        ]));
         return;
       }
 
@@ -106,31 +105,23 @@ const command: BotCommand = {
       await (targetChannel as any).delete(`Channel nuked by ${interaction.user.tag}`);
 
       // Send success message in new channel
-      const successEmbed = new EmbedBuilder()
-        .setColor(Colors.Warning)
-        .setTitle('💣 Channel Nuked')
-        .setDescription(`This channel has been nuked and recreated.\n\nNuked by: ${interaction.user.tag}`)
-        .setFooter({ text: 'The original channel has been deleted.' });
+      const successMsgContainer = new ContainerBuilder();
+      successMsgContainer.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### 💣 Channel Nuked\n\nThis channel has been nuked and recreated.\n\nNuked by: ${interaction.user.tag}\n\n-# The original channel has been deleted.`)
+      );
 
-      await newChannel.send({ embeds: [successEmbed] });
+      await newChannel.send({ components: [successMsgContainer], flags: MessageFlags.IsComponentsV2 });
 
       // Update the original interaction reply
-      const confirmEmbed = new EmbedBuilder()
-        .setColor(Colors.Warning)
-        .setTitle('Channel Nuked Successfully')
-        .setDescription(`Channel <#${newChannel.id}> has been nuked.`)
-        .addFields({ name: 'Original Name', value: name || 'Unknown' });
+      const confirmContainer = successContainer('Channel Nuked Successfully', `Channel <#${newChannel.id}> has been nuked.`);
+      addFields(confirmContainer, [{ name: 'Original Name', value: name || 'Unknown' }]);
 
-      await (buttonInteraction as any).editReply({
-        embeds: [confirmEmbed],
-        components: [],
-      });
+      await (buttonInteraction as any).editReply(v2Payload([confirmContainer]));
     } catch {
       // Timeout or no response
-      await interaction.editReply({
-        embeds: [errorEmbed('Confirmation Timeout', 'Channel nuke has been cancelled due to timeout.')],
-        components: [],
-      });
+      await interaction.editReply(v2Payload([
+        errorContainer('Confirmation Timeout', 'Channel nuke has been cancelled due to timeout.')
+      ]));
     }
   },
 };

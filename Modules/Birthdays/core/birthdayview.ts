@@ -6,8 +6,9 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getBirthdayConfig,
   getBirthday,
-  buildBirthdayViewEmbed,
+  buildBirthdayViewContainer,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'birthdays',
@@ -47,10 +48,9 @@ const command: BotCommand = {
         });
       }
 
-      const embed = buildBirthdayViewEmbed(entry, config.showAge);
-      embed.setThumbnail(targetUser.displayAvatarURL({ size: 256 }));
+      const container = buildBirthdayViewContainer(entry, config.showAge);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('[Birthdays] /birthdayview error:', error);
       await interaction.editReply({

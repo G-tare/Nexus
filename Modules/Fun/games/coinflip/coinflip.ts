@@ -1,7 +1,7 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../../Shared/src/types';
 import {
   checkCooldown,
@@ -12,6 +12,7 @@ import {
   emitGameLost,
   getFunConfig,
 } from '../../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../../Shared/src/utils/componentsV2';
 
 
 type CoinSide = 'heads' | 'tails';
@@ -59,12 +60,10 @@ export default {
       const flip = Math.random() < 0.5 ? 'heads' : 'tails';
       const emoji = flip === 'heads' ? '🪙 Heads' : '🪙 Tails';
 
-      const embed = new EmbedBuilder()
-        .setTitle('Coin Flip')
-        .setDescription(`The coin landed on: **${emoji}**`)
-        .setColor(0x3498db);
+      const container = moduleContainer('fun');
+      addText(container, `### Coin Flip\nThe coin landed on: **${emoji}**`);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       await setCooldown(interaction.guildId!, interaction.user.id, 'coinflip', 3);
       return;
     }
@@ -85,41 +84,26 @@ export default {
     const emoji = flip === 'heads' ? '🪙' : '🪙';
     const won = flip === call;
 
-    const embed = new EmbedBuilder()
-      .setTitle('Coin Flip')
-      .addFields({
-        name: 'You Called',
-        value: call.charAt(0).toUpperCase() + call.slice(1),
-        inline: true,
-      })
-      .addFields({
-        name: 'Result',
-        value: `${emoji} ${flip.charAt(0).toUpperCase() + flip.slice(1)}`,
-        inline: true,
-      });
+    const container = moduleContainer('fun');
+    const title = won ? '### ✅ You Won!' : '### ❌ You Lost!';
+    addText(container, title);
 
-    if (won) {
-      embed.setColor(0x00ff00).setTitle('✅ You Won!');
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'You Called', value: call.charAt(0).toUpperCase() + call.slice(1), inline: true },
+      { name: 'Result', value: `${emoji} ${flip.charAt(0).toUpperCase() + flip.slice(1)}`, inline: true },
+    ];
 
-      if (bet && bet > 0) {
-        const winnings = bet * 2;
-        await awardWinnings(interaction.guildId!, interaction.user.id, winnings);
-        emitGameWon(interaction.guildId!, interaction.user.id, 'coinflip', bet, winnings);
-        embed.addFields({
-          name: 'Winnings',
-          value: `+${winnings}`,
-          inline: false,
-        });
-      }
-    } else {
-      embed.setColor(0xff0000).setTitle('❌ You Lost!');
-
-      if (bet && bet > 0) {
-        emitGameLost(interaction.guildId!, interaction.user.id, 'coinflip', bet);
-      }
+    if (won && bet && bet > 0) {
+      const winnings = bet * 2;
+      await awardWinnings(interaction.guildId!, interaction.user.id, winnings);
+      emitGameWon(interaction.guildId!, interaction.user.id, 'coinflip', bet, winnings);
+      fields.push({ name: 'Winnings', value: `+${winnings}`, inline: false });
+    } else if (!won && bet && bet > 0) {
+      emitGameLost(interaction.guildId!, interaction.user.id, 'coinflip', bet);
     }
 
-    await interaction.reply({ embeds: [embed] });
+    addFields(container, fields);
+    await interaction.reply(v2Payload([container]));
     await setCooldown(interaction.guildId!, interaction.user.id, 'coinflip', 3);
   },
   category: 'fun',

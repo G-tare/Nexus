@@ -1,9 +1,11 @@
-import { Guild, GuildMember, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { Guild, GuildMember, TextChannel, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 import { sql } from 'drizzle-orm';
+import { moduleContainer, addText, addFields, addSeparator, v2Payload, addButtons } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AntiRaid');
 
@@ -63,29 +65,27 @@ export async function saveAntiRaidConfig(guildId: string, config: AntiRaidConfig
 // ── Join Tracking ───────────────────────────────────────────────────────────
 
 export async function recordJoin(guildId: string, userId: string, accountAge: number): Promise<void> {
-  const redis = getRedis();
   const joinKey = `antiraid:joins:${guildId}`;
   const joinTimestamp = Math.floor(Date.now() / 1000);
 
-  await redis.zadd(joinKey, joinTimestamp, `${userId}:${joinTimestamp}`);
-  await redis.expire(joinKey, 3600);
+  await cache.sadd(joinKey, `${userId}:${joinTimestamp}`);
+  await cache.expire(joinKey, 3600);
 }
 
 export async function getJoinVelocity(guildId: string): Promise<{ totalJoins: number; newAccountJoins: number; userIds: string[] }> {
-  const redis = getRedis();
   const config = await getAntiRaidConfig(guildId);
   const joinKey = `antiraid:joins:${guildId}`;
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - config.joinWindow;
 
-  const joins = await redis.zrangebyscore(joinKey, windowStart, now);
+  const joins = await cache.smembers(joinKey);
   const userIds = joins.map((j: string) => j.split(':')[0]);
 
   let newAccountCount = 0;
   for (const join of joins) {
     const [userId] = join.split(':');
     const accountAgeKey = `antiraid:accountage:${guildId}:${userId}`;
-    const accountAge = await redis.get(accountAgeKey);
+    const accountAge = await cache.get<string>(accountAgeKey);
     if (accountAge) {
       const ageHours = (now - parseInt(accountAge)) / 3600;
       if (ageHours < config.minAccountAge) {
@@ -109,25 +109,20 @@ export async function checkRaidCondition(guildId: string): Promise<{ isRaid: boo
 // ── Mass Action Detection ───────────────────────────────────────────────────
 
 export async function recordAction(guildId: string, userId: string, actionType: 'ban' | 'kick' | 'role_delete' | 'channel_delete'): Promise<void> {
-  const redis = getRedis();
   const actionKey = `antiraid:actions:${guildId}:${actionType}`;
   const timestamp = Math.floor(new Date().getTime() / 1000);
 
-  await redis.zadd(actionKey, timestamp, `${userId}:${timestamp}`);
-  await redis.expire(actionKey, 3600);
+  await cache.sadd(actionKey, `${userId}:${timestamp}`);
+  await cache.expire(actionKey, 3600);
 }
 
 export async function checkMassAction(guildId: string, userId: string): Promise<{ isMassAction: boolean; actionCount: number; actionType?: string }> {
-  const redis = getRedis();
   const config = await getAntiRaidConfig(guildId);
-  const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - config.massActionWindow;
-
   const actionTypes = ['ban', 'kick', 'role_delete', 'channel_delete'];
 
   for (const actionType of actionTypes) {
     const actionKey = `antiraid:actions:${guildId}:${actionType}`;
-    const actions = await redis.zrangebyscore(actionKey, windowStart, now);
+    const actions = await cache.smembers(actionKey);
 
     if (actions.length >= config.massActionThreshold) {
       return { isMassAction: true, actionCount: actions.length, actionType };
@@ -140,12 +135,11 @@ export async function checkMassAction(guildId: string, userId: string): Promise<
 // ── Lockdown ────────────────────────────────────────────────────────────────
 
 export async function triggerLockdown(guild: Guild, duration: number): Promise<void> {
-  const redis = getRedis();
   const lockdownKey = `antiraid:lockdown:${guild.id}`;
   const lockedChannelsKey = `antiraid:lockdown:channels:${guild.id}`;
   const expiryTime = Math.floor(Date.now() / 1000) + duration;
 
-  await redis.setex(lockdownKey, duration, JSON.stringify({ startTime: Date.now(), duration, expiryTime }));
+  await cache.set(lockdownKey, { startTime: Date.now(), duration, expiryTime }, duration);
 
   try {
     const lockedChannelIds: string[] = [];
@@ -171,7 +165,7 @@ export async function triggerLockdown(guild: Guild, duration: number): Promise<v
     }
 
     // Store which channels WE locked so we only unlock those
-    await redis.setex(lockedChannelsKey, duration + 120, JSON.stringify(lockedChannelIds));
+    await cache.set(lockedChannelsKey, lockedChannelIds, duration + 120);
 
     logger.info(`Lockdown triggered for guild ${guild.id} for ${duration}s (${lockedChannelIds.length} channels locked)`);
     await sendRaidAlert(guild, { action: 'LOCKDOWN_TRIGGERED', duration, reason: 'Suspected raid detected' });
@@ -183,20 +177,18 @@ export async function triggerLockdown(guild: Guild, duration: number): Promise<v
 }
 
 export async function endLockdown(guild: Guild): Promise<void> {
-  const redis = getRedis();
   const lockdownKey = `antiraid:lockdown:${guild.id}`;
   const lockedChannelsKey = `antiraid:lockdown:channels:${guild.id}`;
 
-  await redis.del(lockdownKey);
+  await cache.del(lockdownKey);
 
   try {
     // Only unlock channels that WE locked during the raid lockdown
-    const lockedChannelsData = await redis.get(lockedChannelsKey);
-    const lockedChannelIds: string[] = lockedChannelsData ? JSON.parse(lockedChannelsData) : [];
+    const lockedChannelIds = await cache.get<string[]>(lockedChannelsKey) || [];
 
     if (lockedChannelIds.length === 0) {
       logger.info(`No tracked locked channels for guild ${guild.id} — skipping unlock`);
-      await redis.del(lockedChannelsKey);
+      await cache.del(lockedChannelsKey);
       await sendRaidAlert(guild, { action: 'LOCKDOWN_ENDED', reason: 'Manual unlock (no channels to restore)' });
       eventBus.emit('antiraid:unlockdown', { guildId: guild.id, initiatedBy: 'system' });
       return;
@@ -217,7 +209,7 @@ export async function endLockdown(guild: Guild): Promise<void> {
       }
     }
 
-    await redis.del(lockedChannelsKey);
+    await cache.del(lockedChannelsKey);
 
     logger.info(`Lockdown ended for guild ${guild.id} (${lockedChannelIds.length} channels restored)`);
     await sendRaidAlert(guild, { action: 'LOCKDOWN_ENDED', reason: 'Manual unlock or expiry' });
@@ -229,10 +221,9 @@ export async function endLockdown(guild: Guild): Promise<void> {
 }
 
 export async function isInLockdown(guildId: string): Promise<boolean> {
-  const redis = getRedis();
   const lockdownKey = `antiraid:lockdown:${guildId}`;
-  const lockdown = await redis.get(lockdownKey);
-  return lockdown !== null;
+  const lockdown = await cache.has(lockdownKey);
+  return lockdown;
 }
 
 // ── Quarantine ──────────────────────────────────────────────────────────────
@@ -255,9 +246,8 @@ export async function quarantineMember(member: GuildMember, reason: string): Pro
     await member.roles.add(quarantineRole, `AntiRaid: ${reason}`);
     logger.info(`Quarantined member ${member.id} in guild ${member.guild.id}`);
 
-    const redis = getRedis();
     const quarantineKey = `antiraid:quarantine:${member.guild.id}:${member.id}`;
-    await redis.setex(quarantineKey, 86400, JSON.stringify({ reason, timestamp: new Date() }));
+    await cache.set(quarantineKey, { reason, timestamp: new Date() }, 86400);
   } catch (error) {
     logger.error(`Failed to quarantine member ${member.id}:`, error);
   }
@@ -280,24 +270,25 @@ export async function sendRaidAlert(guild: Guild, details: Record<string, any>):
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor('#FF0000')
-      .setTitle('⚠️ AntiRaid Alert')
-      .setDescription('Raid detection system triggered')
-      .addFields(
-        { name: 'Guild', value: guild.name, inline: true },
-        { name: 'Action', value: details.action || 'UNKNOWN', inline: true },
-        { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-      )
-      .setFooter({ text: 'AntiRaid System' })
-      .setTimestamp();
+    const container = moduleContainer('anti_raid');
+    addText(container, '### ⚠️ AntiRaid Alert');
+    addText(container, 'Raid detection system triggered');
 
-    if (details.joinCount) embed.addFields({ name: 'Join Count (window)', value: `${details.joinCount}`, inline: true });
-    if (details.newAccountCount !== undefined) embed.addFields({ name: 'New Accounts', value: `${details.newAccountCount}`, inline: true });
-    if (details.duration) embed.addFields({ name: 'Lockdown Duration', value: `${details.duration}s`, inline: true });
-    if (details.reason) embed.addFields({ name: 'Reason', value: details.reason, inline: false });
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Guild', value: guild.name, inline: true },
+      { name: 'Action', value: details.action || 'UNKNOWN', inline: true },
+      { name: 'Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+    ];
 
-    await (channel as any).send({ embeds: [embed] });
+    if (details.joinCount) fields.push({ name: 'Join Count (window)', value: `${details.joinCount}`, inline: true });
+    if (details.newAccountCount !== undefined) fields.push({ name: 'New Accounts', value: `${details.newAccountCount}`, inline: true });
+    if (details.duration) fields.push({ name: 'Lockdown Duration', value: `${details.duration}s`, inline: true });
+    if (details.reason) fields.push({ name: 'Reason', value: details.reason, inline: false });
+
+    addSeparator(container, 'small');
+    addFields(container, fields);
+
+    await (channel as any).send(v2Payload([container]));
   } catch (error) {
     logger.error(`Failed to send raid alert for guild ${guild.id}:`, error);
   }
@@ -311,22 +302,18 @@ export async function sendVerification(member: GuildMember): Promise<void> {
   if (!config.verificationEnabled) return;
 
   try {
-    const embed = new EmbedBuilder()
-      .setColor('#0099FF')
-      .setTitle('Welcome to ' + member.guild.name)
-      .setDescription(config.verificationMessage)
-      .setThumbnail(member.guild.iconURL() || null)
-      .setFooter({ text: 'Verification required to proceed' })
-      .setTimestamp();
+    const container = moduleContainer('anti_raid');
+    addText(container, `### Welcome to ${member.guild.name}`);
+    addText(container, config.verificationMessage);
 
     const button = new ButtonBuilder()
       .setCustomId(`antiraidverify:${member.id}`)
       .setLabel('Verify')
       .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+    addButtons(container, [button]);
 
-    await member.send({ embeds: [embed], components: [row] });
+    await member.send(v2Payload([container]));
     logger.info(`Verification message sent to member ${member.id}`);
   } catch (error) {
     logger.warn(`Failed to send verification to member ${member.id}:`, error);
@@ -353,18 +340,14 @@ export async function logRaidAction(guild: Guild, action: string, details: Recor
 // ── Utility ─────────────────────────────────────────────────────────────────
 
 export async function storeAccountAge(guildId: string, userId: string, joinTimestamp: number): Promise<void> {
-  const redis = getRedis();
   const accountAgeKey = `antiraid:accountage:${guildId}:${userId}`;
-  await redis.setex(accountAgeKey, 86400, joinTimestamp.toString());
+  await cache.set(accountAgeKey, joinTimestamp.toString(), 86400);
 }
 
 export async function cleanupOldJoins(guildId: string): Promise<void> {
-  const redis = getRedis();
   const config = await getAntiRaidConfig(guildId);
   const joinKey = `antiraid:joins:${guildId}`;
-  const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - config.joinWindow;
 
-  await redis.zremrangebyscore(joinKey, '-inf', windowStart);
+  await cache.deleteByPrefix(joinKey);
   logger.debug(`Cleaned up old joins for guild ${guildId}`);
 }

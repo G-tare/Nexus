@@ -1,10 +1,15 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { isTicketChannel, isTicketStaff, getTicketConfig } from '../../helpers';
-import { Colors } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'tickets',
@@ -77,24 +82,20 @@ const command: BotCommand = {
       // Rename the channel
       await (interaction.channel as any).setName(sanitizedName);
 
-      // Send success embed
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Success)
-        .setTitle('Ticket Renamed')
-        .setDescription(`The ticket channel has been renamed to **${sanitizedName}**.`)
-        .setTimestamp();
+      // Send success container
+      const successContainer = moduleContainer('tickets');
+      addText(successContainer, '### ✅ Ticket Renamed');
+      addText(successContainer, `The ticket channel has been renamed to **${sanitizedName}**.`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([successContainer]));
 
       // Log in channel
-      const logEmbed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setDescription(`${interaction.user} renamed the ticket to **${sanitizedName}**.`)
-        .setTimestamp();
+      const logContainer = moduleContainer('tickets');
+      addText(logContainer, `${interaction.user} renamed the ticket to **${sanitizedName}**.`);
 
       const channel = interaction.channel as any;
       if (channel?.send) {
-        await channel.send({ embeds: [logEmbed] });
+        await channel.send(v2Payload([logContainer]));
       }
     } catch (error) {
       console.error('Error renaming ticket channel:', error);

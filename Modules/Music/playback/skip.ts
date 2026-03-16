@@ -1,10 +1,11 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getQueue,
   isDJ,
   getMusicConfig,
 } from '../helpers';
+import { errorContainer, moduleContainer, addText, addSeparator, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -22,53 +23,41 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const queue = getQueue(interaction.guild!.id);
 
     // Check if there's an active queue
-    if (!queue || queue.tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('There is no music currently playing.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+    if (!queue || queue.currentTrack === null) {
+      return interaction.editReply(
+        v2Payload([errorContainer('No Music Playing', 'There is no music currently playing.')])
+      );
     }
 
     // Check if user is in the same voice channel as the bot
     if (queue.voiceChannelId !== member.voice.channel.id) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to use this command.')])
+      );
     }
 
     // Check DJ requirement
     const config = await getMusicConfig(interaction.guild!.id);
     if (!member || !isDJ(member, config)) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be a DJ to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('DJ Required', 'You must be a DJ to use this command.')])
+      );
     }
 
     // Get current track before skipping
-    const currentTrack = queue.tracks[0];
+    const currentTrack = queue.currentTrack;
 
     // If loop is set to 'track', disable it before skipping
-    if ((queue as any).loopMode === 'track') {
-      (queue as any).loopMode = 'off';
+    if (queue.loop === 'track') {
+      queue.loop = 'off';
     }
 
     // Remove and skip current track
@@ -80,29 +69,20 @@ const command: BotCommand = {
     //   player.stopTrack();
     // }
 
-    const embed = new EmbedBuilder()
-      .setTitle('Track Skipped')
-      .setDescription(
-        `Skipped: **${currentTrack.title}**\nby ${currentTrack.author}`
-      );
+    const container = moduleContainer('music');
+    addText(container, `### Track Skipped\nSkipped: **${currentTrack.title}**\nby ${currentTrack.author}`);
 
     if (queue.tracks.length > 0) {
-      embed.addFields([
-        {
-          name: 'Now Playing',
-          value: `**${queue.tracks[0].title}**\nby ${queue.tracks[0].author}`,
-          inline: false,
-        },
-      ]);
-      embed.setColor(0x51cf66);
+      addSeparator(container, 'small');
+      addText(container, `### Now Playing\n**${queue.tracks[0].title}**\nby ${queue.tracks[0].author}`);
     } else {
-      embed.setDescription(
-        `${embed.data.description}\n\nQueue is now empty.`
-      );
-      embed.setColor(0xff6b6b);
+      addText(container, '\nQueue is now empty.');
     }
 
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

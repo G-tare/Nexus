@@ -1,14 +1,14 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
   ComponentType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFields, addSeparator, addButtons, v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('CustomCommands');
 
 interface VariableGroup {
@@ -156,46 +156,36 @@ export const variablesCommand: BotCommand = {
         const index = parseInt(category);
         const group = VARIABLE_GROUPS[index];
 
-        const embed = new EmbedBuilder()
-          .setTitle(`${group.name}`)
-          .setDescription(group.description)
-          .setColor('#2f3136');
+        const container = moduleContainer('custom_commands');
+        addText(container, `### ${group.name}\n${group.description}`);
+        addSeparator(container, 'small');
 
-        for (const variable of group.variables) {
-          embed.addFields({
-            name: variable.name,
-            value: variable.description,
-            inline: true
-          });
-        }
+        const fields = group.variables.map(v => ({
+          name: v.name,
+          value: v.description,
+          inline: true
+        }));
+        addFields(container, fields);
 
-        embed.setFooter({ text: 'Use these variables in your custom command responses' });
-
-        await interaction.reply({
-          embeds: [embed]
-        });
+        await interaction.reply(v2Payload([container]));
         return;
       }
 
       // Show all categories with pagination
-      const pages: EmbedBuilder[] = [];
+      const pages = VARIABLE_GROUPS.map(group => {
+        const container = moduleContainer('custom_commands');
+        addText(container, `### ${group.name}\n${group.description}`);
+        addSeparator(container, 'small');
 
-      for (const group of VARIABLE_GROUPS) {
-        const embed = new EmbedBuilder()
-          .setTitle(group.name)
-          .setDescription(group.description)
-          .setColor('#2f3136');
+        const fields = group.variables.map(v => ({
+          name: v.name,
+          value: v.description,
+          inline: false
+        }));
+        addFields(container, fields);
 
-        for (const variable of group.variables) {
-          embed.addFields({
-            name: variable.name,
-            value: variable.description,
-            inline: false
-          });
-        }
-
-        pages.push(embed);
-      }
+        return container;
+      });
 
       if (pages.length === 0) {
         await interaction.reply({
@@ -207,7 +197,8 @@ export const variablesCommand: BotCommand = {
       // Create pagination
       let currentPage = 0;
 
-      const generateRow = (page: number) => {
+      const buildPageWithButtons = (page: number) => {
+        const container = pages[page];
         const prevButton = new ButtonBuilder()
           .setCustomId('var_prev')
           .setLabel('Previous')
@@ -220,14 +211,11 @@ export const variablesCommand: BotCommand = {
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === pages.length - 1);
 
-        return new ActionRowBuilder<ButtonBuilder>()
-          .addComponents(prevButton, nextButton);
+        addButtons(container, [prevButton, nextButton]);
+        return container;
       };
 
-      const response = await interaction.reply({
-        embeds: [pages[currentPage]],
-        components: [generateRow(currentPage)]
-      });
+      const response = await interaction.reply(v2Payload([buildPageWithButtons(currentPage)]));
 
       const collector = response.createMessageComponentCollector({
         componentType: ComponentType.Button,
@@ -248,15 +236,13 @@ export const variablesCommand: BotCommand = {
           currentPage--;
         }
 
-        await buttonInteraction.update({
-          embeds: [pages[currentPage]],
-          components: [generateRow(currentPage)]
-        });
+        await buttonInteraction.update(v2Payload([buildPageWithButtons(currentPage)]));
       });
 
       collector.on('end', async () => {
         try {
-          await response.edit({ components: [] });
+          const finalContainer = pages[currentPage];
+          await response.edit(v2Payload([finalContainer]));
         } catch (error) {
           logger.warn('Failed to remove pagination buttons', error);
         }

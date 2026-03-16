@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModCase, ensureGuild, ensureGuildMember } from '../helpers';
-import { Colors } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -78,25 +78,25 @@ const command: BotCommand = {
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Moderation)
-      .setTitle('Mass Ban Complete')
-      .addFields(
-        { name: 'Banned', value: `${results.success.length} users`, inline: true },
-        { name: 'Failed', value: `${results.failed.length} users`, inline: true },
-        { name: 'Reason', value: reason },
-      )
-      .setFooter({ text: `Executed by ${interaction.user.tag}` })
-      .setTimestamp();
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Banned', value: `${results.success.length} users`, inline: true },
+      { name: 'Failed', value: `${results.failed.length} users`, inline: true },
+      { name: 'Reason', value: reason },
+    ];
 
     if (results.failed.length > 0) {
-      embed.addFields({
+      fields.push({
         name: 'Failed IDs',
         value: results.failed.join(', ').slice(0, 1024),
       });
     }
 
-    await interaction.editReply({ embeds: [embed] });
+    const container = moduleContainer('moderation');
+    addText(container, '### Mass Ban Complete');
+    addFields(container, fields);
+    addFooter(container, `Executed by ${interaction.user.tag}`);
+
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Bot - Moderation Module Testing Checklist</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #1a1b2e;
+            --bg-secondary: #252642;
+            --bg-tertiary: #2f3149;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --neutral: #6b7280;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #3f4559;
+            --transition: all 0.2s ease;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            position: absolute;
+            height: 100%;
+        }
+
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+        }
+
+        .module-item {
+            padding: 0.875rem 1.5rem;
+            margin: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9375rem;
+            border-left: 3px solid transparent;
+        }
+
+        .module-item.active {
+            background-color: var(--bg-tertiary);
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
+
+        .module-item:not(.active) {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .module-item:not(.active):hover {
+            opacity: 0.8;
+        }
+
+        .module-status {
+            font-size: 0.75rem;
+            color: var(--neutral);
+            margin-top: 0.25rem;
+        }
+
+        /* Toggle button */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 101;
+            background-color: var(--accent);
+            border: none;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .btn.danger {
+            color: var(--error);
+            border-color: var(--error);
+        }
+
+        .btn.danger:hover {
+            background-color: var(--error);
+            color: white;
+        }
+
+        /* Stats */
+        .stats-container {
+            padding: 1.5rem;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 2rem;
+            overflow-x: auto;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .stat-value.success {
+            color: var(--success);
+        }
+
+        .stat-value.error {
+            color: var(--error);
+        }
+
+        .stat-value.warning {
+            color: var(--warning);
+        }
+
+        .stat-value.neutral {
+            color: var(--neutral);
+        }
+
+        .progress-bar {
+            flex: 1;
+            min-width: 200px;
+            height: 0.5rem;
+            background-color: var(--bg-tertiary);
+            border-radius: 9999px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .progress-segment {
+            height: 100%;
+            transition: flex 0.3s ease;
+        }
+
+        .progress-segment.success {
+            background-color: var(--success);
+        }
+
+        .progress-segment.error {
+            background-color: var(--error);
+        }
+
+        .progress-segment.warning {
+            background-color: var(--warning);
+        }
+
+        .progress-segment.neutral {
+            background-color: var(--neutral);
+        }
+
+        /* Content area */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 2.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-bar {
+            width: 4px;
+            height: 2rem;
+            background-color: var(--accent);
+            border-radius: 2px;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .section-count {
+            margin-left: auto;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .command-group {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .command-group:hover {
+            border-color: var(--accent);
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+
+        .command-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .command-signature {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            background-color: var(--bg-tertiary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            color: var(--accent-light);
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .command-permission {
+            background-color: rgba(99, 102, 241, 0.1);
+            color: var(--accent-light);
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .command-description {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+
+        .checklist-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .checklist-item {
+            display: grid;
+            grid-template-columns: 120px 1fr 250px auto;
+            gap: 1rem;
+            align-items: center;
+            padding: 0.875rem;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 0.375rem;
+            transition: var(--transition);
+            border: 1px solid transparent;
+        }
+
+        .checklist-item:hover {
+            background-color: rgba(99, 102, 241, 0.05);
+            border-color: var(--accent);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid currentColor;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .status-badge.not-tested {
+            color: var(--neutral);
+            background-color: rgba(107, 114, 128, 0.1);
+        }
+
+        .status-badge.working {
+            color: var(--success);
+            background-color: rgba(34, 197, 94, 0.1);
+        }
+
+        .status-badge.broken {
+            color: var(--error);
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .status-badge.partial {
+            color: var(--warning);
+            background-color: rgba(245, 158, 11, 0.1);
+        }
+
+        .item-description {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            word-break: break-word;
+        }
+
+        .item-notes {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .item-notes:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+
+        .item-notes::placeholder {
+            color: var(--neutral);
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: auto;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .modal-message {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn-confirm {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .btn-confirm:hover {
+            opacity: 0.9;
+        }
+
+        .btn-cancel {
+            background-color: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-cancel:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Hidden file input */
+        #importFileInput {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 200px;
+            }
+
+            .checklist-item {
+                grid-template-columns: 100px 1fr 200px;
+                font-size: 0.9rem;
+            }
+
+            .item-notes {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: absolute;
+                width: 100%;
+                height: 100vh;
+                z-index: 99;
+            }
+
+            .sidebar-toggle {
+                display: flex;
+            }
+
+            .container {
+                position: relative;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .toolbar {
+                width: 100%;
+            }
+
+            .stats-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .progress-bar {
+                min-width: 100%;
+            }
+
+            .content {
+                padding: 1rem;
+                margin-left: 0;
+            }
+
+            .checklist-item {
+                grid-template-columns: 90px 1fr;
+                gap: 0.75rem;
+                padding: 0.75rem;
+            }
+
+            .item-notes {
+                grid-column: 1 / -1;
+                width: 100%;
+            }
+
+            .command-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .command-signature {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .section {
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-item {
+                min-width: 100%;
+            }
+
+            .btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            .header-title {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Toggle -->
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Modules</div>
+            </div>
+            <div class="module-item active" data-module="Moderation">
+                <div>Moderation</div>
+                <div class="module-status">Active</div>
+            </div>
+            <div class="module-item" data-module="AutoMod">
+                <div>AutoMod</div>
+                <div class="module-status">Coming Soon</div>
+            </div>
+            <div class="module-item" data-module="Logging">
+                <div>Logging</div>
+                <div class="module-status">Coming Soon</div>
+            </div>
+            <div class="module-item" data-module="Verification">
+                <div>Verification</div>
+                <div class="module-status">Coming Soon</div>
+            </div>
+            <div class="module-item" data-module="Roles">
+                <div>Roles</div>
+                <div class="module-status">Coming Soon</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title">Nexus Bot — Moderation Testing</div>
+                <div class="toolbar">
+                    <button class="btn" id="exportBtn">📥 Export JSON</button>
+                    <button class="btn" id="importBtn">📤 Import JSON</button>
+                    <button class="btn danger" id="resetBtn">🔄 Reset All</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-container">
+                <div class="stat-item">
+                    <div class="stat-label">Total Items</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Working</div>
+                    <div class="stat-value success" id="statWorking">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Broken</div>
+                    <div class="stat-value error" id="statBroken">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Partial</div>
+                    <div class="stat-value warning" id="statPartial">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Not Tested</div>
+                    <div class="stat-value neutral" id="statNotTested">0</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-segment success" id="progressWorking" style="flex: 0;"></div>
+                    <div class="progress-segment error" id="progressBroken" style="flex: 0;"></div>
+                    <div class="progress-segment warning" id="progressPartial" style="flex: 0;"></div>
+                    <div class="progress-segment neutral" id="progressNotTested" style="flex: 1;"></div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="content" id="content">
+                <!-- Sections will be populated by JavaScript -->
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                Nexus Bot — Moderation Module Testing Checklist | Last updated: <span id="lastUpdated">Never</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-title" id="confirmTitle">Confirm Action</div>
+            <div class="modal-message" id="confirmMessage">Are you sure?</div>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" id="confirmCancel">Cancel</button>
+                <button class="btn btn-confirm" id="confirmYes">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="importFileInput" accept=".json" />
+
+    <script>
+        // Data structure for all checklist items
+        const CHECKLIST_DATA = {
+            '1. Ban Commands': [
+                {
+                    command: '/ban <user> [reason] [delete_days]',
+                    permission: 'BanMembers',
+                    description: 'Permanently ban a user',
+                    items: [
+                        'User is banned from the server',
+                        'DM sent to user with ban reason (if dmOnBan=true)',
+                        'Mod case created in database',
+                        'Reputation penalty applied (if enabled)',
+                        'delete_days parameter works (0-7 days of messages)',
+                        'Hierarchy check: cannot ban higher-role user',
+                        'Cannot ban self or guild owner',
+                        'Already-banned user shows error',
+                        'requireReason config enforced when enabled'
+                    ]
+                },
+                {
+                    command: '/unban <user_id> [reason]',
+                    permission: 'BanMembers',
+                    description: 'Unban a user',
+                    items: [
+                        'User is unbanned from the server',
+                        'Mod case created for unban action',
+                        'Invalid user ID format (non 17-20 digits) rejected',
+                        'User not banned shows appropriate error'
+                    ]
+                },
+                {
+                    command: '/tempban <user> <duration> [reason] [delete_days]',
+                    permission: 'BanMembers',
+                    description: 'Temporary ban',
+                    items: [
+                        'User is banned from the server',
+                        'Duration parsing works: 1h, 2d, 1w, 30m',
+                        'Temp ban record saved to temp_bans Postgres table',
+                        'Timer scheduled via TimerManager',
+                        'Auto-unban fires after duration expires',
+                        'DM sent with ban duration info',
+                        'Mod case created with duration field',
+                        'Minimum 1 minute duration enforced',
+                        'Survives bot restart (loads from Postgres on startup)'
+                    ]
+                },
+                {
+                    command: '/massban <user_ids> [reason] [delete_days]',
+                    permission: 'Administrator',
+                    description: 'Ban multiple users',
+                    items: [
+                        'Space-separated IDs parsed correctly',
+                        'Comma-separated IDs parsed correctly',
+                        'Max 50 user limit enforced',
+                        'Success/failed count reported',
+                        'Individual ban failures don\'t stop batch',
+                        '[MASSBAN] prefix added to reason'
+                    ]
+                },
+                {
+                    command: '/banlist [search]',
+                    permission: 'BanMembers',
+                    description: 'Search ban list',
+                    items: [
+                        'All bans listed (paginated, 20 max)',
+                        'Search filters by username',
+                        'Search filters by reason text',
+                        'Search filters by user ID',
+                        'Empty ban list shows appropriate message'
+                    ]
+                }
+            ],
+            '2. Mute Commands': [
+                {
+                    command: '/mute <user> <duration> [reason]',
+                    permission: 'ModerateMembers',
+                    description: 'Timeout a user',
+                    items: [
+                        'User timed out (Discord timeout applied)',
+                        'Duration parsing: 10m, 1h, 7d, 28d',
+                        'Max 28 days enforced (Discord limit)',
+                        'Min 1 minute enforced',
+                        'Already-muted user shows error',
+                        'DM sent with mute reason (if dmOnMute=true)',
+                        'Mod case created',
+                        'Reputation penalty applied',
+                        'Administrator targets show helpful error (Discord blocks admin timeout)'
+                    ]
+                },
+                {
+                    command: '/unmute <user> [reason]',
+                    permission: 'ModerateMembers',
+                    description: 'Remove timeout',
+                    items: [
+                        'User timeout removed',
+                        'Not-muted user shows error',
+                        'Mod case created for unmute'
+                    ]
+                },
+                {
+                    command: '/massmute <user_ids> <duration> [reason]',
+                    permission: 'Administrator',
+                    description: 'Mute multiple users',
+                    items: [
+                        'Multiple users timed out',
+                        'Duration applied to all users',
+                        'Max 50 user limit enforced',
+                        'Success/failed count reported',
+                        '[MASSMUTE] prefix added to reason'
+                    ]
+                },
+                {
+                    command: '/mutelist',
+                    permission: 'ModerateMembers',
+                    description: 'View muted users',
+                    items: [
+                        'All currently muted users listed',
+                        'Timeout expiry shown for each user',
+                        'Empty list shows appropriate message'
+                    ]
+                }
+            ],
+            '3. Kick Commands': [
+                {
+                    command: '/kick <user> [reason]',
+                    permission: 'KickMembers',
+                    description: 'Kick a user',
+                    items: [
+                        'User kicked from server',
+                        'DM sent with kick reason (if dmOnKick=true)',
+                        'Mod case created',
+                        'Reputation penalty applied',
+                        'Hierarchy check enforced',
+                        'Cannot kick self or guild owner'
+                    ]
+                }
+            ],
+            '4. Warn Commands': [
+                {
+                    command: '/warn <user> [reason]',
+                    permission: 'ModerateMembers',
+                    description: 'Warn a user',
+                    items: [
+                        'Warning created, warn_count incremented',
+                        'DM sent with warning (if dmOnWarn=true)',
+                        'Mod case created',
+                        'Reputation penalty applied',
+                        'Current warn count displayed in response',
+                        'Warn threshold auto-escalation triggers (if configured)',
+                        'Threshold: auto-mute at configured count',
+                        'Threshold: auto-kick at configured count',
+                        'Threshold: auto-ban at configured count'
+                    ]
+                },
+                {
+                    command: '/warnings <user>',
+                    permission: 'ModerateMembers',
+                    description: 'View warnings',
+                    items: [
+                        'All active warnings listed with case numbers',
+                        'Shows moderator, timestamp, reason for each',
+                        'No warnings shows appropriate message'
+                    ]
+                },
+                {
+                    command: '/unwarn <user> <case_id>',
+                    permission: 'ModerateMembers',
+                    description: 'Remove warning',
+                    items: [
+                        'Specific warning deactivated (isActive=false)',
+                        'warn_count decremented (never goes below 0)',
+                        'Invalid case number shows error',
+                        'Case belonging to different user shows error'
+                    ]
+                },
+                {
+                    command: '/clearwarnings <user>',
+                    permission: 'Administrator',
+                    description: 'Clear all warnings',
+                    items: [
+                        'All active warnings deactivated',
+                        'warn_count reset to 0',
+                        'No warnings shows appropriate message'
+                    ]
+                },
+                {
+                    command: '/serverwarns [page]',
+                    permission: 'ModerateMembers',
+                    description: 'All active warnings',
+                    items: [
+                        'All server warnings listed, newest first',
+                        'Pagination works (10 per page)',
+                        'Shows case, target, moderator, timestamp, reason'
+                    ]
+                }
+            ],
+            '5. Channel Commands': [
+                {
+                    command: '/lock [channel] [reason]',
+                    permission: 'ManageChannels',
+                    description: 'Lock a channel',
+                    items: [
+                        'SendMessages permission denied for @everyone',
+                        'Lock reason shown in channel',
+                        'Already locked channel shows error',
+                        'Mod case created'
+                    ]
+                },
+                {
+                    command: '/unlock [channel]',
+                    permission: 'ManageChannels',
+                    description: 'Unlock a channel',
+                    items: [
+                        'SendMessages permission restored for @everyone',
+                        'Not-locked channel shows error'
+                    ]
+                },
+                {
+                    command: '/slowmode <duration> [channel]',
+                    permission: 'ManageChannels',
+                    description: 'Set slowmode',
+                    items: [
+                        'Slowmode applied to channel',
+                        'Duration: 5s, 30s, 1m, 5m, 1h, 6h',
+                        'Max 6 hours enforced (Discord limit)',
+                        'Disable with 0s'
+                    ]
+                },
+                {
+                    command: '/nuke [channel]',
+                    permission: 'Administrator',
+                    description: 'Clone and delete channel',
+                    items: [
+                        'Channel cloned with same settings',
+                        'Original channel deleted',
+                        'Position preserved',
+                        'Permissions preserved',
+                        'Confirmation required before executing'
+                    ]
+                },
+                {
+                    command: '/lockdown [duration]',
+                    permission: 'Administrator',
+                    description: 'Lock all channels',
+                    items: [
+                        'All text channels locked',
+                        'Duration-based auto-unlock (optional)',
+                        'Status message sent',
+                        'Unlock with /unlockdown'
+                    ]
+                },
+                {
+                    command: '/unlockdown',
+                    permission: 'Administrator',
+                    description: 'Unlock all channels',
+                    items: [
+                        'All text channels unlocked',
+                        'Status message sent'
+                    ]
+                }
+            ],
+            '6. Purge Commands': [
+                {
+                    command: '/purge <amount>',
+                    permission: 'ManageMessages',
+                    description: 'Delete messages',
+                    items: [
+                        'Specified number of messages deleted (1-100)',
+                        'Messages older than 14 days skipped (Discord limit)',
+                        'Count reported after purge'
+                    ]
+                },
+                {
+                    command: '/purge user <user> <amount>',
+                    permission: 'ManageMessages',
+                    description: 'Delete user\'s messages',
+                    items: [
+                        'Only target user\'s messages deleted',
+                        'Scans through more messages to find matching ones'
+                    ]
+                },
+                {
+                    command: '/purge bots <amount>',
+                    permission: 'ManageMessages',
+                    description: 'Delete bot messages',
+                    items: [
+                        'Only bot messages deleted'
+                    ]
+                },
+                {
+                    command: '/purge contains <text> <amount>',
+                    permission: 'ManageMessages',
+                    description: 'Delete messages containing text',
+                    items: [
+                        'Only messages containing the text deleted',
+                        'Case-insensitive matching'
+                    ]
+                },
+                {
+                    command: '/purge attachments <amount>',
+                    permission: 'ManageMessages',
+                    description: 'Delete messages with attachments',
+                    items: [
+                        'Only messages with attachments deleted'
+                    ]
+                }
+            ],
+            '7. User Commands': [
+                {
+                    command: '/nickname <user> [nickname]',
+                    permission: 'ManageNicknames',
+                    description: 'Change nickname',
+                    items: [
+                        'Nickname changed successfully',
+                        'Empty nickname resets to default',
+                        '32 character limit enforced',
+                        'Cannot change owner\'s nickname'
+                    ]
+                },
+                {
+                    command: '/deafen <user>',
+                    permission: 'DeafenMembers',
+                    description: 'Server deafen',
+                    items: [
+                        'User deafened in voice',
+                        'User not in voice shows error'
+                    ]
+                },
+                {
+                    command: '/undeafen <user>',
+                    permission: 'DeafenMembers',
+                    description: 'Remove server deafen',
+                    items: [
+                        'User undeafened',
+                        'User not deafened shows error'
+                    ]
+                }
+            ],
+            '8. Advanced Commands': [
+                {
+                    command: '/softban <user> [reason] [delete_days]',
+                    permission: 'BanMembers',
+                    description: 'Ban + immediately unban',
+                    items: [
+                        'User banned then unbanned',
+                        'Messages deleted based on delete_days',
+                        'DM sent before softban',
+                        'Mod case created'
+                    ]
+                },
+                {
+                    command: '/note <user> <note>',
+                    permission: 'ModerateMembers',
+                    description: 'Add a mod note',
+                    items: [
+                        'Note saved to mod cases',
+                        'Note visible in /modlog'
+                    ]
+                },
+                {
+                    command: '/shadowban <user>',
+                    permission: 'Administrator',
+                    description: 'Shadow ban a user',
+                    items: [
+                        'User restricted without notification',
+                        'Feature must be enabled in config',
+                        'Disabled config shows error'
+                    ]
+                },
+                {
+                    command: '/quarantine <user>',
+                    permission: 'Administrator',
+                    description: 'Quarantine a user',
+                    items: [
+                        'Quarantine role assigned',
+                        'Role must be configured first',
+                        'Unconfigured role shows helpful error'
+                    ]
+                },
+                {
+                    command: '/massban-file',
+                    permission: 'Administrator',
+                    description: 'Ban users from file',
+                    items: [
+                        'Accepts .txt file upload',
+                        'One ID per line parsed',
+                        'Invalid IDs skipped with report',
+                        'Max 200 users limit'
+                    ]
+                },
+                {
+                    command: '/raid-mode [on/off]',
+                    permission: 'Administrator',
+                    description: 'Toggle raid protection',
+                    items: [
+                        'Enables join restrictions',
+                        'Auto-kick new accounts under threshold',
+                        'Status message shown'
+                    ]
+                }
+            ],
+            '9. Investigation Commands': [
+                {
+                    command: '/modlog <user> [page]',
+                    permission: 'ModerateMembers',
+                    description: 'View mod history',
+                    items: [
+                        'All cases for user shown',
+                        'Pagination works',
+                        'Shows: case#, action, moderator, reason, date',
+                        'Duration shown for timed actions'
+                    ]
+                },
+                {
+                    command: '/modlog reputationhistory <user>',
+                    permission: 'ModerateMembers',
+                    description: 'View rep history',
+                    items: [
+                        'Current reputation shown with progress bar',
+                        'Recent rep changes listed (last 5)',
+                        'Shows who gave/removed rep (moderator name, not @system)',
+                        'Recent mod actions listed (last 5)'
+                    ]
+                }
+            ],
+            '10. Utility Commands': [
+                {
+                    command: '/case <case_number>',
+                    permission: 'ModerateMembers',
+                    description: 'View specific case',
+                    items: [
+                        'Full case details shown',
+                        'Invalid case number shows error'
+                    ]
+                },
+                {
+                    command: '/editcase <case_number> <new_reason>',
+                    permission: 'Administrator',
+                    description: 'Edit case reason',
+                    items: [
+                        'Reason updated in database',
+                        'Original reason preserved (if audit needed)'
+                    ]
+                },
+                {
+                    command: '/deletecase <case_number>',
+                    permission: 'Administrator',
+                    description: 'Delete a case',
+                    items: [
+                        'Case removed from database',
+                        'Confirmation required'
+                    ]
+                },
+                {
+                    command: '/modstats [moderator]',
+                    permission: 'ModerateMembers',
+                    description: 'View mod statistics',
+                    items: [
+                        'Total actions by type',
+                        'Actions in last 7/30 days',
+                        'Optional: filter by specific moderator'
+                    ]
+                },
+                {
+                    command: '/exportlog <user>',
+                    permission: 'Administrator',
+                    description: 'Export mod log',
+                    items: [
+                        'CSV or text format',
+                        'All cases included',
+                        'Downloadable file generated'
+                    ]
+                }
+            ],
+            '11. Userinfo': [
+                {
+                    command: '/userinfo <user>',
+                    permission: 'ModerateMembers',
+                    description: 'View user info',
+                    items: [
+                        'Username, ID, avatar shown',
+                        'Account creation date',
+                        'Server join date',
+                        'Roles listed',
+                        'Reputation score shown',
+                        'Warning count shown',
+                        'Recent mod actions'
+                    ]
+                }
+            ],
+            '12. Reputation Commands': [
+                {
+                    command: '/addreputation <user> <amount> [reason]',
+                    permission: 'BanMembers',
+                    description: 'Add rep',
+                    items: [
+                        'Rep added successfully (1-50 range)',
+                        'New score shown',
+                        'Clamped to 0-100 range',
+                        'History entry created with moderator ID'
+                    ]
+                },
+                {
+                    command: '/removereputation <user> <amount> [reason]',
+                    permission: 'BanMembers',
+                    description: 'Remove rep',
+                    items: [
+                        'Rep removed successfully (1-50 range)',
+                        'New score shown',
+                        'Never goes below 0',
+                        'History entry created with moderator ID'
+                    ]
+                },
+                {
+                    command: '/reputation <user>',
+                    permission: 'None',
+                    description: 'View reputation',
+                    items: [
+                        'Current score shown',
+                        'Progress bar displayed'
+                    ]
+                },
+                {
+                    command: '/leaderboard [page]',
+                    permission: 'None',
+                    description: 'View reputation leaderboard',
+                    items: [
+                        'Top users listed by reputation',
+                        'Pagination works',
+                        'Shows rank, user, score'
+                    ]
+                }
+            ],
+            '13. Configuration Options': [
+                {
+                    command: 'Configuration Settings',
+                    permission: 'Administrator',
+                    description: 'All config options and toggles',
+                    items: [
+                        'Module Enabled toggle works',
+                        'dmOnBan toggle works',
+                        'dmOnKick toggle works',
+                        'dmOnMute toggle works',
+                        'dmOnWarn toggle works',
+                        'requireReason toggle works (blocks actions without reason)',
+                        'Warn threshold: auto-mute configuration',
+                        'Warn threshold: auto-kick configuration',
+                        'Warn threshold: auto-ban configuration',
+                        'appealEnabled toggle works',
+                        'Appeal channel selection works',
+                        'fineEnabled toggle works',
+                        'Fine amounts configurable per action',
+                        'reputationEnabled toggle works',
+                        'Default reputation value configurable',
+                        'Reputation penalties configurable per action',
+                        'Shadow Ban toggle works',
+                        'Quarantine Role selection works'
+                    ]
+                }
+            ],
+            '14. Event Handlers': [
+                {
+                    command: 'Event Handlers',
+                    permission: 'System',
+                    description: 'Bot event listeners and handlers',
+                    items: [
+                        'guildMemberAdd: Alt detection triggers on new joins',
+                        'guildMemberRemove: Cleanup of active mutes/timers',
+                        'messageCreate: Shadow ban message suppression',
+                        'guildBanAdd: External ban detection and case creation',
+                        'guildBanRemove: External unban detection and case creation'
+                    ]
+                }
+            ],
+            '15. Permission & Hierarchy Checks': [
+                {
+                    command: 'Permissions & Hierarchy',
+                    permission: 'System',
+                    description: 'Permission and role hierarchy validation',
+                    items: [
+                        'Bot cannot target users with higher role',
+                        'Moderator cannot target users with higher/equal role',
+                        'Cannot target guild owner',
+                        'Cannot target self',
+                        'Bot missing permissions shows helpful error',
+                        'Custom permission overrides (via permissionPath) work',
+                        'Premium feature gating works'
+                    ]
+                }
+            ],
+            '16. Database & Cache Integrity': [
+                {
+                    command: 'Database & Cache',
+                    permission: 'System',
+                    description: 'Data persistence and cache management',
+                    items: [
+                        'Mod cases auto-increment correctly',
+                        'warn_count stays in sync with actual warnings',
+                        'Reputation scores clamp to 0-100',
+                        'Temp bans survive bot restart',
+                        'Timer cleanup on guild leave',
+                        'Cache invalidation on config change',
+                        'Data persists across shard restarts'
+                    ]
+                }
+            ],
+            '17. Dashboard & API Integration': [
+                {
+                    command: 'Dashboard & API',
+                    permission: 'System',
+                    description: 'Dashboard integration and real-time sync',
+                    items: [
+                        'Config changes from dashboard reflect in bot',
+                        'Config changes from bot reflect in dashboard',
+                        'Mod log viewable from dashboard',
+                        'Case editing from dashboard works',
+                        'Real-time sync via CacheInvalidator'
+                    ]
+                }
+            ],
+            '18. Error Handling & Edge Cases': [
+                {
+                    command: 'Error Handling',
+                    permission: 'System',
+                    description: 'Comprehensive error handling and edge cases',
+                    items: [
+                        'Invalid user ID format rejected gracefully',
+                        'User not in server handled properly',
+                        'Bot missing permissions handled gracefully',
+                        'Rate limiting handled gracefully',
+                        'Database connection errors don\'t crash bot',
+                        'Concurrent mod actions on same user handled',
+                        'Very long reasons truncated properly',
+                        'Unicode/emoji in reasons handled',
+                        'Deleted user accounts handled in modlog'
+                    ]
+                }
+            ]
+        };
+
+        // Status codes
+        const STATUS = {
+            NOT_TESTED: 'not-tested',
+            WORKING: 'working',
+            BROKEN: 'broken',
+            PARTIAL: 'partial'
+        };
+
+        const STATUS_ORDER = [STATUS.NOT_TESTED, STATUS.WORKING, STATUS.BROKEN, STATUS.PARTIAL];
+
+        // App state
+        let currentModule = 'Moderation';
+        let checklist = {};
+
+        // Initialize app
+        function init() {
+            loadFromLocalStorage();
+            renderSidebar();
+            renderContent();
+            setupEventListeners();
+            updateStats();
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Module switcher
+            document.querySelectorAll('.module-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    switchModule(item.dataset.module);
+                });
+            });
+
+            // Buttons
+            document.getElementById('exportBtn').addEventListener('click', exportJSON);
+            document.getElementById('importBtn').addEventListener('click', () => {
+                document.getElementById('importFileInput').click();
+            });
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                showConfirmModal(
+                    'Reset All Data',
+                    'Are you sure you want to reset all testing data for this module? This cannot be undone.',
+                    resetAll
+                );
+            });
+
+            // Sidebar toggle
+            document.getElementById('sidebarToggle').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('collapsed');
+            });
+
+            // Import file input
+            document.getElementById('importFileInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    importJSON(file);
+                }
+                e.target.value = '';
+            });
+
+            // Modal buttons
+            document.getElementById('confirmCancel').addEventListener('click', closeModal);
+            document.getElementById('confirmYes').addEventListener('click', () => {
+                const action = closeModal();
+                if (action) action();
+            });
+        }
+
+        // Switch module
+        function switchModule(moduleName) {
+            currentModule = moduleName;
+            document.querySelectorAll('.module-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.module === moduleName);
+            });
+            renderContent();
+            closeModalOnSidebar();
+        }
+
+        function closeModalOnSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+
+        // Render sidebar
+        function renderSidebar() {
+            // Already in HTML
+        }
+
+        // Render content
+        function renderContent() {
+            const content = document.getElementById('content');
+            content.innerHTML = '';
+
+            const sections = CHECKLIST_DATA;
+
+            for (const [sectionName, commandGroups] of Object.entries(sections)) {
+                const section = document.createElement('div');
+                section.className = 'section';
+
+                const sectionHeader = document.createElement('div');
+                sectionHeader.className = 'section-header';
+
+                const sectionBar = document.createElement('div');
+                sectionBar.className = 'section-bar';
+
+                const title = document.createElement('div');
+                title.className = 'section-title';
+                title.textContent = sectionName;
+
+                const count = document.createElement('div');
+                count.className = 'section-count';
+                const itemCount = commandGroups.reduce((acc, cmd) => acc + cmd.items.length, 0);
+                count.textContent = `${itemCount} items`;
+
+                sectionHeader.appendChild(sectionBar);
+                sectionHeader.appendChild(title);
+                sectionHeader.appendChild(count);
+
+                section.appendChild(sectionHeader);
+
+                // Render command groups
+                commandGroups.forEach(cmd => {
+                    const group = document.createElement('div');
+                    group.className = 'command-group';
+
+                    const header = document.createElement('div');
+                    header.className = 'command-header';
+
+                    const sig = document.createElement('div');
+                    sig.className = 'command-signature';
+                    sig.textContent = cmd.command;
+
+                    const perm = document.createElement('div');
+                    perm.className = 'command-permission';
+                    perm.textContent = `[${cmd.permission}]`;
+
+                    header.appendChild(sig);
+                    header.appendChild(perm);
+
+                    const desc = document.createElement('div');
+                    desc.className = 'command-description';
+                    desc.textContent = cmd.description;
+
+                    group.appendChild(header);
+                    group.appendChild(desc);
+
+                    const items = document.createElement('div');
+                    items.className = 'checklist-items';
+
+                    // Render checklist items
+                    cmd.items.forEach((item, idx) => {
+                        const key = `${sectionName}|${cmd.command}|${idx}`;
+                        const status = checklist[key] || STATUS.NOT_TESTED;
+                        const notes = (localStorage.getItem(`nexus-testing-${currentModule}-notes-${key}`) || '');
+
+                        const row = document.createElement('div');
+                        row.className = 'checklist-item';
+
+                        const badge = document.createElement('div');
+                        badge.className = `status-badge ${status}`;
+                        badge.textContent = status.replace('-', ' ').toUpperCase();
+                        badge.addEventListener('click', () => {
+                            cycleStatus(key);
+                        });
+
+                        const desc = document.createElement('div');
+                        desc.className = 'item-description';
+                        desc.textContent = item;
+
+                        const notes_input = document.createElement('input');
+                        notes_input.type = 'text';
+                        notes_input.className = 'item-notes';
+                        notes_input.placeholder = 'Add notes...';
+                        notes_input.value = notes;
+                        notes_input.addEventListener('input', (e) => {
+                            localStorage.setItem(`nexus-testing-${currentModule}-notes-${key}`, e.target.value);
+                            updateLastUpdated();
+                        });
+
+                        row.appendChild(badge);
+                        row.appendChild(desc);
+                        row.appendChild(notes_input);
+
+                        items.appendChild(row);
+                    });
+
+                    group.appendChild(items);
+                    section.appendChild(group);
+                });
+
+                content.appendChild(section);
+            }
+        }
+
+        // Cycle status
+        function cycleStatus(key) {
+            const currentStatus = checklist[key] || STATUS.NOT_TESTED;
+            const currentIdx = STATUS_ORDER.indexOf(currentStatus);
+            const nextIdx = (currentIdx + 1) % STATUS_ORDER.length;
+            checklist[key] = STATUS_ORDER[nextIdx];
+
+            saveToLocalStorage();
+            renderContent();
+            updateStats();
+        }
+
+        // Update stats
+        function updateStats() {
+            const stats = {
+                total: 0,
+                working: 0,
+                broken: 0,
+                partial: 0,
+                notTested: 0
+            };
+
+            Object.values(checklist).forEach(status => {
+                stats.total++;
+                if (status === STATUS.WORKING) stats.working++;
+                else if (status === STATUS.BROKEN) stats.broken++;
+                else if (status === STATUS.PARTIAL) stats.partial++;
+                else stats.notTested++;
+            });
+
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statWorking').textContent = stats.working;
+            document.getElementById('statBroken').textContent = stats.broken;
+            document.getElementById('statPartial').textContent = stats.partial;
+            document.getElementById('statNotTested').textContent = stats.notTested;
+
+            // Update progress bar
+            if (stats.total > 0) {
+                const workingPct = (stats.working / stats.total) * 100;
+                const brokenPct = (stats.broken / stats.total) * 100;
+                const partialPct = (stats.partial / stats.total) * 100;
+                const notTestedPct = (stats.notTested / stats.total) * 100;
+
+                document.getElementById('progressWorking').style.flex = workingPct;
+                document.getElementById('progressBroken').style.flex = brokenPct;
+                document.getElementById('progressPartial').style.flex = partialPct;
+                document.getElementById('progressNotTested').style.flex = notTestedPct;
+            }
+        }
+
+        // LocalStorage functions
+        function loadFromLocalStorage() {
+            const key = `nexus-testing-${currentModule}`;
+            const data = localStorage.getItem(key);
+            checklist = data ? JSON.parse(data) : {};
+        }
+
+        function saveToLocalStorage() {
+            const key = `nexus-testing-${currentModule}`;
+            localStorage.setItem(key, JSON.stringify(checklist));
+            updateLastUpdated();
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent = now.toLocaleString();
+        }
+
+        // Export JSON
+        function exportJSON() {
+            const key = `nexus-testing-${currentModule}`;
+            const exportData = {
+                module: currentModule,
+                exportDate: new Date().toISOString(),
+                checklist: checklist,
+                notes: {}
+            };
+
+            // Collect notes
+            for (const key in localStorage) {
+                if (key.startsWith(`nexus-testing-${currentModule}-notes-`)) {
+                    const noteKey = key.substring(`nexus-testing-${currentModule}-notes-`.length);
+                    exportData.notes[noteKey] = localStorage.getItem(key);
+                }
+            }
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nexus-testing-${currentModule}-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Import JSON
+        function importJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    if (data.module && data.module !== currentModule) {
+                        showConfirmModal(
+                            'Module Mismatch',
+                            `This file is for the "${data.module}" module, but you're currently on "${currentModule}". Import anyway?`,
+                            () => {
+                                importData(data);
+                            }
+                        );
+                    } else {
+                        importData(data);
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function importData(data) {
+            checklist = data.checklist || {};
+
+            // Import notes
+            if (data.notes) {
+                for (const [key, value] of Object.entries(data.notes)) {
+                    localStorage.setItem(`nexus-testing-${currentModule}-notes-${key}`, value);
+                }
+            }
+
+            saveToLocalStorage();
+            renderContent();
+            updateStats();
+            alert('Data imported successfully!');
+        }
+
+        // Reset all
+        function resetAll() {
+            const key = `nexus-testing-${currentModule}`;
+            localStorage.removeItem(key);
+
+            // Remove all notes
+            const keysToRemove = [];
+            for (const key in localStorage) {
+                if (key.startsWith(`nexus-testing-${currentModule}-notes-`)) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+
+            checklist = {};
+            renderContent();
+            updateStats();
+            updateLastUpdated();
+        }
+
+        // Modal functions
+        let modalCallback = null;
+
+        function showConfirmModal(title, message, callback) {
+            modalCallback = callback;
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+            const cb = modalCallback;
+            modalCallback = null;
+            return cb;
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

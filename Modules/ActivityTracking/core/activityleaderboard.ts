@@ -1,10 +1,11 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getActivityLeaderboard, formatDuration } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('ActivityTracking');
 
@@ -80,14 +81,12 @@ const command: BotCommand = {
         )
         .join('\n\n');
 
-      const embed = new EmbedBuilder()
-        .setColor('#FFD700')
-        .setTitle(`🏆 Activity Leaderboard - ${periodLabel}`)
-        .setDescription(description)
-        .setFooter({ text: `Showing top ${entries.length} members` })
-        .setTimestamp();
+      const container = moduleContainer('activity_tracking');
+      addText(container, `### 🏆 Activity Leaderboard - ${periodLabel}`);
+      addText(container, description);
+      addFooter(container, `Showing top ${entries.length} members`);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('Error executing activity leaderboard command', error);
       if (interaction.deferred) {

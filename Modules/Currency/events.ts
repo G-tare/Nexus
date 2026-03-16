@@ -1,9 +1,11 @@
 import { Events, Message, Client } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
-import { getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { getCurrencyConfig, addCurrency, removeCurrency, CurrencyType } from './helpers';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { sql } from 'drizzle-orm';
 
 const logger = createModuleLogger('Currency');
 
@@ -18,12 +20,10 @@ export const currencyEvents: ModuleEvent[] = [
 				// Only process guild messages
 				if (!message.guildId) return;
 
-				const redis = getRedis();
 				const cooldownKey = `msgcooldown:${message.guildId!}:${message.author.id}`;
 
 				// Check if user is on cooldown
-				const onCooldown = await redis.exists(cooldownKey);
-				if (onCooldown) return;
+				if (cache.has(cooldownKey)) return;
 
 				// Get currency config for this guild
 				const config = await getCurrencyConfig(message.guildId!);
@@ -42,7 +42,7 @@ export const currencyEvents: ModuleEvent[] = [
 
 				// Set cooldown
 				const cooldownSeconds = (config as any).messageCooldown || 60;
-				await redis.setex(cooldownKey, cooldownSeconds, '1');
+				cache.set(cooldownKey, '1', cooldownSeconds);
 			} catch (error) {
 				logger.error('Error processing message earn event:', error);
 			}
@@ -119,4 +119,40 @@ export function setupCurrencyListeners() {
 			logger.error('Error processing modAction event:', error);
 		}
 	});
+
+	// Daily job reset - runs every 5 minutes to check for missed shifts
+	setInterval(async () => {
+		try {
+			const db = getDb();
+			const guilds = await db.execute(sql`
+				SELECT DISTINCT guild_id FROM user_jobs WHERE is_active = true
+			` as any);
+
+			for (const { guild_id } of guilds?.rows || []) {
+				const activeJobs = await db.execute(sql`
+					SELECT user_id, shifts_completed, shifts_today, last_shift
+					FROM user_jobs
+					WHERE guild_id = ${guild_id} AND is_active = true
+				` as any);
+
+				const now = new Date();
+				for (const job of activeJobs?.rows || []) {
+					const lastShift = job.last_shift ? new Date(job.last_shift as any) : null;
+					const lastShiftDate = lastShift ? new Date(lastShift.getFullYear(), lastShift.getMonth(), lastShift.getDate()) : null;
+					const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+					// If last shift was yesterday or earlier, reset shifts_today
+					if (!lastShiftDate || lastShiftDate < todayDate) {
+						await db.execute(sql`
+							UPDATE user_jobs
+							SET shifts_today = 0
+							WHERE guild_id = ${guild_id} AND user_id = ${job.user_id}
+						`);
+					}
+				}
+			}
+		} catch (error) {
+			logger.error('Error in daily job reset:', error);
+		}
+	}, 5 * 60 * 1000); // 5 minutes
 }

@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { moduleContainer, addText, addFields, addSeparator, successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -18,6 +18,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('automod-log')
     .setDescription('Configure the automod logging channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName('set')
@@ -44,7 +45,6 @@ const command: BotCommand = {
       const config = await getAutomodConfig(guildId);
       const subcommand = interaction.options.getSubcommand();
 
-      let responseEmbed: EmbedBuilder;
       let updated = false;
 
       switch (subcommand) {
@@ -53,11 +53,7 @@ const command: BotCommand = {
 
           // Verify it's a text channel
           if (channel.type !== ChannelType.GuildText) {
-            responseEmbed = errorEmbed(
-              'Invalid Channel',
-              'The log channel must be a text channel.'
-            );
-            await interaction.editReply({ embeds: [responseEmbed] });
+            await interaction.editReply(errorReply('Invalid Channel', 'The log channel must be a text channel.'));
             return;
           }
 
@@ -72,21 +68,20 @@ const command: BotCommand = {
               PermissionFlagsBits.EmbedLinks,
             ])
           ) {
-            responseEmbed = errorEmbed(
+            await interaction.editReply(errorReply(
               'Insufficient Permissions',
               `I don't have permission to send messages in ${channel.name}.`
-            );
-            await interaction.editReply({ embeds: [responseEmbed] });
+            ));
             return;
           }
 
           config.logChannelId = channel.id;
           updated = true;
 
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Log Channel Set',
             `Automod logs will be sent to ${channel.name}.`
-          );
+          ));
           break;
         }
 
@@ -94,54 +89,48 @@ const command: BotCommand = {
           config.logChannelId = undefined;
           updated = true;
 
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Logging Disabled',
             'Automod logging has been disabled.'
-          );
+          ));
           break;
         }
 
         case 'view': {
-          const embed = new EmbedBuilder()
-            .setColor(Colors.Info)
-            .setTitle('Automod Log Channel');
+          const container = moduleContainer('automod');
+          addText(container, '### Automod Log Channel');
+          addSeparator(container, 'small');
 
+          const fields: Array<{ name: string; value: string; inline?: boolean }> = [];
           if (config.logChannelId) {
-            embed.setDescription(`Log Channel: <#${config.logChannelId}>`);
-            embed.addFields({
+            addText(container, `Log Channel: <#${config.logChannelId}>`);
+            fields.push({
               name: 'Status',
               value: 'Logging is **enabled**',
-              inline: false,
             });
           } else {
-            embed.setDescription('No log channel is currently configured.');
-            embed.addFields({
+            addText(container, 'No log channel is currently configured.');
+            fields.push({
               name: 'Status',
               value: 'Logging is **disabled**',
-              inline: false,
             });
           }
 
-          responseEmbed = embed;
+          addFields(container, fields);
+          await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
           break;
         }
 
         default:
-          responseEmbed = errorEmbed('Invalid Subcommand', 'An error occurred.');
+          await interaction.editReply(errorReply('Invalid Subcommand', 'An error occurred.'));
       }
 
       if (updated) {
         await moduleConfig.setConfig(guildId, 'automod', config);
       }
-
-      await interaction.editReply({ embeds: [responseEmbed] });
     } catch (error) {
       console.error('Error in automod-log command:', error);
-      const embed = errorEmbed(
-        'Command Error',
-        'An error occurred while processing your request.'
-      );
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Command Error', 'An error occurred while processing your request.'));
     }
   },
 };

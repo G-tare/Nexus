@@ -1,10 +1,10 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { createReminder, parseDuration, formatDuration, generateReminderId } from '../helpers';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { createReminder, getUserReminders, parseDuration, formatDuration } from '../helpers';
+import { successContainer, errorReply, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command = new SlashCommandBuilder()
   .setName('remind-repeat')
@@ -30,8 +30,6 @@ const command = new SlashCommandBuilder()
   );
 
 const execute = async (interaction: ChatInputCommandInteraction, ...args: any[]): Promise<void> => {
-  const redis = await getRedis();
-
   const intervalStr = interaction.options.getString('interval', true);
   const message = interaction.options.getString('message', true);
   const dmOption = interaction.options.getBoolean('dm') ?? true;
@@ -39,10 +37,7 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   // Parse interval
   const interval = parseDuration(intervalStr);
   if (!interval || interval <= 0) {
-    await interaction.reply({
-      content: '❌ Invalid interval format. Use "1h", "1d", "1w", etc.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Invalid interval format', 'Use "1h", "1d", "1w", etc.'));
     return;
   }
 
@@ -51,36 +46,27 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
   if (interval < ONE_HOUR) {
-    await interaction.reply({
-      content: '❌ Minimum interval is 1 hour.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Interval too short', 'Minimum interval is 1 hour.'));
     return;
   }
 
   if (interval > THIRTY_DAYS) {
-    await interaction.reply({
-      content: '❌ Maximum interval is 30 days.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Interval too long', 'Maximum interval is 30 days.'));
     return;
   }
 
   // Check reminder limit
-  const userReminders = await redis.smembers(`user:${interaction.user.id}:reminders`);
+  const userReminders = await getUserReminders(interaction.user.id);
   if (userReminders.length >= 25) {
-    await interaction.reply({
-      content: '❌ You already have 25 active reminders. Cancel some before adding more.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(errorReply('Reminder limit reached', 'You already have 25 active reminders. Cancel some before adding more.'));
     return;
   }
 
   // Create recurring reminder
   const triggerAt = new Date(Date.now() + interval);
 
-  const reminder = await createReminder(redis, {
-    id: generateReminderId(),
+  const reminder = await createReminder(interaction.client, {
+    id: '', // Ignored; DB generates the ID
     userId: interaction.user.id,
     guildId: interaction.guildId! || undefined,
     channelId: interaction.channelId!,
@@ -93,34 +79,27 @@ const execute = async (interaction: ChatInputCommandInteraction, ...args: any[])
   });
 
   // Reply
-  const embed = new EmbedBuilder()
-    .setColor('#57F287')
-    .setTitle('✅ Recurring Reminder Set')
-    .setDescription(message)
-    .addFields(
-      {
-        name: 'Interval',
-        value: formatDuration(interval),
-        inline: true,
-      },
-      {
-        name: 'First Fires At',
-        value: `<t:${Math.floor(triggerAt.getTime() / 1000)}:f>`,
-        inline: true,
-      },
-      {
-        name: 'ID',
-        value: `\`${reminder.id}\``,
-        inline: true,
-      }
-    )
-    .setFooter({ text: 'Use /reminder-cancel <id> to stop the recurring reminder' })
-    .setTimestamp();
+  const container = successContainer('✅ Recurring Reminder Set', message);
+  addFields(container, [
+    {
+      name: 'Interval',
+      value: formatDuration(interval),
+      inline: true,
+    },
+    {
+      name: 'First Fires At',
+      value: `<t:${Math.floor(triggerAt.getTime() / 1000)}:f>`,
+      inline: true,
+    },
+    {
+      name: 'ID',
+      value: `\`${reminder.id}\``,
+      inline: true,
+    }
+  ]);
+  addText(container, `-# Use /reminder-cancel <id> to stop the recurring reminder`);
 
-  await interaction.reply({
-    embeds: [embed],
-    flags: MessageFlags.Ephemeral,
-  });
+  await interaction.reply(v2Payload([container]));
 };
 
 export default {

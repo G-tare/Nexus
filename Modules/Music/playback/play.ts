@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getQueue,
@@ -6,7 +6,9 @@ import {
   addTrack,
   joinVC,
   getConnection,
+  buildTrackAddedContainer,
 } from '../helpers';
+import { errorContainer, v2Payload, moduleContainer, addText } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -30,12 +32,9 @@ const command: BotCommand = {
 
     // Check if user is in a voice channel
     if (!member?.voice.channel) {
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in a voice channel to use this command.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Not in Voice', 'You must be in a voice channel to use this command.')])
+      );
     }
 
     const voiceChannelId = member.voice.channel.id;
@@ -51,20 +50,16 @@ const command: BotCommand = {
     if (!connection) {
       connection = await joinVC(interaction.guild!, voiceChannelId);
       if (!connection) {
-        const embed = new EmbedBuilder()
-          .setDescription('Failed to join your voice channel. Make sure I have permission to connect.')
-          .setColor(0xff0000);
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(
+          v2Payload([errorContainer('Failed to Join', 'Failed to join your voice channel. Make sure I have permission to connect.')])
+        );
       }
       queue.voiceChannelId = voiceChannelId;
     } else if (queue.voiceChannelId !== voiceChannelId) {
       // Bot is in a different VC
-      const embed = new EmbedBuilder()
-        .setDescription('You must be in the same voice channel as the bot to add songs.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('Wrong Voice Channel', 'You must be in the same voice channel as the bot to add songs.')])
+      );
     }
 
     // Parse query to detect source
@@ -174,12 +169,9 @@ const command: BotCommand = {
     }
 
     if (tracks.length === 0) {
-      const embed = new EmbedBuilder()
-        .setDescription('No tracks found matching your query.')
-        .setColor(0xff0000);
-      return interaction.editReply({
-        embeds: [embed],
-      });
+      return interaction.editReply(
+        v2Payload([errorContainer('No Results', 'No tracks found matching your query.')])
+      );
     }
 
     // Add tracks to queue
@@ -193,32 +185,36 @@ const command: BotCommand = {
       // Lavalink: player.playTrack({ track: { encoded: tracks[0].encoded } });
       // Lavalink: player.setVolume(queue.volume);
 
-      const embed = new EmbedBuilder()
-        .setTitle('Now Playing')
-        .setDescription(
-          `**${tracks[0].info.title}**\nby ${tracks[0].info.author}`
-        )
-        .setColor(0x2f3136);
+      const container = moduleContainer('music');
+      addText(
+        container,
+        `### Now Playing\n**${tracks[0].info.title}**\nby ${tracks[0].info.author}`
+      );
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     }
 
-    // Otherwise, add to queue
-    const embed = new EmbedBuilder()
-      .setTitle('Track Added to Queue')
-      .setDescription(
-        `**${tracks[0].info.title}**\nby ${tracks[0].info.author}`
-      )
-      .addFields([
-        {
-          name: 'Position in Queue',
-          value: `${queue.tracks.length}`,
-          inline: true,
-        },
-      ])
-      .setColor(0x2f3136);
+    // Otherwise, add to queue - use buildTrackAddedContainer helper
+    const mockTrack = {
+      title: tracks[0].info.title,
+      author: tracks[0].info.author,
+      uri: tracks[0].info.uri,
+      duration: tracks[0].info.length,
+      encoded: tracks[0].encoded,
+      sourceName: 'unknown',
+      requestedBy: interaction.user.id,
+      requestedByName: interaction.user.username,
+    };
 
-    return interaction.editReply({ embeds: [embed] });
+    const container = buildTrackAddedContainer(mockTrack, queue.tracks.length);
+
+    return interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   },
 };
 

@@ -1,11 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
   PermissionFlagsBits,
   ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getBirthdayConfig, setBirthdayConfig } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'birthdays',
@@ -97,22 +97,20 @@ const command: BotCommand = {
 
       if (subcommand === 'view') {
         const config = await getBirthdayConfig(guildId);
-        const embed = new EmbedBuilder()
-          .setColor('#FF69B4')
-          .setTitle('🎂 Birthday Configuration')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Channel', value: config.channelId ? `<#${config.channelId}>` : 'Not set', inline: true },
-            { name: 'Birthday Role', value: config.roleId ? `<@&${config.roleId}>` : 'Not set', inline: true },
-            { name: 'Timezone', value: config.timezone, inline: true },
-            { name: 'DM Notification', value: config.dmNotification ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Show Age', value: config.showAge ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Allow Hide Year', value: config.allowHideYear ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Announcement Message', value: `\`\`\`${config.announcementMessage}\`\`\``, inline: false }
-          )
-          .setTimestamp();
+        const container = moduleContainer('birthdays');
+        addText(container, '### 🎂 Birthday Configuration');
+        addFields(container, [
+          { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Channel', value: config.channelId ? `<#${config.channelId}>` : 'Not set', inline: true },
+          { name: 'Birthday Role', value: config.roleId ? `<@&${config.roleId}>` : 'Not set', inline: true },
+          { name: 'Timezone', value: config.timezone, inline: true },
+          { name: 'DM Notification', value: config.dmNotification ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Show Age', value: config.showAge ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Allow Hide Year', value: config.allowHideYear ? '✅ Yes' : '❌ No', inline: true },
+          { name: 'Announcement Message', value: `\`\`\`${config.announcementMessage}\`\`\``, inline: false }
+        ]);
 
-        return await interaction.editReply({ embeds: [embed] });
+        return await interaction.editReply(v2Payload([container]));
       }
 
       if (subcommand === 'toggle') {

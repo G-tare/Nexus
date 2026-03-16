@@ -2,7 +2,6 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ChannelType,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
@@ -18,6 +17,7 @@ import {
   isUserBanned,
   getTempBanCount,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -172,38 +172,31 @@ const command: BotCommand = {
     if (sub === 'view') {
       const config = await getVoicePhoneConfig(guild.id);
 
-      const embed = new EmbedBuilder()
-        .setColor(0x3498DB)
-        .setTitle('📞 Voice Phone Settings')
-        .addFields(
-          {
-            name: 'Allowed Channels',
-            value: config.allowedChannels.length > 0
-              ? config.allowedChannels.map(id => `<#${id}>`).join(', ')
-              : 'All voice channels',
-            inline: false,
-          },
-          {
-            name: 'Blacklisted Servers',
-            value: config.blacklistedServers.length > 0
-              ? config.blacklistedServers.join(', ')
-              : 'None',
-            inline: false,
-          },
-          { name: 'Max Duration', value: config.maxDuration > 0 ? `${config.maxDuration}s (${Math.floor(config.maxDuration / 60)}m)` : 'Unlimited', inline: true },
-          { name: 'Cooldown', value: `${config.callCooldown}s`, inline: true },
-          { name: 'Max Speakers/Side', value: `${config.maxSpeakersPerSide}`, inline: true },
-          { name: 'Bitrate', value: `${config.bitrate / 1000}kbps`, inline: true },
-          { name: 'Show Server Name', value: config.showServerName ? '✅' : '❌', inline: true },
-          { name: 'Report Channel', value: config.reportChannelId ? `<#${config.reportChannelId}>` : 'Not set', inline: true },
-          { name: '\u200B', value: '**🛡️ Safety & Trust**', inline: false },
-          { name: 'Min Server Size', value: config.minServerSize > 0 ? `${config.minServerSize} members` : 'Disabled', inline: true },
-          { name: 'Require Community', value: config.requireCommunity ? '✅' : '❌', inline: true },
-          { name: 'Max Strikes', value: `${config.maxStrikes}`, inline: true },
-          { name: 'Strike Ban Duration', value: `${config.strikeBanDuration}s (${Math.floor(config.strikeBanDuration / 60)}m)`, inline: true },
-        );
+      const container = moduleContainer('voicephone');
+      addText(container, '### 📞 Voice Phone Settings');
+      addFields(container, [
+        {
+          name: 'Allowed Channels',
+          value: config.allowedChannels.length > 0
+            ? config.allowedChannels.map(id => `<#${id}>`).join(', ')
+            : 'All voice channels',
+        },
+        {
+          name: 'Blacklisted Servers',
+          value: config.blacklistedServers.length > 0
+            ? config.blacklistedServers.join(', ')
+            : 'None',
+        },
+        { name: 'Max Duration', value: config.maxDuration > 0 ? `${config.maxDuration}s (${Math.floor(config.maxDuration / 60)}m)` : 'Unlimited', inline: true },
+        { name: 'Cooldown', value: `${config.callCooldown}s`, inline: true },
+        { name: 'Max Speakers/Side', value: `${config.maxSpeakersPerSide}`, inline: true },
+        { name: 'Bitrate', value: `${config.bitrate / 1000}kbps`, inline: true },
+        { name: 'Show Server Name', value: config.showServerName ? '✅' : '❌', inline: true },
+        { name: 'Report Channel', value: config.reportChannelId ? `<#${config.reportChannelId}>` : 'Not set', inline: true },
+        { name: 'Safety & Trust', value: `**Min Server Size:** ${config.minServerSize > 0 ? `${config.minServerSize} members` : 'Disabled'}\n**Require Community:** ${config.requireCommunity ? '✅' : '❌'}\n**Max Strikes:** ${config.maxStrikes}\n**Strike Ban:** ${config.strikeBanDuration}s (${Math.floor(config.strikeBanDuration / 60)}m)` },
+      ]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 
@@ -346,25 +339,23 @@ const command: BotCommand = {
         if (appeal) appeals.push(appeal);
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(0x3498DB)
-        .setTitle('📋 Pending Voice Phone Appeals')
-        .setDescription(
-          appeals.map((a, i) => {
-            const ageMs = Date.now() - a.createdAt;
-            const ageHours = Math.floor(ageMs / 3_600_000);
-            return [
-              `**${i + 1}.** \`${a.appealId}\``,
-              `   User: <@${a.userId}> | Ban: ${a.banType} | Clips: ${a.audioClipIds.length}`,
-              `   Filed: ${ageHours}h ago`,
-              `   Statement: *${a.userStatement.slice(0, 80)}${a.userStatement.length > 80 ? '...' : ''}*`,
-            ].join('\n');
-          }).join('\n\n') +
-          (appealIds.length > 10 ? `\n\n*...and ${appealIds.length - 10} more*` : ''),
-        )
-        .setFooter({ text: `Use /voicephoneconfig appealresolve <id> to approve/deny` });
+      const appealsList = appeals.map((a, i) => {
+        const ageMs = Date.now() - a.createdAt;
+        const ageHours = Math.floor(ageMs / 3_600_000);
+        return [
+          `**${i + 1}.** \`${a.appealId}\``,
+          `   User: <@${a.userId}> | Ban: ${a.banType} | Clips: ${a.audioClipIds.length}`,
+          `   Filed: ${ageHours}h ago`,
+          `   Statement: *${a.userStatement.slice(0, 80)}${a.userStatement.length > 80 ? '...' : ''}*`,
+        ].join('\n');
+      }).join('\n\n') +
+        (appealIds.length > 10 ? `\n\n*...and ${appealIds.length - 10} more*` : '');
 
-      await interaction.reply({ embeds: [embed] });
+      const container = moduleContainer('voicephone');
+      addText(container, `### 📋 Pending Voice Phone Appeals\n${appealsList}`);
+      addText(container, '-# Use /voicephoneconfig appealresolve <id> to approve/deny');
+
+      await interaction.reply(v2Payload([container]));
       return;
     }
 
@@ -394,16 +385,14 @@ const command: BotCommand = {
       // Try to DM the user about the resolution
       try {
         const user = await interaction.client.users.fetch(appeal.userId);
-        const dmEmbed = new EmbedBuilder()
-          .setColor(action === 'approved' ? 0x2ECC71 : 0xE74C3C)
-          .setTitle(action === 'approved' ? '✅ Appeal Approved' : '❌ Appeal Denied')
-          .setDescription(
-            action === 'approved'
-              ? `Your Voice Phone appeal (\`${appealId}\`) has been **approved**. Your ban has been lifted — you can use Voice Phone again!`
-              : `Your Voice Phone appeal (\`${appealId}\`) has been **denied**.\n\n📋 Reason: ${reason}`,
-          )
-          .setTimestamp();
-        await user.send({ embeds: [dmEmbed] });
+        const dmContainer = moduleContainer('voicephone');
+        addText(dmContainer,
+          `### ${action === 'approved' ? '✅ Appeal Approved' : '❌ Appeal Denied'}\n\n` +
+          (action === 'approved'
+            ? `Your Voice Phone appeal (\`${appealId}\`) has been **approved**. Your ban has been lifted — you can use Voice Phone again!`
+            : `Your Voice Phone appeal (\`${appealId}\`) has been **denied**.\n\n📋 Reason: ${reason}`)
+        );
+        await user.send(v2Payload([dmContainer]));
       } catch {
         // DMs might be disabled
       }
@@ -433,12 +422,9 @@ const command: BotCommand = {
 
       // DM the user
       try {
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0x2ECC71)
-          .setTitle('🔓 Voice Phone Ban Lifted')
-          .setDescription('A server admin has unbanned you from Voice Phone. You can use it again!')
-          .setTimestamp();
-        await user.send({ embeds: [dmEmbed] });
+        const dmContainer = moduleContainer('voicephone');
+        addText(dmContainer, '### 🔓 Voice Phone Ban Lifted\n\nA server admin has unbanned you from Voice Phone. You can use it again!');
+        await user.send(v2Payload([dmContainer]));
       } catch {
         // DMs might be disabled
       }
@@ -450,19 +436,16 @@ const command: BotCommand = {
 
       const stats = await getGlobalStats();
 
-      const embed = new EmbedBuilder()
-        .setColor(0x3498DB)
-        .setTitle('📊 Voice Phone Statistics')
-        .addFields(
-          { name: 'Total Calls', value: `**${stats.totalCalls.toLocaleString()}**`, inline: true },
-          { name: 'Total Duration', value: `**${formatDuration(stats.totalDuration)}**`, inline: true },
-          { name: 'Active Calls', value: `**${stats.activeCalls}**`, inline: true },
-          { name: 'Pending Appeals', value: `**${stats.pendingAppeals}**`, inline: true },
-          { name: 'Permanent Bans', value: `**${stats.permanentBans}**`, inline: true },
-        )
-        .setTimestamp();
+      const container = moduleContainer('voicephone');
+      addFields(container, [
+        { name: 'Total Calls', value: `**${stats.totalCalls.toLocaleString()}**`, inline: true },
+        { name: 'Total Duration', value: `**${formatDuration(stats.totalDuration)}**`, inline: true },
+        { name: 'Active Calls', value: `**${stats.activeCalls}**`, inline: true },
+        { name: 'Pending Appeals', value: `**${stats.pendingAppeals}**`, inline: true },
+        { name: 'Permanent Bans', value: `**${stats.permanentBans}**`, inline: true },
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
       return;
     }
   },

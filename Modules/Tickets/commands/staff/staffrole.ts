@@ -1,11 +1,19 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags,
+} from 'discord.js';
 import type { BotCommand } from '../../../../Shared/src/types/command';
 import { moduleConfig } from '../../../../Shared/src/middleware/moduleConfig';
-import { Colors, successEmbed, errorEmbed, warningEmbed, infoEmbed } from '../../../../Shared/src/utils/embed';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  successContainer,
+  v2Payload,
+} from '../../../../Shared/src/utils/componentsV2';
 import type { TicketConfig } from '../../helpers';
 
 const command: BotCommand = {
@@ -102,14 +110,12 @@ async function handleAdd(
   config.globalStaffRoles.push(role.id);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Staff Role Added',
     `${role.toString()} is now a ticket staff role.`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleRemove(
@@ -130,14 +136,12 @@ async function handleRemove(
   config.globalStaffRoles.splice(index, 1);
   moduleConfig.setConfig(guildId, 'tickets', config);
 
-  const embed = successEmbed(
+  const container = successContainer(
     'Staff Role Removed',
     `${role.toString()} is no longer a staff role.`
   );
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  return interaction.reply(v2Payload([container]));
 }
 
 async function handleList(
@@ -145,9 +149,10 @@ async function handleList(
   config: TicketConfig,
   guild: any
 ) {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary)
-    .setTitle('Ticket Staff Roles');
+  const container = moduleContainer('tickets');
+  addText(container, '### Ticket Staff Roles');
+
+  const fields = [];
 
   // Global staff roles
   if (config.globalStaffRoles.length > 0) {
@@ -158,13 +163,13 @@ async function handleList(
       })
       .join('\n');
 
-    embed.addFields({
+    fields.push({
       name: 'Global Staff Roles',
       value: globalRoles,
       inline: false,
     });
   } else {
-    embed.addFields({
+    fields.push({
       name: 'Global Staff Roles',
       value: 'None configured',
       inline: false,
@@ -182,7 +187,7 @@ async function handleList(
           })
           .join('\n');
 
-        embed.addFields({
+        fields.push({
           name: `${category.emoji || ''} ${category.name}`,
           value: categoryRoles,
           inline: false,
@@ -191,9 +196,11 @@ async function handleList(
     }
   }
 
-  return interaction.reply({
-    embeds: [embed],
-  });
+  if (fields.length > 0) {
+    addFields(container, fields);
+  }
+
+  return interaction.reply(v2Payload([container]));
 }
 
 export default command;

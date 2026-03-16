@@ -1,8 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   addColor,
@@ -12,6 +15,7 @@ import {
   canManageColors,
   DEFAULT_COLORS,
 } from '../helpers';
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -71,16 +75,15 @@ const command: BotCommand = {
       }
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('🎨 Default Colors Added')
-      .setDescription(
-        `Added **${added}** default colors to the palette.` +
-        (skipped > 0 ? `\nSkipped **${skipped}** (already exist or limit reached).` : '') +
-        `\n\nUse \`/colorlist\` to see the full palette.`
-      );
+    const container = moduleContainer('color_roles').setAccentColor(0x3498DB);
+    addText(container, `### 🎨 Default Colors Added`);
+    addText(container,
+      `Added **${added}** default colors to the palette.` +
+      (skipped > 0 ? `\nSkipped **${skipped}** (already exist or limit reached).` : '') +
+      `\n\nUse \`/colorlist\` to see the full palette.`
+    );
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

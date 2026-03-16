@@ -1,6 +1,12 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
+import {
+  errorContainer,
+  moduleContainer,
+  addText,
+  addFooter,
+  v2Payload,
+} from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -90,22 +96,16 @@ export default {
 			const currencyLabel =
 				currencyType === 'coins' ? 'Coins' : currencyType === 'gems' ? 'Gems' : 'Event Tokens';
 
-			const embed = new EmbedBuilder()
-				.setTitle(`${currencyLabel} Leaderboard`)
-				.setDescription(leaderboardText)
-				.setColor(Colors.Economy)
-				.setFooter({
-					text: `Page ${page}/${totalPages} | Total users: ${totalResults.length}`
-				})
-				.setTimestamp();
+			const container = moduleContainer('currency');
+			addText(container, `### ${currencyLabel} Leaderboard`);
+			addText(container, leaderboardText);
+			addFooter(container, `Page ${page}/${totalPages} | Total users: ${totalResults.length}`);
 
-			return await interaction.reply({ embeds: [embed] });
+			return await interaction.reply(v2Payload([container]));
 		} catch (error) {
 			console.error('Error fetching richest users:', error);
-			return await interaction.reply({
-				content: 'An error occurred while fetching the leaderboard.',
-				flags: MessageFlags.Ephemeral
-			});
+			const container = errorContainer('Leaderboard Error', 'An error occurred while fetching the leaderboard.');
+			return await interaction.reply(v2Payload([container]));
 		}
 	}
 } as BotCommand;

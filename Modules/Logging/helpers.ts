@@ -1,18 +1,25 @@
 import {
   Guild,
   GuildMember,
-  EmbedBuilder,
   TextChannel,
   Message,
   AuditLogEvent,
   User,
   Channel,
   Role,
-  ColorResolvable,
+  ContainerBuilder,
 } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
-import { Colors } from '../../Shared/src/utils/embed';
+import { getDb } from '../../Shared/src/database/connection';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  addSeparator,
+  addFooter,
+  v2Payload,
+  V2Colors,
+} from '../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('Logging');
@@ -237,11 +244,11 @@ export function isIgnored(
 }
 
 /**
- * Send a log embed to the appropriate channel for an event
+ * Send a log container to the appropriate channel for an event
  */
 export async function sendLogEmbed(
   guild: Guild,
-  embed: EmbedBuilder,
+  container: ContainerBuilder,
   config: LoggingConfig,
   eventType: LogEventType
 ): Promise<void> {
@@ -256,15 +263,7 @@ export async function sendLogEmbed(
       return;
     }
 
-    // Add title and timestamp if not already present
-    if (!embed.data.title) {
-      embed.setTitle(logEventTypeDisplayName(eventType));
-    }
-    if (!embed.data.timestamp) {
-      embed.setTimestamp();
-    }
-
-    await (channel as any).send({ embeds: [embed] });
+    await (channel as any).send(v2Payload([container]));
   } catch (error) {
     logger.error(`Failed to send log embed for event ${eventType}:`, error);
   }
@@ -307,26 +306,31 @@ export function formatDiff(label: string, before: string | null, after: string |
 // ============================================================================
 
 /**
- * Build an embed for a deleted message
+ * Build a container for a deleted message
  */
 export function buildMessageDeleteEmbed(
   message: Message | { content: string; author: { username: string; id: string }; channel: { id: string }; createdAt: Date }
-): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Error)
-    .addFields({
+): ContainerBuilder {
+  const container = new ContainerBuilder().setAccentColor(V2Colors.Error);
+
+  addText(container, '### Message Deleted');
+  addSeparator(container, 'small');
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
       name: 'Author',
       value: `${message.author.username} (${message.author.id})`,
       inline: false,
-    })
-    .addFields({
+    },
+    {
       name: 'Channel',
       value: `<#${message.channel.id}>`,
       inline: false,
-    });
+    },
+  ];
 
   if (message.content) {
-    embed.addFields({
+    fields.push({
       name: 'Content',
       value: truncateText(message.content, 1024) || '*No content*',
       inline: false,
@@ -337,38 +341,46 @@ export function buildMessageDeleteEmbed(
     const attachmentList = message.attachments
       .map((att) => `[${att.name}](${att.url})`)
       .join('\n');
-    embed.addFields({
+    fields.push({
       name: `Attachments (${message.attachments.size})`,
       value: truncateText(attachmentList, 1024),
       inline: false,
     });
   }
 
-  embed.setTimestamp(message.createdAt);
+  addFields(container, fields);
+  addFooter(container, `${message.createdAt.toISOString()}`);
 
-  return embed;
+  return container;
 }
 
 /**
- * Build an embed for bulk deleted messages
+ * Build a container for bulk deleted messages
  */
 export function buildBulkDeleteEmbed(
   messages: Array<{ content: string; author: { username: string } }>,
   channelId: string,
   channelName: string
-): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Error)
-    .addFields({
+): ContainerBuilder {
+  const container = new ContainerBuilder().setAccentColor(V2Colors.Error);
+
+  addText(container, '### Bulk Messages Deleted');
+  addSeparator(container, 'small');
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
       name: 'Channel',
       value: `${channelName} (<#${channelId}>)`,
       inline: false,
-    })
-    .addFields({
+    },
+    {
       name: 'Messages Deleted',
       value: String(messages.length),
       inline: true,
-    });
+    },
+  ];
+
+  addFields(container, fields);
 
   // Format messages for display
   let messageText = '';
@@ -387,51 +399,53 @@ export function buildBulkDeleteEmbed(
   }
 
   if (messageText) {
-    embed.setDescription(truncateText(messageText, 4096));
+    addText(container, truncateText(messageText, 4096));
   }
 
   if (truncatedCount > 0) {
-    embed.addFields({
-      name: 'Truncated',
-      value: `... and ${truncatedCount} more messages`,
-      inline: false,
-    });
+    addText(container, `*... and ${truncatedCount} more messages*`);
   }
 
-  embed.setTimestamp();
+  addFooter(container, new Date().toISOString());
 
-  return embed;
+  return container;
 }
 
 /**
- * Build an embed for an edited message
+ * Build a container for an edited message
  */
-export function buildMessageEditEmbed(oldMessage: Message, newMessage: Message, config: LoggingConfig): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor(getLogColor('messageEdit'))
-    .addFields({
+export function buildMessageEditEmbed(oldMessage: Message, newMessage: Message, config: LoggingConfig): ContainerBuilder {
+  const container = new ContainerBuilder().setAccentColor(getLogColorV2('messageEdit'));
+
+  addText(container, '### Message Edited');
+  addSeparator(container, 'small');
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
       name: 'Author',
       value: `${newMessage.author.username} (${newMessage.author.id})`,
       inline: false,
-    })
-    .addFields({
+    },
+    {
       name: 'Channel',
       value: `<#${newMessage.channelId}> [Jump to message](${newMessage.url})`,
       inline: false,
-    });
+    },
+  ];
 
   const beforeContent = oldMessage.content || '*No content*';
   const afterContent = newMessage.content || '*No content*';
 
-  embed.addFields({
+  fields.push({
     name: 'Content Changed',
     value: formatDiff('Content', beforeContent, afterContent),
     inline: false,
   });
 
-  embed.setTimestamp(newMessage.editedAt || newMessage.createdAt);
+  addFields(container, fields);
+  addFooter(container, `${(newMessage.editedAt || newMessage.createdAt).toISOString()}`);
 
-  return embed;
+  return container;
 }
 
 // ============================================================================
@@ -480,15 +494,15 @@ export function logEventTypeDisplayName(eventType: LogEventType): string {
 }
 
 /**
- * Get the appropriate color for an event type
+ * Get the appropriate V2 color for an event type
  */
-export function getLogColor(eventType: LogEventType): ColorResolvable {
-  // Message events: Orange
+export function getLogColorV2(eventType: LogEventType): number {
+  // Message events: Warning (yellow)
   if (['messageEdit', 'messageDelete', 'messageBulkDelete', 'messagePin'].includes(eventType)) {
-    return Colors.Warning;
+    return V2Colors.Warning;
   }
 
-  // Member events: Blue
+  // Member events: Info (blue)
   if (
     [
       'memberJoin',
@@ -498,7 +512,7 @@ export function getLogColor(eventType: LogEventType): ColorResolvable {
       'memberTimeout',
     ].includes(eventType)
   ) {
-    return Colors.Primary;
+    return V2Colors.Info;
   }
 
   // Channel events: Purple
@@ -518,12 +532,12 @@ export function getLogColor(eventType: LogEventType): ColorResolvable {
 
   // Voice events: Green
   if (['voiceJoin', 'voiceLeave', 'voiceMove', 'voiceMute', 'voiceDeafen'].includes(eventType)) {
-    return Colors.Success;
+    return V2Colors.Success;
   }
 
   // Moderation events: Red
   if (['memberBan', 'memberUnban', 'memberKick'].includes(eventType)) {
-    return Colors.Error;
+    return V2Colors.Error;
   }
 
   // Invite events: Teal
@@ -538,4 +552,11 @@ export function getLogColor(eventType: LogEventType): ColorResolvable {
 
   // Default to gray
   return 0x808080;
+}
+
+/**
+ * Get the appropriate color for an event type (for backwards compatibility)
+ */
+export function getLogColor(eventType: LogEventType): number {
+  return getLogColorV2(eventType);
 }

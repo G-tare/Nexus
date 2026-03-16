@@ -1,12 +1,14 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChannelType,
   bold,
   inlineCode,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, warningContainer, infoContainer, addFields, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 // All supported log event types
 const LOG_EVENT_TYPES = [
@@ -120,12 +122,10 @@ const command: BotCommand = {
       config.defaultChannelId = channel.id;
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Default Log Channel Set')
-        .setDescription(`Default log channel is now ${channel}`)
-        .setColor('Green');
+      const container = successContainer('Default Log Channel Set');
+      addText(container, `Default log channel is now ${channel}`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'set') {
@@ -137,15 +137,13 @@ const command: BotCommand = {
       config.channelMap[camelCaseType] = channel.id;
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Channel Override Set')
-        .addFields(
-          { name: 'Event Type', value: inlineCode(eventType), inline: true },
-          { name: 'Channel', value: channel.toString(), inline: true },
-        )
-        .setColor('Green');
+      const container = successContainer('Channel Override Set');
+      addFields(container, [
+        { name: 'Event Type', value: inlineCode(eventType), inline: true },
+        { name: 'Channel', value: channel.toString(), inline: true },
+      ]);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'remove') {
@@ -156,20 +154,16 @@ const command: BotCommand = {
         delete config.channelMap[camelCaseType];
         await moduleConfig.setConfig(guildId, 'logging', config);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✓ Channel Override Removed')
-          .setDescription(`${inlineCode(eventType)} will now use default channel`)
-          .setColor('Green');
+        const container = successContainer('Channel Override Removed');
+        addText(container, `${inlineCode(eventType)} will now use default channel`);
 
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle('⚠ No Override Found')
-        .setDescription(`No channel override exists for ${inlineCode(eventType)}`)
-        .setColor('Yellow');
+      const container = warningContainer('No Override Found');
+      addText(container, `No channel override exists for ${inlineCode(eventType)}`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'list') {
@@ -184,15 +178,13 @@ const command: BotCommand = {
               .join('\n')
           : 'No overrides configured';
 
-      const embed = new EmbedBuilder()
-        .setTitle('📍 Log Channel Assignments')
-        .addFields(
-          { name: 'Default Channel', value: defaultChannel },
-          { name: 'Event Type Overrides', value: overridesList },
-        )
-        .setColor('Blurple');
+      const container = infoContainer('Log Channel Assignments');
+      addFields(container, [
+        { name: 'Default Channel', value: defaultChannel },
+        { name: 'Event Type Overrides', value: overridesList },
+      ]);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
   },
 };

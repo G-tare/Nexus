@@ -1,10 +1,9 @@
 import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  ColorResolvable,
   User,
 } from 'discord.js';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { getInviteConfig, getInvitedBy } from '../helpers';
 import { getDb, getPool } from '../../../Shared/src/database/connection';
@@ -60,62 +59,52 @@ const command: BotCommand = {
       try {
         const inviter = await interaction.client.users.fetch(inviteRecord.inviter_id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2' as ColorResolvable)
-          .setTitle(`Who Invited ${targetUser.tag}?`)
-          .setDescription(`${targetUser} was invited by ${inviter}`)
-          .addFields(
-            { name: 'Inviter', value: `<@${inviteRecord.inviter_id}>`, inline: true },
-            { name: 'Invite Code', value: inviteRecord.code, inline: true },
-            {
-              name: 'Joined At',
-              value: `<t:${Math.floor(new Date(inviteRecord.joined_at).getTime() / 1000)}:f>`,
-              inline: false,
-            }
-          );
+        const container = moduleContainer('invite_tracker');
+        addFields(container, [
+          { name: 'Inviter', value: `<@${inviteRecord.inviter_id}>`, inline: true },
+          { name: 'Invite Code', value: inviteRecord.code, inline: true },
+          {
+            name: 'Joined At',
+            value: `<t:${Math.floor(new Date(inviteRecord.joined_at).getTime() / 1000)}:f>`,
+            inline: false,
+          }
+        ]);
 
         if (inviteRecord.is_fake) {
-          embed.addFields({
+          addFields(container, [{
             name: 'Status',
             value: '⚠️ Flagged as fake invite',
             inline: false,
-          });
+          }]);
         }
 
-        embed.setFooter({ text: interaction.guild!.name });
-
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       } catch {
         // User deleted - show basic info
-        const embed = new EmbedBuilder()
-          .setColor('#5865F2' as ColorResolvable)
-          .setTitle(`Who Invited ${targetUser.tag}?`)
-          .setDescription(`${targetUser} was invited by a deleted user`)
-          .addFields(
-            {
-              name: 'Inviter ID',
-              value: inviteRecord.inviter_id,
-              inline: true,
-            },
-            { name: 'Invite Code', value: inviteRecord.code, inline: true },
-            {
-              name: 'Joined At',
-              value: `<t:${Math.floor(new Date(inviteRecord.joined_at).getTime() / 1000)}:f>`,
-              inline: false,
-            }
-          );
+        const container = moduleContainer('invite_tracker');
+        addFields(container, [
+          {
+            name: 'Inviter ID',
+            value: inviteRecord.inviter_id,
+            inline: true,
+          },
+          { name: 'Invite Code', value: inviteRecord.code, inline: true },
+          {
+            name: 'Joined At',
+            value: `<t:${Math.floor(new Date(inviteRecord.joined_at).getTime() / 1000)}:f>`,
+            inline: false,
+          }
+        ]);
 
         if (inviteRecord.is_fake) {
-          embed.addFields({
+          addFields(container, [{
             name: 'Status',
             value: '⚠️ Flagged as fake invite',
             inline: false,
-          });
+          }]);
         }
 
-        embed.setFooter({ text: interaction.guild!.name });
-
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(v2Payload([container]));
       }
     } catch (error) {
       console.error('Error in /who-invited command:', error);

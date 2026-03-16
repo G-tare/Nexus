@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { getDb } from '../../database/connection';
-import { getRedis } from '../../database/connection';
+import { cache } from '../../cache/cacheManager';
 import { guilds, guildModuleConfigs, guildMembers, modCases, automodLogs, users } from '../../database/models/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { moduleConfig } from '../../middleware/moduleConfig';
@@ -92,21 +92,19 @@ router.post('/check', async (req: Request, res: Response) => {
  */
 router.get('/:guildId/roles', async (req: Request, res: Response) => {
   const guildId = req.params.guildId as string;
-  const redis = getRedis();
   const cacheKey = `guild_roles:${guildId}`;
 
-  // 1. Read from Redis (bot writes here on startup + role events)
+  // 1. Read from cache (bot writes here on startup + role events)
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = cache.get<any>(cacheKey);
     if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed.roles && parsed.roles.length > 0) {
-        res.json(parsed);
+      if (cached.roles && cached.roles.length > 0) {
+        res.json(cached);
         return;
       }
     }
   } catch (cacheErr: any) {
-    logger.warn('Redis read error (roles)', { error: cacheErr.message });
+    logger.warn('Cache read error (roles)', { error: cacheErr.message });
   }
 
   // 2. Fallback: Discord REST API (bot hasn't started yet or cache was cleared)
@@ -130,8 +128,8 @@ router.get('/:guildId/roles', async (req: Request, res: Response) => {
 
       const result = { roles };
 
-      // Write to Redis so subsequent requests are instant
-      try { await redis.set(cacheKey, JSON.stringify(result)); } catch { /* ignore */ }
+      // Write to cache so subsequent requests are instant (120s TTL for cross-dashboard freshness)
+      try { cache.set(cacheKey, result, 120); } catch { /* ignore */ }
 
       res.json(result);
       return;
@@ -160,22 +158,20 @@ router.get('/:guildId/roles', async (req: Request, res: Response) => {
 router.get('/:guildId/members/search', async (req: Request, res: Response) => {
   const guildId = req.params.guildId as string;
   const query = (req.query.q as string) || '';
-  const redis = getRedis();
   const cacheKey = `guild_members:${guildId}:${query.toLowerCase().trim()}`;
 
-  // 1. Read from Redis (bot writes the empty-query key on startup + member events)
+  // 1. Read from cache (bot writes the empty-query key on startup + member events)
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = cache.get<any>(cacheKey);
     if (cached) {
-      const parsed = JSON.parse(cached);
       // For empty queries, only serve from cache if we actually have members
-      if (query.length > 0 || (parsed.members && parsed.members.length > 0)) {
-        res.json(parsed);
+      if (query.length > 0 || (cached.members && cached.members.length > 0)) {
+        res.json(cached);
         return;
       }
     }
   } catch (cacheErr: any) {
-    logger.warn('Redis read error (members)', { error: cacheErr.message });
+    logger.warn('Cache read error (members)', { error: cacheErr.message });
   }
 
   // 2. Fallback: Discord REST API
@@ -207,7 +203,7 @@ router.get('/:guildId/members/search', async (req: Request, res: Response) => {
 
       // Cache — searches expire in 2 min, empty queries get 10 min (same as bot sync)
       const ttl = query.length > 0 ? MEMBERS_CACHE_TTL : 600;
-      try { await redis.setex(cacheKey, ttl, JSON.stringify(result)); } catch { /* ignore */ }
+      try { cache.set(cacheKey, result, ttl); } catch { /* ignore */ }
 
       res.json(result);
       return;
@@ -224,6 +220,69 @@ router.get('/:guildId/members/search', async (req: Request, res: Response) => {
   // Everything failed
   logger.error('Members: all sources failed', { guildId });
   res.json({ members: [], partial: true });
+});
+
+/**
+ * GET /api/guilds/:guildId/channels
+ * Returns all channels for a guild (text, voice, category, etc.).
+ *
+ * Primary source: Redis (populated by the bot via gateway events — instant).
+ * Fallback: Discord REST API with retry.
+ */
+router.get('/:guildId/channels', async (req: Request, res: Response) => {
+  const guildId = req.params.guildId as string;
+  const cacheKey = `guild_channels:${guildId}`;
+
+  // 1. Read from cache
+  try {
+    const cached = cache.get<any>(cacheKey);
+    if (cached) {
+      if (cached.channels && cached.channels.length > 0) {
+        res.json(cached);
+        return;
+      }
+    }
+  } catch (cacheErr: any) {
+    logger.warn('Cache read error (channels)', { error: cacheErr.message });
+  }
+
+  // 2. Fallback: Discord REST API
+  logger.info('Channels cache miss — falling back to Discord API', { guildId });
+  const maxRetries = 3;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await discordAxios.get(`/guilds/${guildId}/channels`);
+
+      const channels = (response.data as any[])
+        .map((ch: any) => ({
+          id: ch.id,
+          name: ch.name,
+          type: ch.type,           // 0=text, 2=voice, 4=category, 5=announcement, 13=stage, 15=forum
+          position: ch.position,
+          parentId: ch.parent_id || null,
+        }))
+        .sort((a: any, b: any) => a.position - b.position);
+
+      const result = { channels };
+
+      // Cache for 2 minutes (reduced from 10 min for cross-dashboard freshness)
+      try { cache.set(cacheKey, result, 120); } catch { /* ignore */ }
+
+      res.json(result);
+      return;
+    } catch (err: any) {
+      if (attempt < maxRetries && isRetryableError(err)) {
+        const delay = Math.min(500 * Math.pow(2, attempt), 4000);
+        logger.warn('Fetch guild channels retry', { attempt: attempt + 1, error: err.message, guildId });
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+
+  logger.error('Channels: all sources failed', { guildId });
+  res.json({ channels: [], partial: true });
 });
 
 /**

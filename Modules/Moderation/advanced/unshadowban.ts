@@ -1,7 +1,7 @@
 import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { createModCase, ensureGuild } from '../helpers';
 
 export default {
@@ -35,17 +35,17 @@ export default {
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     try {
-      const redis = await getRedis();
       const shadowbanSetKey = `shadowban:${guild.id}`;
 
-      const removed = await redis.srem(shadowbanSetKey, targetUser.id);
-
-      if (removed === 0) {
+      // Check if user is shadowbanned before removing
+      if (!cache.sismember(shadowbanSetKey, targetUser.id)) {
         await interaction.editReply({
           embeds: [errorEmbed('User is not shadow banned')]
         });
         return;
       }
+
+      cache.srem(shadowbanSetKey, targetUser.id);
 
       // Create mod case
       await createModCase({

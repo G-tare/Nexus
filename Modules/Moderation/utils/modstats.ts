@@ -1,6 +1,6 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, User } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, infoContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -26,7 +26,7 @@ export default {
     await interaction.deferReply();
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply(v2Payload([errorContainer('Guild context required')]));
 
     const db = getDb();
     const targetUser = interaction.options.getUser('moderator') || interaction.user;
@@ -73,38 +73,34 @@ export default {
       const totalAllTime = Array.from(allTimeMap.values()).reduce((a, b) => a + b, 0);
       const totalLast7Days = Array.from(last7DaysMap.values()).reduce((a, b) => a + b, 0);
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle(`Moderation Statistics`)
-        .setDescription(`Stats for ${targetUser.username}`)
-        .setThumbnail(targetUser.displayAvatarURL())
-        .addFields(
-          {
-            name: 'All Time',
-            value: `Total Actions: **${totalAllTime}**\n` +
-              `Bans: **${allTimeMap.get('ban') || 0}**\n` +
-              `Kicks: **${allTimeMap.get('kick') || 0}**\n` +
-              `Mutes: **${allTimeMap.get('mute') || 0}**\n` +
-              `Warns: **${allTimeMap.get('warn') || 0}**\n` +
-              `Notes: **${allTimeMap.get('note') || 0}**`,
-            inline: true,
-          },
-          {
-            name: 'Last 7 Days',
-            value: `Total Actions: **${totalLast7Days}**\n` +
-              `Bans: **${last7DaysMap.get('ban') || 0}**\n` +
-              `Kicks: **${last7DaysMap.get('kick') || 0}**\n` +
-              `Mutes: **${last7DaysMap.get('mute') || 0}**\n` +
-              `Warns: **${last7DaysMap.get('warn') || 0}**\n` +
-              `Notes: **${last7DaysMap.get('note') || 0}**`,
-            inline: true,
-          }
-        );
+      const container = infoContainer('Moderation Statistics', `Stats for ${targetUser.username}`);
+      addFields(container, [
+        {
+          name: 'All Time',
+          value: `Total Actions: **${totalAllTime}**\n` +
+            `Bans: **${allTimeMap.get('ban') || 0}**\n` +
+            `Kicks: **${allTimeMap.get('kick') || 0}**\n` +
+            `Mutes: **${allTimeMap.get('mute') || 0}**\n` +
+            `Warns: **${allTimeMap.get('warn') || 0}**\n` +
+            `Notes: **${allTimeMap.get('note') || 0}**`,
+          inline: true,
+        },
+        {
+          name: 'Last 7 Days',
+          value: `Total Actions: **${totalLast7Days}**\n` +
+            `Bans: **${last7DaysMap.get('ban') || 0}**\n` +
+            `Kicks: **${last7DaysMap.get('kick') || 0}**\n` +
+            `Mutes: **${last7DaysMap.get('mute') || 0}**\n` +
+            `Warns: **${last7DaysMap.get('warn') || 0}**\n` +
+            `Notes: **${last7DaysMap.get('note') || 0}**`,
+          inline: true,
+        }
+      ]);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in modstats command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while retrieving statistics')] });
+      return interaction.editReply(v2Payload([errorContainer('An error occurred while retrieving statistics')]));
     }
   },
 } as BotCommand;

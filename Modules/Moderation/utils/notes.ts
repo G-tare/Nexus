@@ -1,6 +1,6 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, errorEmbed } from '../../../Shared/src/utils/embed';
+import { errorContainer, moduleContainer, addText, addFooter } from '../../../Shared/src/utils/componentsV2';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases } from '../../../Shared/src/database/models/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -35,7 +35,7 @@ export default {
     await interaction.deferReply({});
 
     const guildId = interaction.guildId!;
-    if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
+    if (!guildId) return interaction.editReply({ components: [errorContainer('Guild context required')], flags: MessageFlags.IsComponentsV2 });
 
     const db = getDb();
     const targetUser = interaction.options.getUser('user', true);
@@ -55,12 +55,12 @@ export default {
         .orderBy(desc(modCases.createdAt));
 
       if (!allNotes.length) {
-        return interaction.editReply({ embeds: [errorEmbed(`No notes found for ${targetUser.username}`)] });
+        return interaction.editReply({ components: [errorContainer(`No notes found for ${targetUser.username}`)], flags: MessageFlags.IsComponentsV2 });
       }
 
       const totalPages = Math.ceil(allNotes.length / NOTES_PER_PAGE);
       if (page > totalPages) {
-        return interaction.editReply({ embeds: [errorEmbed(`Page ${page} does not exist. Max page: ${totalPages}`)] });
+        return interaction.editReply({ components: [errorContainer(`Page ${page} does not exist`, `Max page: ${totalPages}`)], flags: MessageFlags.IsComponentsV2 });
       }
 
       const startIdx = (page - 1) * NOTES_PER_PAGE;
@@ -73,16 +73,14 @@ export default {
           `${note.reason}\n\n`;
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Info)
-        .setTitle(`Staff Notes - ${targetUser.username}`)
-        .setDescription(description)
-        .setFooter({ text: `Page ${page}/${totalPages} • Total notes: ${allNotes.length}` });
+      const container = moduleContainer('moderation');
+      addText(container, `### Staff Notes - ${targetUser.username}\n${description}`);
+      addFooter(container, `Page ${page}/${totalPages} • Total notes: ${allNotes.length}`);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in notes command:', error);
-      return interaction.editReply({ embeds: [errorEmbed('An error occurred while retrieving notes')] });
+      return interaction.editReply({ components: [errorContainer('An error occurred while retrieving notes')], flags: MessageFlags.IsComponentsV2 });
     }
   },
 } as BotCommand;

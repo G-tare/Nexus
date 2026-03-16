@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
-  EmbedBuilder,
   PermissionFlagsBits,
-  Colors, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   name: 'forceplay',
@@ -88,15 +88,10 @@ const command: BotCommand = {
       //   await player.play();
       // }
 
-      const embed = new EmbedBuilder()
-        .setColor(Colors.Green)
-        .setTitle('Force Playing')
-        .setDescription(
-          `Now playing: **${query}**\n(Previous track moved back to queue)`
-        )
-        .setFooter({ text: 'Staff Override' });
+      const container = successContainer('Force Playing', `Now playing: **${query}**\n(Previous track moved back to queue)`);
+      addFooter(container, 'Staff Override');
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error in forceplay command:', error);
       await interaction.editReply({

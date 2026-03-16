@@ -1,9 +1,9 @@
-import { Guild, GuildMember, EmbedBuilder, ColorResolvable } from 'discord.js';
-import { getPool, getRedis } from '../../Shared/src/database/connection';
+import { Guild, GuildMember } from 'discord.js';
+import { getPool } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { eventBus } from '../../Shared/src/events/eventBus';
 
 const pool = getPool();
-const redis = getRedis();
 
 export interface InviteConfig {
   enabled: boolean;
@@ -49,8 +49,8 @@ const DEFAULT_CONFIG: InviteConfig = {
  * Get invite config with defaults
  */
 export async function getInviteConfig(guildId: string): Promise<InviteConfig> {
-  const cached = await redis.get(`inviteconfig:${guildId}`);
-  if (cached) return JSON.parse(cached);
+  const cached = cache.get<InviteConfig>(`inviteconfig:${guildId}`);
+  if (cached) return cached;
 
   const result = await pool.query(
     `SELECT config FROM guild_settings WHERE guild_id = $1`,
@@ -62,7 +62,7 @@ export async function getInviteConfig(guildId: string): Promise<InviteConfig> {
     config = { ...DEFAULT_CONFIG, ...result.rows[0].config.invitetracker };
   }
 
-  await redis.setex(`inviteconfig:${guildId}`, 3600, JSON.stringify(config));
+  cache.set(`inviteconfig:${guildId}`, config, 3600);
   return config;
 }
 
@@ -74,7 +74,7 @@ export async function cacheGuildInvites(guild: Guild): Promise<void> {
     const invites = await guild.invites.fetch();
     for (const invite of invites.values()) {
       const key = `invites:cache:${guild.id}:${invite.code}`;
-      await redis.set(key, invite.uses?.toString() || '0');
+      cache.set(key, invite.uses?.toString() || '0');
     }
   } catch (error) {
     console.error(`Failed to cache invites for guild ${guild.id}:`, error);
@@ -90,12 +90,12 @@ export async function findUsedInvite(guild: Guild): Promise<string | null> {
 
     for (const invite of currentInvites.values()) {
       const cacheKey = `invites:cache:${guild.id}:${invite.code}`;
-      const cachedUses = await redis.get(cacheKey);
+      const cachedUses = cache.get<string>(cacheKey);
       const currentUses = invite.uses || 0;
       const previousUses = parseInt(cachedUses || '0', 10);
 
       if (currentUses > previousUses) {
-        await redis.set(cacheKey, currentUses.toString());
+        cache.set(cacheKey, currentUses.toString());
         return invite.code;
       }
     }
@@ -134,8 +134,8 @@ export async function recordInvite(
       [guildId, inviterId]
     );
 
-    await redis.del(`inviterstats:${guildId}:${inviterId}`);
-    await redis.del(`guildinvites:${guildId}`);
+    cache.del(`inviterstats:${guildId}:${inviterId}`);
+    cache.del(`guildinvites:${guildId}`);
 
     eventBus.emit('inviteTracked', {
       guildId,
@@ -178,8 +178,8 @@ export async function recordLeave(guildId: string, userId: string): Promise<void
       );
     }
 
-    await redis.del(`inviterstats:${guildId}:${inviter_id}`);
-    await redis.del(`guildinvites:${guildId}`);
+    cache.del(`inviterstats:${guildId}:${inviter_id}`);
+    cache.del(`guildinvites:${guildId}`);
 
     eventBus.emit('inviteLeft', {
       guildId,
@@ -234,7 +234,7 @@ export async function markInviteAsFake(
       [guildId, inviterId]
     );
 
-    await redis.del(`inviterstats:${guildId}:${inviterId}`);
+    cache.del(`inviterstats:${guildId}:${inviterId}`);
   } catch (error) {
     console.error('Failed to mark invite as fake:', error);
   }
@@ -248,8 +248,8 @@ export async function getInviterStats(
   userId: string
 ): Promise<InviterStats> {
   const cacheKey = `inviterstats:${guildId}:${userId}`;
-  const cached = await redis.get(cacheKey);
-  if (cached) return JSON.parse(cached);
+  const cached = cache.get<InviterStats>(cacheKey);
+  if (cached) return cached;
 
   const result = await pool.query(
     `SELECT
@@ -274,7 +274,7 @@ export async function getInviterStats(
   const real = total + bonus;
 
   const stats: InviterStats = { total, leaves, fakes, bonus, real };
-  await redis.setex(cacheKey, 3600, JSON.stringify(stats));
+  cache.set(cacheKey, stats, 3600);
   return stats;
 }
 
@@ -377,7 +377,7 @@ export async function addBonusInvites(
     [count, guildId, userId]
   );
 
-  await redis.del(`inviterstats:${guildId}:${userId}`);
+  cache.del(`inviterstats:${guildId}:${userId}`);
   eventBus.emit('bonusInvitesAdded', { guildId, userId, amount: count, addedBy });
 }
 
@@ -397,7 +397,7 @@ export async function removeBonusInvites(
     [count, guildId, userId]
   );
 
-  await redis.del(`inviterstats:${guildId}:${userId}`);
+  cache.del(`inviterstats:${guildId}:${userId}`);
   eventBus.emit('bonusInvitesRemoved', { guildId, userId, amount: count, removedBy });
 }
 
@@ -415,7 +415,7 @@ export async function resetInvites(guildId: string, resetBy: string, userId?: st
        WHERE guild_id = $1 AND user_id = $2`,
       [guildId, userId]
     );
-    await redis.del(`inviterstats:${guildId}:${userId}`);
+    cache.del(`inviterstats:${guildId}:${userId}`);
     eventBus.emit('invitesReset', { guildId, userId, resetBy });
   } else {
     await pool.query(`DELETE FROM invite_records WHERE guild_id = $1`, [guildId]);
@@ -424,7 +424,7 @@ export async function resetInvites(guildId: string, resetBy: string, userId?: st
        WHERE guild_id = $1`,
       [guildId]
     );
-    await redis.del(`guildinvites:${guildId}`);
+    cache.del(`guildinvites:${guildId}`);
     eventBus.emit('invitesReset', { guildId, resetBy });
   }
 }
@@ -432,42 +432,38 @@ export async function resetInvites(guildId: string, resetBy: string, userId?: st
 /**
  * Build invites embed
  */
-export function buildInvitesEmbed(
+export function buildInvitesContainer(
   userId: string,
   stats: InviterStats,
   guild: Guild,
   days?: number
-): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2' as ColorResolvable)
-    .setTitle(`Invite Stats`)
-    .setDescription(`Stats for <@${userId}>`)
-    .setThumbnail(guild.iconURL() || null)
-    .addFields(
-      { name: 'Real Invites', value: stats.real.toString(), inline: true },
-      { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
-      { name: 'Total Invites', value: stats.total.toString(), inline: true },
-      { name: 'Left', value: stats.leaves.toString(), inline: true },
-      { name: 'Fake', value: stats.fakes.toString(), inline: true }
-    )
-    .setFooter({ text: guild.name });
+) {
+  const { moduleContainer, addFields, v2Payload } = require('../../Shared/src/utils/componentsV2');
+  const container = moduleContainer('invite_tracker');
 
-  if (days) {
-    embed.setDescription(`Stats for <@${userId}> in the last ${days} days`);
-  }
+  addFields(container, [
+    { name: 'Real Invites', value: stats.real.toString(), inline: true },
+    { name: 'Bonus Invites', value: stats.bonus.toString(), inline: true },
+    { name: 'Total Invites', value: stats.total.toString(), inline: true },
+    { name: 'Left', value: stats.leaves.toString(), inline: true },
+    { name: 'Fake', value: stats.fakes.toString(), inline: true }
+  ]);
 
-  return embed;
+  return v2Payload([container]);
 }
 
 /**
  * Build leaderboard embed
  */
-export function buildLeaderboardEmbed(
+export function buildLeaderboardContainer(
   entries: Array<{ userId: string; count: number }>,
   guildName: string,
   page: number = 1,
   days?: number
-): EmbedBuilder {
+) {
+  const { moduleContainer, addFields, v2Payload } = require('../../Shared/src/utils/componentsV2');
+  const container = moduleContainer('invite_tracker');
+
   const medals = ['🥇', '🥈', '🥉'];
   const fields = entries.map((entry, index) => {
     const medal = index < 3 ? medals[index] : `${index + 1}.`;
@@ -478,16 +474,9 @@ export function buildLeaderboardEmbed(
     };
   });
 
-  const embed = new EmbedBuilder()
-    .setColor('#5865F2' as ColorResolvable)
-    .setTitle(`Invite Leaderboard`)
-    .setDescription(
-      days ? `Top inviters in the last ${days} days (Page ${page})` : `Top inviters (Page ${page})`
-    )
-    .addFields(fields)
-    .setFooter({ text: guildName });
+  addFields(container, fields);
 
-  return embed;
+  return v2Payload([container]);
 }
 
 /**
@@ -505,13 +494,12 @@ export async function logInviteEvent(
     const channel = await guild.channels.fetch(config.logChannelId);
     if (!channel || !channel.isTextBased()) return;
 
-    const embed = new EmbedBuilder()
-      .setColor('#5865F2' as ColorResolvable)
-      .setTitle(`Invite Event: ${event}`)
-      .setDescription(details)
-      .setTimestamp();
+    const { moduleContainer, addText, v2Payload } = await import('../../Shared/src/utils/componentsV2');
+    const container = moduleContainer('invite_tracker');
+    addText(container, `### Invite Event: ${event}`);
+    addText(container, details);
 
-    await (channel as any).send({ embeds: [embed] });
+    await (channel as any).send(v2Payload([container]));
   } catch (error) {
     console.error(`Failed to log invite event in guild ${guild.id}:`, error);
   }

@@ -1,13 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChatInputCommandInteraction,
   TextChannel,
   Role,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
+import { moduleContainer, addText, addFields, v2Payload, successReply } from '../../../Shared/src/utils/componentsV2';
 import {
   RRType,
   RRMode,
@@ -227,23 +225,22 @@ const BotCommand = {
       config.panels.push(panel);
       await saveReactionRolesConfig(interaction.guildId!, config);
 
-      const embed = new EmbedBuilder()
-        .setColor('#2F3136')
-        .setTitle('✅ Reaction Role Panel Created')
-        .addFields(
-          { name: 'Panel ID', value: panel.id, inline: true },
-          { name: 'Type', value: type, inline: true },
-          { name: 'Mode', value: mode, inline: true },
-          { name: 'Channel', value: `<#${panel.channelId}>`, inline: true },
-          { name: 'Roles Added', value: roles.length.toString(), inline: true },
-          {
-            name: 'Next Steps',
-            value: `Use \`/rr-edit add-role\` to add more roles with panel ID: \`${panel.id}\``,
-            inline: false,
-          },
-        );
+      const container = moduleContainer('reaction_roles');
+      addText(container, `### ✅ Reaction Role Panel Created`);
+      addFields(container, [
+        { name: 'Panel ID', value: panel.id, inline: true },
+        { name: 'Type', value: type, inline: true },
+        { name: 'Mode', value: mode, inline: true },
+        { name: 'Channel', value: `<#${panel.channelId}>`, inline: true },
+        { name: 'Roles Added', value: roles.length.toString(), inline: true },
+        {
+          name: 'Next Steps',
+          value: `Use \`/rr-edit add-role\` to add more roles with panel ID: \`${panel.id}\``,
+          inline: false,
+        },
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       console.error('Error creating reaction role panel:', error);
       await interaction.editReply({

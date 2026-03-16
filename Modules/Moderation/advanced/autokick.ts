@@ -1,7 +1,7 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags, TextDisplayBuilder, ContainerBuilder } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { successContainer, errorContainer, addFields } from '../../../Shared/src/utils/componentsV2';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { canModerate, createModCase, ensureGuild, ensureGuildMember } from '../helpers';
 
 export default {
@@ -41,15 +41,15 @@ export default {
       // Hierarchy check (only if member is still in the server)
       if (targetMember && !canModerate(interaction.member as GuildMember, targetMember, 'autokick')) {
         await interaction.editReply({
-          embeds: [errorEmbed('Cannot moderate this user - they are equal or higher in hierarchy')]
+          components: [errorContainer('Cannot moderate this user', 'They are equal or higher in hierarchy')],
+          flags: MessageFlags.IsComponentsV2,
         });
         return;
       }
 
-      // Add to auto-kick set in Redis
-      const redis = await getRedis();
+      // Add to auto-kick set (in-memory)
       const autokickSetKey = `autokick:${guild.id}`;
-      await redis.sadd(autokickSetKey, targetUser.id);
+      cache.sadd(autokickSetKey, targetUser.id);
 
       // Create mod case
       await createModCase({
@@ -69,17 +69,18 @@ export default {
         }
       }
 
-      const embed = successEmbed(`User ${targetUser.tag} has been added to auto-kick`);
-      embed.addFields(
+      const container = successContainer(`User ${targetUser.tag} has been added to auto-kick`);
+      addFields(container, [
         { name: 'Reason', value: reason },
         { name: 'Effect', value: 'This user will be automatically kicked every time they rejoin the server.' },
-      );
+      ]);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
     } catch (error) {
       console.error('Error in autokick command:', error);
       await interaction.editReply({
-        embeds: [errorEmbed('An error occurred while setting up auto-kick')]
+        components: [errorContainer('An error occurred while setting up auto-kick')],
+        flags: MessageFlags.IsComponentsV2,
       });
     }
   }

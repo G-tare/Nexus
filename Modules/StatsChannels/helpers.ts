@@ -6,7 +6,8 @@ import {
   GuildBasedChannel,
   PermissionFlagsBits,
 } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
@@ -274,11 +275,10 @@ export function getDefaultLabel(type: StatType): string {
  */
 export async function getStatsChannels(guildId: string): Promise<StatsChannelEntry[]> {
   const db = getDb();
-  const redis = getRedis();
 
-  const cached = await redis.get(`stats:channels:${guildId}`);
+  const cached = cache.get<StatsChannelEntry[]>(`stats:channels:${guildId}`);
   if (cached) {
-    try { return JSON.parse(cached); } catch { /* fall through */ }
+    return cached;
   }
 
   const rows = (await db.execute(sql`
@@ -290,7 +290,7 @@ export async function getStatsChannels(guildId: string): Promise<StatsChannelEnt
     ORDER BY id ASC
   `) as any).rows || [];
 
-  await redis.setex(`stats:channels:${guildId}`, 300, JSON.stringify(rows));
+  cache.set(`stats:channels:${guildId}`, rows, 300);
 
   return rows;
 }
@@ -334,7 +334,6 @@ export async function createStatsChannel(params: {
   createdBy: string;
 }): Promise<StatsChannelEntry | null> {
   const db = getDb();
-  const redis = getRedis();
   const { guild, statType, createdBy } = params;
 
   const config = await getStatsConfig(guild.id);
@@ -380,7 +379,7 @@ export async function createStatsChannel(params: {
               custom_value as "customValue", last_updated as "lastUpdated"
   `) as any).rows || [];
 
-  await redis.del(`stats:channels:${guild.id}`);
+  cache.del(`stats:channels:${guild.id}`);
 
   eventBus.emit('statsChannelCreated' as any, {
     guildId: guild.id,
@@ -398,7 +397,6 @@ export async function createStatsChannel(params: {
  */
 export async function deleteStatsChannel(guild: Guild, entryId: number): Promise<boolean> {
   const db = getDb();
-  const redis = getRedis();
 
   const channels = await getStatsChannels(guild.id);
   const entry = channels.find(c => c.id === entryId);
@@ -420,7 +418,7 @@ export async function deleteStatsChannel(guild: Guild, entryId: number): Promise
     WHERE guild_id = ${guild.id} AND id = ${entryId}
   `);
 
-  await redis.del(`stats:channels:${guild.id}`);
+  cache.del(`stats:channels:${guild.id}`);
 
   // If no more stats channels, check if we should clean up the category
   const remaining = await getStatsChannels(guild.id);
@@ -449,7 +447,6 @@ export async function editStatsChannel(params: {
   newType?: StatType;
 }): Promise<StatsChannelEntry | null> {
   const db = getDb();
-  const redis = getRedis();
   const { guild, entryId, newLabel, newType } = params;
 
   const channels = await getStatsChannels(guild.id);
@@ -466,7 +463,7 @@ export async function editStatsChannel(params: {
     WHERE guild_id = ${guild.id} AND id = ${entryId}
   `);
 
-  await redis.del(`stats:channels:${guild.id}`);
+  cache.del(`stats:channels:${guild.id}`);
 
   // Immediately update the channel name
   const config = await getStatsConfig(guild.id);
@@ -498,16 +495,15 @@ export async function updateAllStatsChannels(guild: Guild): Promise<number> {
   if (channels.length === 0) return 0;
 
   const config = await getStatsConfig(guild.id);
-  const redis = getRedis();
   let updated = 0;
 
   for (const entry of channels) {
     // Rate limit check: track last update per channel
     const rateLimitKey = `stats:ratelimit:${entry.channelId}`;
-    const lastUpdate = await redis.get(rateLimitKey);
+    const lastUpdate = cache.get<number>(rateLimitKey);
 
     if (lastUpdate) {
-      const elapsed = Date.now() - parseInt(lastUpdate);
+      const elapsed = Date.now() - lastUpdate;
       if (elapsed < 300_000) continue; // Skip if updated less than 5 min ago
     }
 
@@ -522,14 +518,14 @@ export async function updateAllStatsChannels(guild: Guild): Promise<number> {
           DELETE FROM stats_channels
           WHERE guild_id = ${guild.id} AND channel_id = ${entry.channelId}
         `);
-        await redis.del(`stats:channels:${guild.id}`);
+        cache.del(`stats:channels:${guild.id}`);
         continue;
       }
 
       // Only rename if the name actually changed
       if (channel.name !== newName) {
         await channel.setName(newName, 'Stats auto-update');
-        await redis.setex(rateLimitKey, 600, String(Date.now()));
+        cache.set(rateLimitKey, Date.now(), 600);
         updated++;
       }
     } catch (err: any) {

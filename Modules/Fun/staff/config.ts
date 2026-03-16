@@ -1,5 +1,6 @@
-import {  SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { moduleContainer, addFields, successReply, infoReply, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 interface FunConfig {
   gambling: boolean;
@@ -136,21 +137,20 @@ export default {
       const subcommand = interaction.options.getSubcommand();
 
       if (subcommand === 'view') {
-        const embed = new EmbedBuilder()
-          .setTitle('Fun Module Configuration')
-          .setColor('#9D4EDD')
-          .addFields(
-            { name: 'Gambling Enabled', value: config.gambling ? 'Yes' : 'No', inline: true },
-            { name: 'Min Bet', value: `${config.minBet}`, inline: true },
-            { name: 'Max Bet', value: `${config.maxBet}`, inline: true },
-            { name: 'Global Cooldown', value: `${config.globalCooldown}s`, inline: true },
-            { name: 'Interactions Enabled', value: config.interactionsEnabled ? 'Yes' : 'No', inline: true },
-            { name: 'Games Enabled', value: config.gamesEnabled ? 'Yes' : 'No', inline: true },
-            { name: 'GIFs Enabled', value: config.gifsEnabled ? 'Yes' : 'No', inline: true },
-            { name: 'Disabled Commands', value: config.disabledCommands.length > 0 ? config.disabledCommands.join(', ') : 'None', inline: false }
-          );
+        const container = infoReply('Fun Module Configuration');
+        const containerObj = container.components[0];
+        addFields(containerObj, [
+          { name: 'Gambling Enabled', value: config.gambling ? 'Yes' : 'No', inline: true },
+          { name: 'Min Bet', value: `${config.minBet}`, inline: true },
+          { name: 'Max Bet', value: `${config.maxBet}`, inline: true },
+          { name: 'Global Cooldown', value: `${config.globalCooldown}s`, inline: true },
+          { name: 'Interactions Enabled', value: config.interactionsEnabled ? 'Yes' : 'No', inline: true },
+          { name: 'Games Enabled', value: config.gamesEnabled ? 'Yes' : 'No', inline: true },
+          { name: 'GIFs Enabled', value: config.gifsEnabled ? 'Yes' : 'No', inline: true },
+          { name: 'Disabled Commands', value: config.disabledCommands.length > 0 ? config.disabledCommands.join(', ') : 'None', inline: false }
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(container);
       } else if (subcommand === 'gambling') {
         const enabled = interaction.options.getBoolean('enabled', true);
         // TODO: Update config in database

@@ -1,9 +1,10 @@
-import {  ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import {  ChatInputCommandInteraction, SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { config as globalConfig } from '../../../Shared/src/config';
 import { getAIConfig, getPersona, setPersona } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AIChatbot');
 
@@ -50,39 +51,32 @@ const command: BotCommand = {
       if (subcommand === 'view') {
         const persona = await getPersona(interaction.guildId!);
 
-        const embed = new EmbedBuilder()
-          .setTitle('🤖 Current AI Persona')
-          .setDescription(`\`\`\`\n${persona.slice(0, 1900)}\n\`\`\``)
-          .setColor('#7289DA')
-          .setFooter({ text: `Character count: ${persona.length}` })
-          .setTimestamp();
+        const container = moduleContainer('ai_chatbot');
+        addText(container, '### 🤖 Current AI Persona');
+        addText(container, `\`\`\`\n${persona.slice(0, 1900)}\n\`\`\``);
+        addFooter(container, `Character count: ${persona.length}`);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'set') {
         const persona = interaction.options.getString('persona', true);
 
         await setPersona(interaction.guildId!, persona);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ Persona Updated')
-          .setDescription(`The AI persona has been updated.\n\n**Preview:**\n\`\`\`\n${persona.slice(0, 500)}\n\`\`\``)
-          .setColor('#43B581')
-          .setFooter({ text: `Updated by ${interaction.user.username}` })
-          .setTimestamp();
+        const container = moduleContainer('ai_chatbot');
+        addText(container, '### ✅ Persona Updated\nThe AI persona has been updated.');
+        addText(container, `**Preview:**\n\`\`\`\n${persona.slice(0, 500)}\n\`\`\``);
+        addFooter(container, `Updated by ${interaction.user.username}`);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       } else if (subcommand === 'reset') {
         const config = await getAIConfig(interaction.guildId!);
         await setPersona(interaction.guildId!, config.systemPrompt);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ Persona Reset')
-          .setDescription('The AI persona has been reset to the default system prompt.')
-          .setColor('#43B581')
-          .setFooter({ text: `Reset by ${interaction.user.username}` })
-          .setTimestamp();
+        const container = moduleContainer('ai_chatbot');
+        addText(container, '### ✅ Persona Reset\nThe AI persona has been reset to the default system prompt.');
+        addFooter(container, `Reset by ${interaction.user.username}`);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
       }
     } catch (error) {
       logger.error('Error in aipersona command execution', error);

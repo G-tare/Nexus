@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 import { getAutomodConfig, AutomodConfig } from '../helpers';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 
@@ -17,6 +17,7 @@ const command: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('antinuke')
     .setDescription('Configure nuke protection settings')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
         .setName('toggle')
@@ -106,17 +107,16 @@ const command: BotCommand = {
       const subcommand = interaction.options.getSubcommand();
 
       let updated = false;
-      let responseEmbed: EmbedBuilder;
 
       switch (subcommand) {
         case 'toggle': {
           const enabled = interaction.options.getBoolean('enabled', true);
           config.antinuke.enabled = enabled;
           updated = true;
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             `Nuke Protection ${enabled ? 'Enabled' : 'Disabled'}`,
             `Nuke protection is now **${enabled ? 'enabled' : 'disabled'}**.`
-          );
+          ));
           break;
         }
 
@@ -124,10 +124,10 @@ const command: BotCommand = {
           const limit = interaction.options.getInteger('limit', true);
           (config.antinuke as any).channelLimit = limit;
           updated = true;
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Channel Limit Updated',
             `Maximum channels that can be deleted per minute: **${limit}**`
-          );
+          ));
           break;
         }
 
@@ -135,10 +135,10 @@ const command: BotCommand = {
           const limit = interaction.options.getInteger('limit', true);
           (config.antinuke as any).roleLimit = limit;
           updated = true;
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Role Limit Updated',
             `Maximum roles that can be deleted per minute: **${limit}**`
-          );
+          ));
           break;
         }
 
@@ -146,10 +146,10 @@ const command: BotCommand = {
           const limit = interaction.options.getInteger('limit', true);
           (config.antinuke as any).banLimit = limit;
           updated = true;
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Ban Limit Updated',
             `Maximum bans per minute: **${limit}**`
-          );
+          ));
           break;
         }
 
@@ -157,10 +157,10 @@ const command: BotCommand = {
           const limit = interaction.options.getInteger('limit', true);
           (config.antinuke as any).webhookLimit = limit;
           updated = true;
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Webhook Limit Updated',
             `Maximum webhooks created per minute: **${limit}**`
-          );
+          ));
           break;
         }
 
@@ -175,29 +175,23 @@ const command: BotCommand = {
             action === 'strip'
               ? 'Strip Permissions'
               : action.charAt(0).toUpperCase() + action.slice(1);
-          responseEmbed = successEmbed(
+          await interaction.editReply(successReply(
             'Nuke Detection Action Updated',
             `Action on detection: **${actionName}**`
-          );
+          ));
           break;
         }
 
         default:
-          responseEmbed = errorEmbed('Invalid Subcommand', 'An error occurred.');
+          await interaction.editReply(errorReply('Invalid Subcommand', 'An error occurred.'));
       }
 
       if (updated) {
         await moduleConfig.setConfig(guildId, 'automod', config);
       }
-
-      await interaction.editReply({ embeds: [responseEmbed] });
     } catch (error) {
       console.error('Error in antinuke command:', error);
-      const embed = errorEmbed(
-        'Command Error',
-        'An error occurred while processing your request.'
-      );
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply(errorReply('Command Error', 'An error occurred while processing your request.'));
     }
   },
 };

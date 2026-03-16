@@ -28,7 +28,8 @@ import {
   logAutomodAction,
   AutomodConfig,
 } from './helpers';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { timers } from '../../Shared/src/cache/timerManager';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
 const logger = createModuleLogger('Automod:Events');
@@ -99,24 +100,24 @@ const messageFilterHandler: ModuleEvent = { event: Events.MessageCreate,
         }
       }
 
-      // Emoji spam
-      if (!violationReason && config.antispam.maxEmojis > 0) {
+      // Emoji spam (requires both the toggle AND a threshold > 0)
+      if (!violationReason && config.antispam.emojiEnabled && config.antispam.maxEmojis > 0) {
         if (checkEmojis(message.content, config.antispam.maxEmojis)) {
           violationReason = 'Too many emojis';
           violationType = 'emoji_spam';
         }
       }
 
-      // Caps spam
-      if (!violationReason && config.antispam.maxCaps > 0) {
+      // Caps spam (requires both the toggle AND a threshold > 0)
+      if (!violationReason && config.antispam.capsEnabled && config.antispam.maxCaps > 0) {
         if (checkCaps(message.content, config.antispam.maxCaps, config.antispam.minMessageLength)) {
           violationReason = 'Excessive capital letters';
           violationType = 'caps_spam';
         }
       }
 
-      // Mention spam
-      if (!violationReason && config.antispam.maxMentions > 0) {
+      // Mention spam (requires both the toggle AND a threshold > 0)
+      if (!violationReason && config.antispam.mentionEnabled && config.antispam.maxMentions > 0) {
         if (checkMentions(message, config.antispam.maxMentions)) {
           violationReason = 'Too many mentions';
           violationType = 'mention_spam';
@@ -187,7 +188,6 @@ const raidDetectionHandler: ModuleEvent = { event: Events.GuildMemberAdd,
       const config = await getAutomodConfig(member.guild.id);
       if (!config.antiraid.enabled) return;
 
-      const redis = getRedis();
       const now = Date.now();
       const accountAgeMs = now - member.user.createdTimestamp;
       const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
@@ -212,16 +212,16 @@ const raidDetectionHandler: ModuleEvent = { event: Events.GuildMemberAdd,
         return;
       }
 
-      // Track join rate
+      // Track join rate (in-memory sorted set)
       const joinKey = `automod:joins:${member.guild.id}`;
       const timeframeMs = config.antiraid.timeframeSeconds * 1000;
       const cutoffTime = now - timeframeMs;
 
       try {
-        await redis.zadd(joinKey, now, member.id);
-        await redis.zremrangebyscore(joinKey, 0, cutoffTime);
-        const joinCount = await redis.zcard(joinKey);
-        await redis.expire(joinKey, Math.ceil(config.antiraid.timeframeSeconds * 2));
+        cache.zadd(joinKey, now, member.id);
+        cache.zremrangebyscore(joinKey, 0, cutoffTime);
+        const joinCount = cache.zcard(joinKey);
+        cache.expire(joinKey, Math.ceil(config.antiraid.timeframeSeconds * 2));
 
         if (joinCount >= config.antiraid.joinThreshold) {
           const action = config.antiraid.action;
@@ -242,12 +242,11 @@ const raidDetectionHandler: ModuleEvent = { event: Events.GuildMemberAdd,
               for (const [, channel] of channels) {
                 try {
                   const textChannel = channel as BaseGuildTextChannel;
-                  // Only lock channels that aren't already locked (don't touch intentionally restricted channels)
                   const everyoneOverride = textChannel.permissionOverwrites.cache.get(
                     member.guild.roles.everyone.id
                   );
                   if (everyoneOverride?.deny.has(PermissionFlagsBits.SendMessages)) {
-                    continue; // Already restricted — skip so we don't undo it later
+                    continue;
                   }
                   await textChannel.permissionOverwrites.edit(
                     member.guild.roles.everyone,
@@ -263,9 +262,44 @@ const raidDetectionHandler: ModuleEvent = { event: Events.GuildMemberAdd,
               const lockdownKey = `automod:lockdown:${member.guild.id}`;
               const lockedChannelsKey = `automod:lockdown:channels:${member.guild.id}`;
               const lockdownDuration = config.antiraid.lockdownDurationMinutes * 60;
-              await redis.setex(lockdownKey, lockdownDuration, JSON.stringify({ lockedAt: now }));
-              // Store which channels WE locked so we only unlock those
-              await redis.setex(lockedChannelsKey, lockdownDuration + 120, JSON.stringify(lockedChannelIds));
+
+              // Store lockdown state in cache with TTL
+              cache.set(lockdownKey, { lockedAt: now }, lockdownDuration);
+              cache.set(lockedChannelsKey, lockedChannelIds, lockdownDuration + 120);
+
+              // Schedule auto-unlock using TimerManager
+              const unlockAt = new Date(now + lockdownDuration * 1000);
+              const guild = member.guild;
+              timers.schedule(`lockdown:${guild.id}`, unlockAt, async () => {
+                try {
+                  for (const channelId of lockedChannelIds) {
+                    try {
+                      const ch = guild.channels.cache.get(channelId);
+                      if (!ch || !ch.isTextBased() || ch.isDMBased()) continue;
+
+                      const textCh = ch as BaseGuildTextChannel;
+                      const override = textCh.permissionOverwrites.cache.get(
+                        guild.roles.everyone.id
+                      );
+
+                      if (override?.deny.has(PermissionFlagsBits.SendMessages)) {
+                        await textCh.permissionOverwrites.edit(
+                          guild.roles.everyone,
+                          { SendMessages: null },
+                          { reason: 'Raid lockdown expired — restoring channel' }
+                        );
+                      }
+                    } catch (err) {
+                      logger.error(`Failed to unlock channel ${channelId}:`, err);
+                    }
+                  }
+
+                  cache.del(lockedChannelsKey);
+                  logger.info(`Unlocked ${lockedChannelIds.length} channels in guild ${guild.id} after raid lockdown expiry`);
+                } catch (err) {
+                  logger.error(`Error in lockdown unlock timer for guild ${guild.id}:`, err);
+                }
+              });
             }
 
             await logAutomodAction(
@@ -301,15 +335,11 @@ const antiNukeChannelHandler: ModuleEvent = { event: Events.ChannelDelete,
       const config = await getAutomodConfig(channel.guild.id);
       if (!config.antinuke.enabled) return;
 
-      const redis = getRedis();
       const counterKey = `automod:nuke:channelDelete:${channel.guild.id}`;
       const timeframeMs = 60000;
 
       try {
-        const count = await redis.incr(counterKey);
-        if (count === 1) {
-          await redis.pexpire(counterKey, timeframeMs);
-        }
+        const count = cache.pincr(counterKey, timeframeMs);
 
         if (count >= config.antinuke.maxChannelDeletesPerMinute) {
           let deleter: GuildMember | null = null;
@@ -370,15 +400,11 @@ const antiNukeRoleHandler: ModuleEvent = { event: Events.GuildRoleDelete,
       const config = await getAutomodConfig(role.guild.id);
       if (!config.antinuke.enabled) return;
 
-      const redis = getRedis();
       const counterKey = `automod:nuke:roleDelete:${role.guild.id}`;
       const timeframeMs = 60000;
 
       try {
-        const count = await redis.incr(counterKey);
-        if (count === 1) {
-          await redis.pexpire(counterKey, timeframeMs);
-        }
+        const count = cache.pincr(counterKey, timeframeMs);
 
         if (count >= config.antinuke.maxRoleDeletesPerMinute) {
           let deleter: GuildMember | null = null;
@@ -438,15 +464,11 @@ const antiNukeBanHandler: ModuleEvent = { event: Events.GuildBanAdd,
       const config = await getAutomodConfig(ban.guild.id);
       if (!config.antinuke.enabled) return;
 
-      const redis = getRedis();
       const counterKey = `automod:nuke:banAdd:${ban.guild.id}`;
       const timeframeMs = 60000;
 
       try {
-        const count = await redis.incr(counterKey);
-        if (count === 1) {
-          await redis.pexpire(counterKey, timeframeMs);
-        }
+        const count = cache.pincr(counterKey, timeframeMs);
 
         if (count >= config.antinuke.maxBansPerMinute) {
           let banner: GuildMember | null = null;
@@ -497,85 +519,13 @@ const antiNukeBanHandler: ModuleEvent = { event: Events.GuildBanAdd,
 };
 
 /**
- * Raid lockdown expiry handler - checks for expired lockdowns and unlocks channels
+ * Ready handler — lockdown expiry is now handled by TimerManager (scheduled when lockdown is created).
+ * No polling needed.
  */
-const raidLockdownExpiryHandler: ModuleEvent = { event: Events.ClientReady,
+const automodReadyHandler: ModuleEvent = { event: Events.ClientReady,
   once: true,
   async handler(client: Client) {
-    logger.info('Starting raid lockdown expiry monitor');
-
-    setInterval(async () => {
-      try {
-        const redis = getRedis();
-
-        for (const guild of client.guilds.cache.values()) {
-          try {
-            const lockdownKey = `automod:lockdown:${guild.id}`;
-            const lockedChannelsKey = `automod:lockdown:channels:${guild.id}`;
-            const lockdownData = await redis.get(lockdownKey);
-
-            // If lockdown is still active, skip this guild
-            if (lockdownData) continue;
-
-            // Check if we have a record of channels WE locked
-            const lockedChannelsData = await redis.get(lockedChannelsKey);
-            if (!lockedChannelsData) continue; // No record = nothing to unlock
-
-            const lockedChannelIds: string[] = JSON.parse(lockedChannelsData);
-            if (lockedChannelIds.length === 0) {
-              await redis.del(lockedChannelsKey);
-              continue;
-            }
-
-            let unlocked = false;
-
-            // Only unlock channels that WE locked during the raid lockdown
-            for (const channelId of lockedChannelIds) {
-              try {
-                const channel = guild.channels.cache.get(channelId);
-                if (!channel || !channel.isTextBased() || channel.isDMBased()) continue;
-
-                const textChannel = channel as BaseGuildTextChannel;
-                const everyoneOverride = textChannel.permissionOverwrites.cache.get(
-                  guild.roles.everyone.id
-                );
-
-                if (everyoneOverride?.deny.has(PermissionFlagsBits.SendMessages)) {
-                  await textChannel.permissionOverwrites.edit(
-                    guild.roles.everyone,
-                    { SendMessages: null },
-                    { reason: 'Raid lockdown expired — restoring channel' }
-                  );
-                  unlocked = true;
-                }
-              } catch (error) {
-                logger.error(`Failed to unlock channel ${channelId}:`, error);
-              }
-            }
-
-            // Clean up the record
-            await redis.del(lockedChannelsKey);
-
-            if (unlocked) {
-              logger.info(`Unlocked ${lockedChannelIds.length} channels in guild ${guild.id} after raid lockdown expiry`);
-              const config = await getAutomodConfig(guild.id);
-              await logAutomodAction(
-                guild,
-                config,
-                client.user?.id || 'system',
-                'unlock',
-                'Raid lockdown duration expired',
-                'Auto-unlock'
-              );
-            }
-          } catch (error) {
-            logger.error(`Error checking lockdown expiry for guild ${guild.id}:`, error);
-          }
-        }
-      } catch (error) {
-        logger.error('Error in lockdown expiry monitor:', error);
-      }
-    }, UNLOCK_CHECK_INTERVAL);
+    logger.info('Automod ready — lockdown expiry uses TimerManager (no polling)');
   },
 };
 
@@ -585,5 +535,5 @@ export const automodEvents: ModuleEvent[] = [
   antiNukeChannelHandler,
   antiNukeRoleHandler,
   antiNukeBanHandler,
-  raidLockdownExpiryHandler,
+  automodReadyHandler,
 ];

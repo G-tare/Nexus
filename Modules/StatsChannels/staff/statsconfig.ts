@@ -1,10 +1,11 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 import {
   getStatsConfig,
   getStatsChannels,
@@ -84,19 +85,17 @@ const command: BotCommand = {
         const channels = await getStatsChannels(guild.id);
         const goalStat = STAT_TYPE_LABELS[config.goalStatType as keyof typeof STAT_TYPE_LABELS] || config.goalStatType;
 
-        const embed = new EmbedBuilder()
-          .setColor(0x3498DB)
-          .setTitle('📊 Stats Channels Configuration')
-          .addFields(
-            { name: 'Active Channels', value: `${channels.length}/10`, inline: true },
-            { name: 'Update Interval', value: `${config.updateInterval}s (${Math.round(config.updateInterval / 60)} min)`, inline: true },
-            { name: 'Number Format', value: config.numberFormat === 'full' ? 'Full (1,234)' : 'Short (1.2K)', inline: true },
-            { name: 'Category Name', value: config.categoryName, inline: true },
-            { name: 'Goal Target', value: `${config.goalTarget.toLocaleString()}`, inline: true },
-            { name: 'Goal Stat', value: goalStat, inline: true },
-          );
+        const container = moduleContainer('stats_channels');
+        addFields(container, [
+          { name: 'Active Channels', value: `${channels.length}/10`, inline: true },
+          { name: 'Update Interval', value: `${config.updateInterval}s (${Math.round(config.updateInterval / 60)} min)`, inline: true },
+          { name: 'Number Format', value: config.numberFormat === 'full' ? 'Full (1,234)' : 'Short (1.2K)', inline: true },
+          { name: 'Category Name', value: config.categoryName, inline: true },
+          { name: 'Goal Target', value: `${config.goalTarget.toLocaleString()}`, inline: true },
+          { name: 'Goal Stat', value: goalStat, inline: true },
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
         break;
       }
 

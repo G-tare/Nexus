@@ -1,10 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   inlineCode,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  ContainerBuilder,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { successContainer, warningContainer, infoContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -103,138 +105,102 @@ const command: BotCommand = {
       const channel = interaction.options.getChannel('channel', true);
 
       if (config.ignoredChannels.includes(channel.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Already Ignored')
-          .setDescription(`${channel} is already ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Already Ignored');
+        addText(container, `${channel} is already ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredChannels.push(channel.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Channel Ignored')
-        .setDescription(`${channel} is now ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('Channel Ignored');
+      addText(container, `${channel} is now ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'remove-channel') {
       const channel = interaction.options.getChannel('channel', true);
 
       if (!config.ignoredChannels.includes(channel.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Not Ignored')
-          .setDescription(`${channel} was not ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Not Ignored');
+        addText(container, `${channel} was not ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredChannels = config.ignoredChannels.filter((id: any) => id !== channel.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Channel Un-Ignored')
-        .setDescription(`${channel} is no longer ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('Channel Un-Ignored');
+      addText(container, `${channel} is no longer ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'add-role') {
       const role = interaction.options.getRole('role', true);
 
       if (config.ignoredRoles.includes(role.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Already Ignored')
-          .setDescription(`${role} is already ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Already Ignored');
+        addText(container, `${role} is already ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredRoles.push(role.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Role Ignored')
-        .setDescription(`${role} is now ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('Role Ignored');
+      addText(container, `${role} is now ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'remove-role') {
       const role = interaction.options.getRole('role', true);
 
       if (!config.ignoredRoles.includes(role.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Not Ignored')
-          .setDescription(`${role} was not ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Not Ignored');
+        addText(container, `${role} was not ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredRoles = config.ignoredRoles.filter((id: any) => id !== role.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ Role Un-Ignored')
-        .setDescription(`${role} is no longer ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('Role Un-Ignored');
+      addText(container, `${role} is no longer ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'add-user') {
       const user = interaction.options.getUser('user', true);
 
       if (config.ignoredUsers.includes(user.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Already Ignored')
-          .setDescription(`${user} is already ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Already Ignored');
+        addText(container, `${user} is already ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredUsers.push(user.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ User Ignored')
-        .setDescription(`${user} is now ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('User Ignored');
+      addText(container, `${user} is now ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'remove-user') {
       const user = interaction.options.getUser('user', true);
 
       if (!config.ignoredUsers.includes(user.id)) {
-        const embed = new EmbedBuilder()
-          .setTitle('⚠ Not Ignored')
-          .setDescription(`${user} was not ignored`)
-          .setColor('Yellow');
-
-        return interaction.editReply({ embeds: [embed] });
+        const container = warningContainer('Not Ignored');
+        addText(container, `${user} was not ignored`);
+        return interaction.editReply(v2Payload([container]));
       }
 
       config.ignoredUsers = config.ignoredUsers.filter((id: any) => id !== user.id);
       await moduleConfig.setConfig(guildId, 'logging', config);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✓ User Un-Ignored')
-        .setDescription(`${user} is no longer ignored from logging`)
-        .setColor('Green');
-
-      return interaction.editReply({ embeds: [embed] });
+      const container = successContainer('User Un-Ignored');
+      addText(container, `${user} is no longer ignored from logging`);
+      return interaction.editReply(v2Payload([container]));
     }
 
     if (subcommand === 'list') {
@@ -253,16 +219,14 @@ const command: BotCommand = {
           ? config.ignoredUsers.map((id: any) => `<@${id}>`).join(', ')
           : 'None';
 
-      const embed = new EmbedBuilder()
-        .setTitle('🚫 Ignored from Logging')
-        .addFields(
-          { name: 'Channels', value: ignoredChannelsList, inline: false },
-          { name: 'Roles', value: ignoredRolesList, inline: false },
-          { name: 'Users', value: ignoredUsersList, inline: false },
-        )
-        .setColor('Blurple');
+      const container = infoContainer('Ignored from Logging');
+      addFields(container, [
+        { name: 'Channels', value: ignoredChannelsList, inline: false },
+        { name: 'Roles', value: ignoredRolesList, inline: false },
+        { name: 'Users', value: ignoredUsersList, inline: false },
+      ]);
 
-      return interaction.editReply({ embeds: [embed] });
+      return interaction.editReply(v2Payload([container]));
     }
   },
 };

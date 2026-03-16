@@ -1,10 +1,10 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
-  createModCase, sendModDM, canModerate, modActionEmbed,
+  createModCase, sendModDM, canModerate, buildModActionContainer,
   getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
 } from '../helpers';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
@@ -29,7 +29,8 @@ const command: BotCommand = {
   async execute(interaction: ChatInputCommandInteraction) {
     const target = interaction.options.getUser('user', true);
     const durationStr = interaction.options.getString('duration', true);
-    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const rawReason = interaction.options.getString('reason');
+    const reason = rawReason || 'No reason provided';
     const guild = interaction.guild!;
 
     const targetMember = await guild.members.fetch(target.id).catch(() => null);
@@ -61,6 +62,13 @@ const command: BotCommand = {
     await interaction.deferReply();
 
     const config = await getModConfig(guild.id);
+
+    // Enforce requireReason
+    if (config.requireReason && !rawReason) {
+      await interaction.editReply({ content: '❌ This server requires a reason for moderation actions. Please provide a reason.' });
+      return;
+    }
+
     await ensureGuild(guild);
     await ensureGuildMember(guild.id, target.id);
 
@@ -89,13 +97,21 @@ const command: BotCommand = {
     }
 
     // Execute timeout
-    await targetMember.timeout(durationMs, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
-
-    if (config.reputationEnabled) {
-      await adjustReputation(guild.id, target.id, -config.reputationPenalties.mute, 'Mute');
+    try {
+      await targetMember.timeout(durationMs, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
+    } catch (err: any) {
+      const msg = err?.code === 50013
+        ? 'I do not have permission to timeout that user. They may have Administrator permission, which Discord prevents timing out.'
+        : `Failed to mute user: ${err?.message || 'Unknown error'}`;
+      await interaction.editReply({ content: msg });
+      return;
     }
 
-    const embed = modActionEmbed({
+    if (config.reputationEnabled) {
+      await adjustReputation(guild.id, target.id, -config.reputationPenalties.mute, 'Mute', interaction.user.id);
+    }
+
+    const container = buildModActionContainer({
       action: 'Mute',
       target,
       moderator: interaction.user,
@@ -105,7 +121,7 @@ const command: BotCommand = {
       dmSent,
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

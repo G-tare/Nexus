@@ -1,6 +1,7 @@
 import { Events, Message, MessageReaction, User, TextChannel, PartialMessageReaction, PartialUser } from 'discord.js';
 import { ModuleEvent } from '../../Shared/src/types/command';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { v2Payload } from '../../Shared/src/utils/componentsV2';
 import {
   getTranslationConfig,
   getChannelLanguage,
@@ -55,7 +56,7 @@ const autoTranslateHandler: ModuleEvent = { event: Events.MessageCreate,
         await sendTranslatedWebhook(message.channel, message, result.translatedText, targetLang);
       } else {
         const embed = buildTranslationEmbed(result, message.content);
-        await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+        await message.reply({ ...v2Payload([embed]), allowedMentions: { repliedUser: false } });
       }
 
       // Stats
@@ -119,7 +120,7 @@ const flagReactionHandler: ModuleEvent = { event: Events.MessageReactionAdd,
       await setTranslateCooldown(guildId, user.id, config.userCooldown);
 
       const embed = buildTranslationEmbed(result, message.content, (user as User).displayName);
-      await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+      await message.reply({ ...v2Payload([embed]), allowedMentions: { repliedUser: false } });
 
       await incrementTranslationStats(guildId, result.sourceLang, targetLang);
 

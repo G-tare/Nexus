@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
@@ -8,8 +8,10 @@ import {
   getPendingConfessionData,
   removePendingConfession,
   storeConfession,
-  buildConfessionEmbed,
+  buildConfessionContainer,
+  buildConfessionButtons,
 } from '../helpers';
+import { v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'confessions',
@@ -67,13 +69,12 @@ const command: BotCommand = {
         pendingData.imageUrl
       );
 
-      // Post to channel
-      const embed = buildConfessionEmbed(confessionId, pendingData.content, config);
-      if (pendingData.imageUrl) {
-        embed.setImage(pendingData.imageUrl);
-      }
+      // Post to channel with buttons
+      const container = buildConfessionContainer(confessionId, pendingData.content, config);
+      const buttons = buildConfessionButtons(confessionId);
+      container.addActionRowComponents(buttons);
 
-      await (channel as any).send({ embeds: [embed] });
+      await (channel as any).send(v2Payload([container]));
 
       // Remove from pending
       await removePendingConfession(guildId, confessionId);

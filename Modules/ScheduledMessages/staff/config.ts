@@ -1,11 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 const logger = createModuleLogger('ScheduledMessages');
+import { moduleContainer, addText, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -75,17 +76,14 @@ const command: BotCommand = {
           };
         }
 
-        const viewEmbed = new EmbedBuilder()
-          .setColor('#0099ff')
-          .setTitle('Scheduled Messages Configuration')
-          .addFields(
-            { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-            { name: 'Max Per Guild', value: config.maxScheduledPerGuild?.toString() ?? '25', inline: true },
-            { name: 'Timezone', value: config.timezone ?? 'UTC', inline: true }
-          )
-          .setFooter({ text: 'Use /scheduleconfig set to update settings' });
+        const container = moduleContainer('scheduled_messages');
+        addText(container, '### Scheduled Messages Configuration');
+        addText(container, `**Enabled**\n${config.enabled ? '✅ Yes' : '❌ No'}`);
+        addText(container, `**Max Per Guild**\n${config.maxScheduledPerGuild?.toString() ?? '25'}`);
+        addText(container, `**Timezone**\n${config.timezone ?? 'UTC'}`);
+        addText(container, `-# Use /scheduleconfig set to update settings`);
 
-        await interaction.editReply({ embeds: [viewEmbed] });
+        await interaction.editReply(v2Payload([container]));
       } else if (subcommand === 'set') {
         const setting = interaction.options.getString('setting', true);
         const value = interaction.options.getString('value', true);
@@ -105,12 +103,12 @@ const command: BotCommand = {
             [guildId, enabled]
           );
 
-          const embed = new EmbedBuilder()
-            .setColor('#00aa00')
-            .setTitle('Config Updated')
-            .addFields({ name: 'enabled', value: enabled ? '✅ Yes' : '❌ No' });
+          const container = moduleContainer('scheduled_messages');
+          container.setAccentColor(0x00aa00);
+          addText(container, '### Config Updated');
+          addText(container, `**enabled**\n${enabled ? '✅ Yes' : '❌ No'}`);
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(v2Payload([container]));
         } else if (setting === 'maxScheduledPerGuild') {
           const num = parseInt(value);
           if (isNaN(num) || num < 1 || num > 1000) {
@@ -124,12 +122,12 @@ const command: BotCommand = {
             [guildId, num]
           );
 
-          const embed = new EmbedBuilder()
-            .setColor('#00aa00')
-            .setTitle('Config Updated')
-            .addFields({ name: 'maxScheduledPerGuild', value: num.toString() });
+          const container = moduleContainer('scheduled_messages');
+          container.setAccentColor(0x00aa00);
+          addText(container, '### Config Updated');
+          addText(container, `**maxScheduledPerGuild**\n${num.toString()}`);
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(v2Payload([container]));
         } else if (setting === 'timezone') {
           // Validate timezone
           const validTimezones = [
@@ -150,12 +148,12 @@ const command: BotCommand = {
             [guildId, value.toUpperCase()]
           );
 
-          const embed = new EmbedBuilder()
-            .setColor('#00aa00')
-            .setTitle('Config Updated')
-            .addFields({ name: 'timezone', value: value.toUpperCase() });
+          const container = moduleContainer('scheduled_messages');
+          container.setAccentColor(0x00aa00);
+          addText(container, '### Config Updated');
+          addText(container, `**timezone**\n${value.toUpperCase()}`);
 
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(v2Payload([container]));
         }
 
         logger.info(`[ScheduledMessages] Updated config for guild ${guildId}: ${setting} = ${value}`);

@@ -1,9 +1,7 @@
-import {  SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-
-const getRandomGif = (action: string): string => {
-  return 'https://media.giphy.com/media/placeholder.gif';
-};
+import { moduleContainer, addText, addMediaGallery, v2Payload } from '../../../Shared/src/utils/componentsV2';
+import { getInteractionGif } from './gifProvider';
 
 export default {
   module: 'fun',
@@ -22,13 +20,13 @@ export default {
   async execute(interaction) {
     try {
       const targetUser = interaction.options.getUser('user', true);
+      const gifUrl = await getInteractionGif('punch');
 
-      const embed = new EmbedBuilder()
-        .setDescription(`${interaction.user.username} punched ${targetUser.username}! 👊`)
-        .setImage(getRandomGif('punch'))
-        .setColor('#DC143C');
+      const container = moduleContainer('fun');
+      addText(container, `### ${interaction.user.username} punched ${targetUser.username}! 👊`);
+      addMediaGallery(container, [{ url: gifUrl }]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
     } catch (error) {
       console.error('Punch command error:', error);
       await interaction.reply({

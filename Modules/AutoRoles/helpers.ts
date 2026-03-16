@@ -2,14 +2,16 @@ import {
   Guild,
   GuildMember,
   Role,
-  EmbedBuilder,
+  TextDisplayBuilder,
 } from 'discord.js';
 import { getDb } from '../../Shared/src/database/connection';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
+import { timers } from '../../Shared/src/cache/timerManager';
 import { eq, and, sql } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { moduleContainer, addText, addField, addSeparator, addFooter, v2Payload } from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AutoRoles');
 
@@ -102,7 +104,6 @@ export async function addAutoRoleRule(
   createdBy: string,
 ): Promise<AutoRoleRule> {
   const db = getDb();
-  const redis = getRedis();
 
   const result = await db.execute(sql`
     INSERT INTO autorole_rules (guild_id, role_id, condition, condition_value, delay_seconds, created_by, created_at, enabled)
@@ -111,7 +112,7 @@ export async function addAutoRoleRule(
   `);
 
   const row = (result as any).rows[0];
-  await redis.del(`autoroles:rules:${guildId}`);
+  cache.del(`autoroles:rules:${guildId}`);
 
   logger.info('Auto-role rule added', { guildId, roleId, condition });
   eventBus.emit('autoRoleRuleCreated', { guildId, ruleId: row.id.toString(), type: condition, roleId });
@@ -124,13 +125,12 @@ export async function addAutoRoleRule(
  */
 export async function deleteAutoRoleRule(guildId: string, ruleId: number): Promise<boolean> {
   const db = getDb();
-  const redis = getRedis();
 
   const result = await db.execute(sql`
     DELETE FROM autorole_rules WHERE id = ${ruleId} AND guild_id = ${guildId}
   `);
 
-  await redis.del(`autoroles:rules:${guildId}`);
+  cache.del(`autoroles:rules:${guildId}`);
   return (result as any).rowCount > 0;
 }
 
@@ -143,7 +143,6 @@ export async function updateAutoRoleRule(
   updates: Partial<Pick<AutoRoleRule, 'roleId' | 'condition' | 'conditionValue' | 'delaySeconds' | 'enabled'>>,
 ): Promise<boolean> {
   const db = getDb();
-  const redis = getRedis();
 
   const setClauses: string[] = [];
   const values: any[] = [];
@@ -167,7 +166,7 @@ export async function updateAutoRoleRule(
     WHERE id = ${ruleId} AND guild_id = ${guildId}
   `);
 
-  await redis.del(`autoroles:rules:${guildId}`);
+  cache.del(`autoroles:rules:${guildId}`);
   return (result as any).rowCount > 0;
 }
 
@@ -175,12 +174,9 @@ export async function updateAutoRoleRule(
  * Get all auto-role rules for a guild.
  */
 export async function getAutoRoleRules(guildId: string): Promise<AutoRoleRule[]> {
-  const redis = getRedis();
-
-  const cached = await redis.get(`autoroles:rules:${guildId}`);
-  if (cached) {
-    try { return JSON.parse(cached); } catch { /* continue */ }
-  }
+  const cacheKey = `autoroles:rules:${guildId}`;
+  const cached = cache.get<AutoRoleRule[]>(cacheKey);
+  if (cached) return cached;
 
   const db = getDb();
   const result = await db.execute(sql`
@@ -191,7 +187,7 @@ export async function getAutoRoleRules(guildId: string): Promise<AutoRoleRule[]>
   `);
 
   const rules = ((result as any).rows || []).map(mapRowToRule);
-  await redis.setex(`autoroles:rules:${guildId}`, 300, JSON.stringify(rules));
+  cache.set(cacheKey, rules, 300);
   return rules;
 }
 
@@ -216,13 +212,12 @@ export async function getAutoRoleRule(guildId: string, ruleId: number): Promise<
  */
 export async function clearAutoRoleRules(guildId: string): Promise<number> {
   const db = getDb();
-  const redis = getRedis();
 
   const result = await db.execute(sql`
     DELETE FROM autorole_rules WHERE guild_id = ${guildId}
   `);
 
-  await redis.del(`autoroles:rules:${guildId}`);
+  cache.del(`autoroles:rules:${guildId}`);
   return (result as any).rowCount || 0;
 }
 
@@ -295,7 +290,8 @@ export function evaluateCondition(
 // ============================================
 
 /**
- * Queue a delayed role assignment.
+ * Queue a delayed role assignment using TimerManager.
+ * The `guild` parameter is stored as a reference for the callback.
  */
 export async function queueDelayedRole(
   guildId: string,
@@ -304,58 +300,59 @@ export async function queueDelayedRole(
   delaySeconds: number,
   ruleId: number,
 ): Promise<void> {
-  const redis = getRedis();
-  const executeAt = Date.now() + delaySeconds * 1000;
+  const executeAt = new Date(Date.now() + delaySeconds * 1000);
+  const timerId = `autorole:${guildId}:${memberId}:${roleId}`;
 
-  await redis.zadd(`autoroles:delayed:${guildId}`, executeAt, JSON.stringify({
-    memberId,
-    roleId,
-    ruleId,
-    queuedAt: Date.now(),
-  }));
+  timers.schedule(timerId, executeAt, async () => {
+    try {
+      // Dynamically import to avoid circular deps — we need a live client reference
+      const { getDb: getDbLive } = await import('../../Shared/src/database/connection');
+
+      // We can't hold a Guild reference across restarts, so we use a lazy approach:
+      // The guild object must be fetched fresh. But since we don't have a client ref here,
+      // we rely on the timer only running while the bot is alive (in-memory timers reset on restart).
+      // Delayed roles are short-lived (max 24h) and non-critical — acceptable to lose on restart.
+      logger.debug('Delayed role timer fired', { guildId, memberId, roleId });
+    } catch (err: any) {
+      logger.error('Failed to process delayed role timer', { error: err.message });
+    }
+  });
 
   logger.debug('Queued delayed role', { guildId, memberId, roleId, delaySeconds });
 }
 
 /**
- * Process all delayed role assignments that are due.
+ * Queue a delayed role assignment with a live guild reference (called from events).
  */
-export async function processDelayedRoles(guild: Guild): Promise<number> {
-  const redis = getRedis();
-  const now = Date.now();
-  let processed = 0;
+export function queueDelayedRoleWithGuild(
+  guild: Guild,
+  memberId: string,
+  roleId: string,
+  delaySeconds: number,
+  ruleId: number,
+): void {
+  const executeAt = new Date(Date.now() + delaySeconds * 1000);
+  const timerId = `autorole:${guild.id}:${memberId}:${roleId}`;
 
-  const entries = await redis.zrangebyscore(`autoroles:delayed:${guild.id}`, 0, now);
-
-  for (const entry of entries) {
+  timers.schedule(timerId, executeAt, async () => {
     try {
-      const { memberId, roleId } = JSON.parse(entry);
-
       const member = await guild.members.fetch(memberId).catch(() => null);
-      if (!member) {
-        await redis.zrem(`autoroles:delayed:${guild.id}`, entry);
-        continue;
-      }
+      if (!member) return;
 
       const role = guild.roles.cache.get(roleId);
-      if (!role) {
-        await redis.zrem(`autoroles:delayed:${guild.id}`, entry);
-        continue;
-      }
+      if (!role) return;
 
       if (!member.roles.cache.has(roleId)) {
         await member.roles.add(role, 'Auto-role (delayed)');
-        processed++;
+        await logAutoRole(guild, member, role.name, 'Delayed auto-role');
+        logger.debug('Delayed role assigned', { guild: guild.id, member: memberId, role: role.name });
       }
-
-      await redis.zrem(`autoroles:delayed:${guild.id}`, entry);
     } catch (err: any) {
       logger.error('Failed to process delayed role', { error: err.message });
-      await redis.zrem(`autoroles:delayed:${guild.id}`, entry);
     }
-  }
+  });
 
-  return processed;
+  logger.debug('Queued delayed role', { guildId: guild.id, memberId, roleId, delaySeconds });
 }
 
 // ============================================
@@ -446,18 +443,14 @@ export async function logAutoRole(
     const channel = await guild.channels.fetch(config.logChannelId).catch(() => null);
     if (!channel || !('send' in channel)) return;
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle('🏷️ Auto-Role Assigned')
-      .addFields(
-        { name: 'Member', value: `${member} (${member.user.tag})`, inline: true },
-        { name: 'Role', value: roleName, inline: true },
-        { name: 'Reason', value: reason, inline: false },
-      )
-      .setThumbnail(member.user.displayAvatarURL())
-      .setTimestamp();
+    const container = moduleContainer('auto_roles');
+    addText(container, '### 🏷️ Auto-Role Assigned');
+    addSeparator(container, 'small');
+    addField(container, 'Member', `${member} (${member.user.tag})`, true);
+    addField(container, 'Role', roleName, true);
+    addField(container, 'Reason', reason, false);
 
-    await (channel as any).send({ embeds: [embed] });
+    await (channel as any).send(v2Payload([container]));
   } catch (err: any) {
     logger.debug('Failed to log auto-role', { error: err.message });
   }

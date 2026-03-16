@@ -1,7 +1,9 @@
-import { EmbedBuilder, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder } from 'discord.js';
 import crypto from 'crypto';
-import { getRedis } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addText } from '../../Shared/src/utils/componentsV2';
+
 const CONFESSION_SALT = 'confessions_salt_v1';
 
 export interface ConfessionConfig {
@@ -36,9 +38,9 @@ const DEFAULT_CONFIG: ConfessionConfig = {
  */
 export async function getConfessionConfig(guildId: string): Promise<ConfessionConfig> {
   let config: ConfessionConfig;
-  const cached = await getRedis().get(`confessions_config:${guildId}`);
+  const cached = cache.get<ConfessionConfig>(`confessions_config:${guildId}`);
   if (cached) {
-    config = { ...DEFAULT_CONFIG, ...JSON.parse(cached) };
+    config = { ...DEFAULT_CONFIG, ...cached };
   } else {
     config = { ...DEFAULT_CONFIG };
   }
@@ -58,7 +60,7 @@ export async function getConfessionConfig(guildId: string): Promise<ConfessionCo
 export async function setConfessionConfig(guildId: string, config: Partial<ConfessionConfig>): Promise<void> {
   const current = await getConfessionConfig(guildId);
   const updated = { ...current, ...config };
-  await getRedis().set(`confessions_config:${guildId}`, JSON.stringify(updated), 'EX', 86400 * 30);
+  cache.set(`confessions_config:${guildId}`, updated, 86400 * 30);
 }
 
 /**
@@ -149,8 +151,8 @@ export async function storeConfession(
     data.userId = userId;
   }
 
-  await getRedis().hset(`confession:${guildId}:${number}`, data);
-  await getRedis().expire(`confession:${guildId}:${number}`, 86400 * 365);
+  cache.hset(`confession:${guildId}:${number}`, data);
+  cache.expire(`confession:${guildId}:${number}`, 86400 * 365);
 }
 
 /**
@@ -166,8 +168,8 @@ export async function getConfessionData(
   timestamp: number;
   imageUrl?: string;
 } | null> {
-  const data = await getRedis().hgetall(`confession:${guildId}:${number}`);
-  if (Object.keys(data).length === 0) return null;
+  const data = cache.hgetall(`confession:${guildId}:${number}`);
+  if (!data || Object.keys(data).length === 0) return null;
 
   return {
     userHash: data.userHash,
@@ -179,27 +181,21 @@ export async function getConfessionData(
 }
 
 /**
- * Build embed for posting confession
+ * Build container for posting confession
  */
-export function buildConfessionEmbed(number: number, content: string, config: ConfessionConfig): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(config.embedColor as any)
-    .setTitle(`Confession #${number}`)
-    .setDescription(content)
-    .setFooter({ text: 'Anonymous Confession' })
-    .setTimestamp();
+export function buildConfessionContainer(number: number, content: string, config: ConfessionConfig): ContainerBuilder {
+  const container = moduleContainer('confessions');
+  addText(container, `### Confession #${number}\n${content}`);
+  return container;
 }
 
 /**
- * Build embed for moderation queue
+ * Build container for moderation queue
  */
-export function buildModerationEmbed(number: number, content: string, config: ConfessionConfig): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor(config.embedColor as any)
-    .setTitle(`Pending Confession #${number}`)
-    .setDescription(content)
-    .setFooter({ text: 'Awaiting Moderation' })
-    .setTimestamp();
+export function buildModerationContainer(number: number, content: string, config: ConfessionConfig): ContainerBuilder {
+  const container = moduleContainer('confessions');
+  addText(container, `### Pending Confession #${number}\n${content}\n\n-# Awaiting Moderation`);
+  return container;
 }
 
 /**
@@ -244,8 +240,8 @@ export async function storePendingConfession(
     data.userId = userId;
   }
 
-  await getRedis().hset(`confession_pending:${guildId}:${number}`, data);
-  await getRedis().expire(`confession_pending:${guildId}:${number}`, 86400 * 7);
+  cache.hset(`confession_pending:${guildId}:${number}`, data);
+  cache.expire(`confession_pending:${guildId}:${number}`, 86400 * 7);
 }
 
 /**
@@ -261,8 +257,8 @@ export async function getPendingConfessionData(
   timestamp: number;
   imageUrl?: string;
 } | null> {
-  const data = await getRedis().hgetall(`confession_pending:${guildId}:${number}`);
-  if (Object.keys(data).length === 0) return null;
+  const data = cache.hgetall(`confession_pending:${guildId}:${number}`);
+  if (!data || Object.keys(data).length === 0) return null;
 
   return {
     userHash: data.userHash,
@@ -277,20 +273,21 @@ export async function getPendingConfessionData(
  * Remove pending confession
  */
 export async function removePendingConfession(guildId: string, number: number): Promise<void> {
-  await getRedis().del(`confession_pending:${guildId}:${number}`);
+  cache.del(`confession_pending:${guildId}:${number}`);
 }
 
 /**
  * Check cooldown for user
  */
 export async function checkCooldown(guildId: string, userId: string): Promise<number | null> {
-  const remaining = await getRedis().ttl(`confess:cd:${guildId}:${userId}`);
-  return remaining > 0 ? remaining : null;
+  const key = `confess:cd:${guildId}:${userId}`;
+  const exists = cache.has(key);
+  return exists ? 1 : null;
 }
 
 /**
  * Set cooldown for user
  */
 export async function setCooldown(guildId: string, userId: string, seconds: number): Promise<void> {
-  await getRedis().set(`confess:cd:${guildId}:${userId}`, '1', 'EX', seconds);
+  cache.set(`confess:cd:${guildId}:${userId}`, '1', seconds);
 }

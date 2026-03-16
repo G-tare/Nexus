@@ -1,8 +1,9 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
+import { successReply, errorReply } from '../../../Shared/src/utils/componentsV2';
 import {
   getRepConfig,
   adjustRep,
@@ -62,12 +63,10 @@ const command: BotCommand = {
     await setRepCooldowns(guild.id, interaction.user.id, target.id);
     await updateRepRoles(guild, target.id, newRep);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setDescription(`⭐ **${interaction.user.displayName}** gave +1 rep to **${target.displayName}**!\n\n${target.displayName} now has **${newRep}** reputation.${reason ? `\n*Reason: ${reason}*` : ''}`)
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(successReply(
+      'Reputation Given',
+      `⭐ **${interaction.user.displayName}** gave +1 rep to **${target.displayName}**!\n\n${target.displayName} now has **${newRep}** reputation.${reason ? `\n*Reason: ${reason}*` : ''}`
+    ));
   },
 };
 

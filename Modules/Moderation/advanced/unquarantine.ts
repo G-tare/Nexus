@@ -1,7 +1,7 @@
 import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, GuildMember, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getRedis } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
 import { canModerate, createModCase, ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
 
 export default {
@@ -46,19 +46,18 @@ export default {
         return;
       }
 
-      // Get stored roles from Redis
-      const redis = await getRedis();
+      // Get stored roles from cache
       const quarantineKey = `quarantine:${guild.id}:${targetUser.id}`;
-      const storedRolesJson = await redis.hget(quarantineKey, 'roles');
+      const storedData = cache.get<any>(quarantineKey);
 
-      if (!storedRolesJson) {
+      if (!storedData || !storedData.roles) {
         await interaction.editReply({
           embeds: [errorEmbed('User is not quarantined')]
         });
         return;
       }
 
-      const storedRoles: string[] = JSON.parse(storedRolesJson);
+      const storedRoles: string[] = storedData.roles;
 
       // Get mod config for quarantine role
       const modConfig = await getModConfig(guild.id);
@@ -76,8 +75,8 @@ export default {
         }
       }
 
-      // Clean up Redis
-      await redis.del(quarantineKey);
+      // Clean up cache
+      cache.del(quarantineKey);
 
       // Create mod case
       await createModCase({

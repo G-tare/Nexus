@@ -9,7 +9,7 @@ import {
   PollData,
   getPollConfig,
   createPoll,
-  buildPollEmbed,
+  buildPollContainer,
   buildPollComponents,
   generatePollId,
   parseDuration,
@@ -159,14 +159,13 @@ const command: BotCommand = {
         pollData.votes[i.toString()] = [];
       }
 
-      // Build embed and components
-      const embed = buildPollEmbed(pollData, showLiveResults);
+      // Build container and components
+      const container = buildPollContainer(pollData, showLiveResults);
       const components = buildPollComponents(pollData);
 
       // Send to target channel
       const message = await (targetChannel as any).send({
-        embeds: [embed],
-        components,
+        components: [container, ...components],
       });
 
       // Store message ID and save poll

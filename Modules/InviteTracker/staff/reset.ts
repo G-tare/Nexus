@@ -2,8 +2,6 @@ import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ColorResolvable,
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
@@ -11,6 +9,7 @@ import {
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { resetInvites } from '../helpers';
+import { moduleContainer, addText, addButtons, v2Payload, successReply, warningContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   module: 'invitetracker',
@@ -44,13 +43,7 @@ const command: BotCommand = {
 
         await resetInvites(interaction.guildId!, interaction.user.id, user.id);
 
-        const embed = new EmbedBuilder()
-          .setColor('#57F287' as ColorResolvable)
-          .setTitle('✅ Invites Reset')
-          .setDescription(`Reset all invites for ${user}`)
-          .setFooter({ text: interaction.guild!.name });
-
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply(successReply('Invites Reset', `Reset all invites for ${user}`));
       } else if (subcommand === 'all') {
         const confirmButton = new ButtonBuilder()
           .setCustomId('invite_reset_all_confirm')
@@ -62,20 +55,10 @@ const command: BotCommand = {
           .setLabel('Cancel')
           .setStyle(ButtonStyle.Secondary);
 
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          confirmButton,
-          cancelButton
-        );
+        const container = warningContainer('Reset All Invites', 'This will reset all invite records for the entire server. This action cannot be undone.');
+        addButtons(container, [confirmButton, cancelButton]);
 
-        const embed = new EmbedBuilder()
-          .setColor('#ED4245' as ColorResolvable)
-          .setTitle('⚠️ Reset All Invites')
-          .setDescription(
-            'This will reset all invite records for the entire server. This action cannot be undone.'
-          )
-          .setFooter({ text: interaction.guild!.name });
-
-        await interaction.editReply({ embeds: [embed], components: [row] });
+        await interaction.editReply(v2Payload([container]));
 
         const collector = interaction.channel!.createMessageComponentCollector({
           componentType: ComponentType.Button,
@@ -88,28 +71,13 @@ const command: BotCommand = {
             await i.deferUpdate();
             await resetInvites(interaction.guildId!, interaction.user.id);
 
-            const successEmbed = new EmbedBuilder()
-              .setColor('#57F287' as ColorResolvable)
-              .setTitle('✅ All Invites Reset')
-              .setDescription('Reset all invites for the entire server')
-              .setFooter({ text: interaction.guild!.name });
-
-            await interaction.editReply({
-              embeds: [successEmbed],
-              components: [],
-            });
+            await interaction.editReply(successReply('All Invites Reset', 'Reset all invites for the entire server'));
           } else if (i.customId === 'invite_reset_all_cancel') {
             await i.deferUpdate();
-            const cancelEmbed = new EmbedBuilder()
-              .setColor('#5865F2' as ColorResolvable)
-              .setTitle('Cancelled')
-              .setDescription('Reset cancelled')
-              .setFooter({ text: interaction.guild!.name });
 
-            await interaction.editReply({
-              embeds: [cancelEmbed],
-              components: [],
-            });
+            const container = moduleContainer('invite_tracker');
+            addText(container, '### Cancelled\nReset cancelled');
+            await interaction.editReply(v2Payload([container]));
           }
 
           collector.stop();
@@ -117,16 +85,9 @@ const command: BotCommand = {
 
         collector.on('end', async (collected) => {
           if (collected.size === 0) {
-            const timeoutEmbed = new EmbedBuilder()
-              .setColor('#5865F2' as ColorResolvable)
-              .setTitle('Timeout')
-              .setDescription('Reset confirmation timed out')
-              .setFooter({ text: interaction.guild!.name });
-
-            await interaction.editReply({
-              embeds: [timeoutEmbed],
-              components: [],
-            });
+            const container = moduleContainer('invite_tracker');
+            addText(container, '### Timeout\nReset confirmation timed out');
+            await interaction.editReply(v2Payload([container]));
           }
         });
       }

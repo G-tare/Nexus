@@ -1,7 +1,6 @@
 import {
   Guild,
   GuildMember,
-  EmbedBuilder,
   TextChannel,
   ActionRowBuilder,
   ButtonBuilder,
@@ -13,13 +12,24 @@ import {
   OverwriteResolvable,
   PermissionOverwrites,
   Message,
+  ContainerBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { getRedis, getDb } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { tickets } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { Colors } from '../../Shared/src/utils/embed';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import {
+  moduleContainer,
+  addText,
+  addFields,
+  addSeparator,
+  addButtons,
+  addSelectMenu,
+  v2Payload,
+} from '../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('Tickets');
 
@@ -156,13 +166,12 @@ export async function getTicketConfig(guildId: string): Promise<TicketConfig> {
 }
 
 /**
- * Get next ticket number using Redis INCR for atomicity
+ * Get next ticket number using cache INCR for atomicity
  */
 export async function getNextTicketNumber(guildId: string): Promise<number> {
   try {
-    const redis = getRedis();
     const key = `tickets:counter:${guildId}`;
-    const nextNumber = await redis.incr(key);
+    const nextNumber = cache.incr(key);
     return nextNumber;
   } catch (error) {
     logger.error(`Failed to get next ticket number for guild ${guildId}:`, error);
@@ -207,13 +216,12 @@ export async function isTicketChannel(
   channelId: string
 ): Promise<TicketData | null> {
   try {
-    const redis = getRedis();
     const cacheKey = `ticket:channel:${guildId}:${channelId}`;
 
     // Try cache first
-    const cached = await redis.get(cacheKey);
+    const cached = cache.get<TicketData>(cacheKey);
     if (cached) {
-      return JSON.parse(cached);
+      return cached;
     }
 
     // Query database
@@ -224,7 +232,7 @@ export async function isTicketChannel(
 
     if (result) {
       // Cache for 1 hour
-      await redis.setex(cacheKey, 3600, JSON.stringify(result));
+      cache.set(cacheKey, result as unknown as TicketData, 3600);
       return result as unknown as TicketData;
     }
 
@@ -415,25 +423,17 @@ export async function createTicket(
 
     ticketData.id = insertResult[0].id;
 
-    // Cache in Redis
-    const redis = getRedis();
-    await redis.setex(
+    // Cache in memory
+    cache.set(
       `ticket:channel:${guild.id}:${ticketChannel.id}`,
-      3600,
-      JSON.stringify(ticketData)
+      ticketData,
+      3600
     );
 
     // Send welcome message
-    const { embed: welcomeEmbed, components } = buildTicketWelcomeEmbed(
-      ticketData,
-      category,
-      config
-    );
+    const welcomePayload = buildTicketWelcomeEmbed(ticketData, category, config);
 
-    await ticketChannel.send({
-      embeds: [welcomeEmbed],
-      components,
-    });
+    await ticketChannel.send(welcomePayload);
 
     // Send custom welcome message if configured
     if (category.welcomeMessage) {
@@ -476,7 +476,6 @@ export async function closeTicket(
 ): Promise<boolean> {
   try {
     const db = getDb();
-    const redis = getRedis();
 
     // Get ticket data
     const ticketData = await isTicketChannel(guildId, channelId);
@@ -496,7 +495,7 @@ export async function closeTicket(
       .where(eq(tickets.channelId, channelId));
 
     // Clear cache
-    await redis.del(`ticket:channel:${guildId}:${channelId}`);
+    cache.del(`ticket:channel:${guildId}:${channelId}`);
 
     // Get guild and channel
     const guild = await (global as any).client.guilds.fetch(guildId);
@@ -529,14 +528,9 @@ export async function closeTicket(
     if (config.feedbackEnabled) {
       const userDM = await (global as any).client.users.fetch(ticketData.userId);
       if (userDM) {
-        const { embed: feedbackEmbed, components } = buildFeedbackPrompt(
-          ticketData.ticketNumber
-        );
+        const feedbackPayload = buildFeedbackPrompt(ticketData.ticketNumber);
         await userDM
-          .send({
-            embeds: [feedbackEmbed],
-            components,
-          })
+          .send(feedbackPayload)
           .catch((err: any) => {
             logger.warn(
               `Failed to send feedback prompt to user ${ticketData.userId}:`,
@@ -563,15 +557,17 @@ export async function closeTicket(
         ViewChannel: true,
       });
 
-      const closedEmbed = new EmbedBuilder()
-        .setColor(Colors.Error)
-        .setTitle('Ticket Closed')
-        .setDescription(
-          `This ticket was closed by <@${closedBy}>${reason ? `\n\nReason: ${reason}` : ''}`
-        )
-        .setTimestamp();
+      const closedContainer = moduleContainer('tickets');
+      addText(closedContainer, '### ❌ Ticket Closed');
+      addText(
+        closedContainer,
+        `This ticket was closed by <@${closedBy}>${reason ? `\n\n**Reason:** ${reason}` : ''}`
+      );
 
-      await (channel as any).send({ embeds: [closedEmbed] });
+      await (channel as any).send({
+        components: [closedContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
     }
 
     // Log action
@@ -689,180 +685,183 @@ export async function generateTranscript(
 // ============================================================================
 
 /**
- * Build welcome embed for new tickets
+ * Build welcome container for new tickets (V2 Components)
  */
 export function buildTicketWelcomeEmbed(
   ticketData: TicketData,
   category: TicketCategory,
   config: TicketConfig
-): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] } {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary)
-    .setTitle(`${category.emoji || '🎫'} Ticket #${ticketData.ticketNumber}`)
-    .setDescription('Thank you for opening a support ticket. Our staff will assist you shortly.')
-    .addFields(
-      {
-        name: 'Category',
-        value: category.name,
-        inline: true,
-      },
-      {
-        name: 'Status',
-        value: 'Open',
-        inline: true,
-      }
-    );
+): { components: ContainerBuilder[]; flags: typeof MessageFlags.IsComponentsV2 } {
+  const container = moduleContainer('tickets');
 
-  if (ticketData.reason) {
-    embed.addFields({
-      name: 'Reason',
-      value: ticketData.reason,
-      inline: false,
-    });
-  }
+  // Title
+  addText(container, `### ${category.emoji || '🎫'} Ticket #${ticketData.ticketNumber}`);
 
-  embed.setFooter({ text: `Opened by ${ticketData.userId}` }).setTimestamp();
-
-  const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
-  const buttonRow = new ActionRowBuilder<ButtonBuilder>();
-
-  // Close button
-  buttonRow.addComponents(
-    new ButtonBuilder()
-      .setCustomId('ticket-close')
-      .setLabel('Close')
-      .setStyle(ButtonStyle.Danger)
+  // Welcome message
+  addText(
+    container,
+    'Thank you for opening a support ticket. Our staff will assist you shortly.'
   );
 
-  // Claim button
+  addSeparator(container, 'small');
+
+  // Info fields
+  const fields = [
+    { name: 'Category', value: category.name, inline: true },
+    { name: 'Status', value: 'Open', inline: true },
+  ];
+
+  if (ticketData.reason) {
+    fields.push({ name: 'Reason', value: ticketData.reason, inline: false });
+  }
+
+  addFields(container, fields);
+
+  addSeparator(container, 'small');
+
+  // Buttons
+  const buttons: ButtonBuilder[] = [
+    new ButtonBuilder()
+      .setCustomId('ticket_close')
+      .setLabel('Close')
+      .setStyle(ButtonStyle.Danger),
+  ];
+
   if (config.claimEnabled && category.claimEnabled) {
-    buttonRow.addComponents(
+    buttons.push(
       new ButtonBuilder()
-        .setCustomId('ticket-claim')
+        .setCustomId('ticket_claim')
         .setLabel('Claim')
         .setStyle(ButtonStyle.Primary)
     );
   }
 
-  // Transcript button
   if (config.transcriptEnabled) {
-    buttonRow.addComponents(
+    buttons.push(
       new ButtonBuilder()
-        .setCustomId('ticket-transcript')
+        .setCustomId('ticket_transcript')
         .setLabel('Transcript')
         .setStyle(ButtonStyle.Secondary)
     );
   }
 
-  components.push(buttonRow);
+  addButtons(container, buttons);
 
   // Priority selector if enabled
   if (config.priorityEnabled) {
-    const priorityRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('ticket-priority')
-        .setPlaceholder('Set priority...')
-        .addOptions(
-          { label: 'Low', value: 'low', emoji: '🟢' },
-          { label: 'Medium', value: 'medium', emoji: '🟡' },
-          { label: 'High', value: 'high', emoji: '🔴' },
-          { label: 'Urgent', value: 'urgent', emoji: '🚨' }
-        )
-    );
-    components.push(priorityRow);
+    const priorityMenu = new StringSelectMenuBuilder()
+      .setCustomId('ticket_priority')
+      .setPlaceholder('Set priority...')
+      .addOptions(
+        { label: 'Low', value: 'low', emoji: '🟢' },
+        { label: 'Medium', value: 'medium', emoji: '🟡' },
+        { label: 'High', value: 'high', emoji: '🔴' },
+        { label: 'Urgent', value: 'urgent', emoji: '🚨' }
+      );
+
+    addSelectMenu(container, priorityMenu);
   }
 
-  return { embed, components };
+  return v2Payload([container]);
 }
 
 /**
- * Build ticket panel embed
+ * Build ticket panel container (V2 Components)
  */
 export function buildPanelEmbed(
   panel: TicketPanel,
   categories: TicketCategory[]
 ): {
-  embed: EmbedBuilder;
-  components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[];
+  components: ContainerBuilder[];
+  flags: typeof MessageFlags.IsComponentsV2;
 } {
-  const embed = new EmbedBuilder()
-    .setColor((panel.color || Colors.Primary) as any)
-    .setTitle(panel.title)
-    .setDescription(panel.description);
+  const container = moduleContainer('tickets');
 
-  const components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] = [];
+  // Title
+  addText(container, `### ${panel.title}`);
+
+  // Description
+  addText(container, panel.description);
+
+  addSeparator(container, 'small');
+
   const applicableCategories = categories.filter((c) => panel.categoryIds.includes(c.id));
 
   if (panel.type === 'button') {
     // One button per category
     for (const category of applicableCategories) {
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`ticket-create:${category.id}`)
-          .setLabel(`${category.emoji || ''} ${category.name}`.trim())
-          .setStyle(ButtonStyle.Primary)
-      );
-      components.push(row);
+      const button = new ButtonBuilder()
+        .setCustomId(`ticket_create_${category.id}`)
+        .setLabel(`${category.emoji || ''} ${category.name}`.trim())
+        .setStyle(ButtonStyle.Primary);
+
+      addButtons(container, [button]);
     }
   } else {
     // Dropdown with all categories
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('ticket-create-dropdown')
-        .setPlaceholder('Select a ticket category...')
-        .addOptions(
-          applicableCategories.map((c) => ({
-            label: c.name,
-            value: c.id,
-            emoji: c.emoji,
-            description: c.description,
-          }))
-        )
-    );
-    components.push(row);
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('ticket_panel_select')
+      .setPlaceholder('Select a ticket category...')
+      .addOptions(
+        applicableCategories.map((c) => ({
+          label: c.name,
+          value: c.id,
+          emoji: c.emoji,
+          description: c.description,
+        }))
+      );
+
+    addSelectMenu(container, menu);
   }
 
-  return { embed, components };
+  return v2Payload([container]);
 }
 
 /**
- * Build feedback prompt embed
+ * Build feedback prompt container (V2 Components)
  */
 export function buildFeedbackPrompt(ticketNumber: number): {
-  embed: EmbedBuilder;
-  components: ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[];
+  components: ContainerBuilder[];
+  flags: typeof MessageFlags.IsComponentsV2;
 } {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Primary)
-    .setTitle('Ticket Feedback')
-    .setDescription(
-      `Thank you for using our support system!\n\nPlease rate your experience for Ticket #${ticketNumber}:`
-    );
+  const container = moduleContainer('tickets');
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  // Title and description
+  addText(container, '### Ticket Feedback');
+  addText(
+    container,
+    `Thank you for using our support system!\n\nPlease rate your experience for Ticket #${ticketNumber}:`
+  );
+
+  addSeparator(container, 'small');
+
+  // Rating buttons
+  const buttons = [
     new ButtonBuilder()
-      .setCustomId('ticket-feedback:1')
+      .setCustomId('ticket_feedback_1')
       .setLabel('1 ⭐')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('ticket-feedback:2')
+      .setCustomId('ticket_feedback_2')
       .setLabel('2 ⭐')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('ticket-feedback:3')
+      .setCustomId('ticket_feedback_3')
       .setLabel('3 ⭐')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('ticket-feedback:4')
+      .setCustomId('ticket_feedback_4')
       .setLabel('4 ⭐')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('ticket-feedback:5')
+      .setCustomId('ticket_feedback_5')
       .setLabel('5 ⭐')
-      .setStyle(ButtonStyle.Success)
-  );
+      .setStyle(ButtonStyle.Success),
+  ];
 
-  return { embed, components: [row] };
+  addButtons(container, buttons);
+
+  return v2Payload([container]);
 }
 
 // ============================================================================
@@ -996,25 +995,20 @@ export async function logTicketAction(
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Info)
-      .setTitle(`${action} - Ticket #${ticketNumber}`)
-      .addFields({
-        name: 'User',
-        value: `<@${userId}>`,
-        inline: true,
-      })
-      .setTimestamp();
+    const logContainer = moduleContainer('tickets');
+    addText(logContainer, `### ${action} - Ticket #${ticketNumber}`);
 
+    const logFields = [{ name: 'User', value: `<@${userId}>`, inline: true }];
     if (details) {
-      embed.addFields({
-        name: 'Details',
-        value: details,
-        inline: false,
-      });
+      logFields.push({ name: 'Details', value: details, inline: false });
     }
 
-    await (logChannel as any).send({ embeds: [embed] });
+    addFields(logContainer, logFields);
+
+    await (logChannel as any).send({
+      components: [logContainer],
+      flags: MessageFlags.IsComponentsV2,
+    });
   } catch (error) {
     logger.error(`Failed to log ticket action:`, error);
   }

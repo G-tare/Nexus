@@ -1,13 +1,17 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder, MessageFlags } from 'discord.js';
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   getReactionLists,
   canManageColors,
 } from '../helpers';
+import { moduleContainer, addText, addFooter, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -41,13 +45,12 @@ const command: BotCommand = {
       `**${i + 1}.** <#${l.channelId}> — ${l.colorIds.length} colors — ID: \`${l.id}\` — [Jump](https://discord.com/channels/${guild.id}/${l.channelId}/${l.messageId})`
     );
 
-    const embed = new EmbedBuilder()
-      .setColor(0x3498DB)
-      .setTitle('🎨 Reaction Color Messages')
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: 'Use /colorreactiondelete <id> to remove one' });
+    const container = moduleContainer('color_roles').setAccentColor(0x3498DB);
+    addText(container, `### 🎨 Reaction Color Messages`);
+    addText(container, lines.join('\n'));
+    addFooter(container, 'Use /colorreactiondelete <id> to remove one');
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(v2Payload([container]));
   },
 };
 

@@ -1,11 +1,11 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { Colors } from '../../../Shared/src/utils/embed';
 import { getQueue, formatDuration } from '../helpers';
+import { errorContainer, moduleContainer, addText, addFields, addSectionWithThumbnail, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -32,14 +32,7 @@ const command: BotCommand = {
 
     // Check if queue exists
     if (!queue || !queue.currentTrack) {
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(Colors.Error)
-            .setTitle('No Active Queue')
-            .setDescription('There is no active music queue in this server.'),
-        ],
-      });
+      await interaction.editReply(v2Payload([errorContainer('No Active Queue', 'There is no active music queue in this server.')]));
       return;
     }
 
@@ -51,16 +44,7 @@ const command: BotCommand = {
       const queueIndex = position - 1;
 
       if (queueIndex >= queue.tracks.length) {
-        await interaction.editReply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(Colors.Error)
-              .setTitle('Invalid Position')
-              .setDescription(
-                `Position ${position} is out of range. Queue has ${queue.tracks.length} tracks.`
-              ),
-          ],
-        });
+        await interaction.editReply(v2Payload([errorContainer('Invalid Position', `Position ${position} is out of range. Queue has ${queue.tracks.length} tracks.`)]));
         return;
       }
 
@@ -68,58 +52,62 @@ const command: BotCommand = {
       displayPosition = `Position #${position}`;
     }
 
-    // Build detailed track info embed
+    // Build detailed track info
     const sourceIcon = getSourceIcon(track.sourceName);
     const duration = formatDuration(track.duration);
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Music)
-      .setTitle(`${sourceIcon} Track Information`)
-      .setDescription(`**[${track.title}](${track.uri})`)
-      .addFields(
-        {
-          name: 'Artist',
-          value: track.author || 'Unknown',
-          inline: true,
-        },
-        {
-          name: 'Queue Position',
-          value: displayPosition,
-          inline: true,
-        },
-        {
-          name: 'Duration',
-          value: duration,
-          inline: true,
-        },
-        {
-          name: 'Platform',
-          value: formatSourceName(track.sourceName),
-          inline: true,
-        },
-        {
-          name: 'Requested by',
-          value: `<@${track.requestedBy}>`,
-          inline: true,
-        },
-        {
-          name: 'Track URL',
-          value: `[Click here](${track.uri})`,
-          inline: true,
-        }
-      );
+    const container = moduleContainer('music');
 
-    // Add artwork if available
+    // Add track information with thumbnail if available
     if (track.artworkUrl) {
-      embed.setThumbnail(track.artworkUrl);
+      addSectionWithThumbnail(
+        container,
+        `### ${sourceIcon} Track Information\n**[${track.title}](${track.uri})`,
+        track.artworkUrl
+      );
+    } else {
+      addText(container, `### ${sourceIcon} Track Information\n**[${track.title}](${track.uri})`);
     }
+
+    const fields = [
+      {
+        name: 'Artist',
+        value: track.author || 'Unknown',
+        inline: true,
+      },
+      {
+        name: 'Queue Position',
+        value: displayPosition,
+        inline: true,
+      },
+      {
+        name: 'Duration',
+        value: duration,
+        inline: true,
+      },
+      {
+        name: 'Platform',
+        value: formatSourceName(track.sourceName),
+        inline: true,
+      },
+      {
+        name: 'Requested by',
+        value: `<@${track.requestedBy}>`,
+        inline: true,
+      },
+      {
+        name: 'Track URL',
+        value: `[Click here](${track.uri})`,
+        inline: true,
+      },
+    ];
 
     // Add additional info if currently playing
     if (!position) {
       const currentTime = formatDuration(queue.position);
       const progress = buildProgressBar(queue.position, track.duration, 15);
 
-      embed.addFields(
+      fields.push(
         {
           name: 'Progress',
           value: `${progress}\n\`${currentTime} / ${duration}\``,
@@ -139,7 +127,7 @@ const command: BotCommand = {
 
       // Add filters if active
       if (queue.filters.length > 0) {
-        embed.addFields({
+        fields.push({
           name: 'Active Filters',
           value: queue.filters.join(', '),
           inline: false,
@@ -147,9 +135,9 @@ const command: BotCommand = {
       }
     }
 
-    await interaction.editReply({
-      embeds: [embed],
-    });
+    addFields(container, fields);
+
+    await interaction.editReply(v2Payload([container]));
   },
 };
 

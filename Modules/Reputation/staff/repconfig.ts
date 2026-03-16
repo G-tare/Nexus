@@ -2,11 +2,11 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
   ChannelType,
 } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
+import { moduleContainer, addFields, v2Payload, errorContainer } from '../../../Shared/src/utils/componentsV2';
 import { getRepConfig } from '../helpers';
 import { getModConfig } from '../../Moderation/helpers';
 
@@ -118,21 +118,19 @@ const command: BotCommand = {
       const modConfig = await getModConfig(guild.id);
       const p = modConfig.reputationPenalties;
 
-      const embed = new EmbedBuilder()
-        .setColor(0xF1C40F)
-        .setTitle('⭐ Reputation Settings')
-        .addFields(
-          { name: 'Default Rep', value: `${config.defaultRep}`, inline: true },
-          { name: 'Give Cooldown', value: `${config.giveCooldown}s`, inline: true },
-          { name: 'Daily Limit', value: `${config.dailyLimit}`, inline: true },
-          { name: 'Decay', value: config.decayEnabled ? `✅ After ${config.decayAfterDays}d, -${config.decayAmount}/tick (floor: ${config.decayFloor})` : '❌ Disabled', inline: false },
-          { name: 'Reaction Rep', value: config.reactionRepEnabled ? `✅ ${config.upvoteEmoji} / ${config.downvoteEmoji}` : '❌ Disabled', inline: true },
-          { name: 'Allow Negative', value: config.allowNegative ? '✅' : '❌', inline: true },
-          { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set', inline: true },
-          { name: 'Penalties', value: `Warn: -${p.warn} · Mute: -${p.mute} · Kick: -${p.kick} · Temp Ban: -${p.tempban} · Ban: -${p.ban}`, inline: false },
-        );
+      const container = moduleContainer('reputation');
+      addFields(container, [
+        { name: 'Default Rep', value: `${config.defaultRep}`, inline: true },
+        { name: 'Give Cooldown', value: `${config.giveCooldown}s`, inline: true },
+        { name: 'Daily Limit', value: `${config.dailyLimit}`, inline: true },
+        { name: 'Decay', value: config.decayEnabled ? `✅ After ${config.decayAfterDays}d, -${config.decayAmount}/tick (floor: ${config.decayFloor})` : '❌ Disabled', inline: false },
+        { name: 'Reaction Rep', value: config.reactionRepEnabled ? `✅ ${config.upvoteEmoji} / ${config.downvoteEmoji}` : '❌ Disabled', inline: true },
+        { name: 'Allow Negative', value: config.allowNegative ? '✅' : '❌', inline: true },
+        { name: 'Log Channel', value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set', inline: true },
+        { name: 'Penalties', value: `Warn: -${p.warn} · Mute: -${p.mute} · Kick: -${p.kick} · Temp Ban: -${p.tempban} · Ban: -${p.ban}`, inline: false },
+      ]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
 
@@ -205,19 +203,16 @@ const command: BotCommand = {
       const modConfig = await getModConfig(guild.id);
       const p = modConfig.reputationPenalties;
 
-      const embed = new EmbedBuilder()
-        .setColor(0xE74C3C)
-        .setTitle('⚖️ Reputation Penalties')
-        .setDescription('Points deducted from reputation per punishment type:')
-        .addFields(
-          { name: '⚠️ Warn', value: `-${p.warn}`, inline: true },
-          { name: '🔇 Mute', value: `-${p.mute}`, inline: true },
-          { name: '👢 Kick', value: `-${p.kick}`, inline: true },
-          { name: '⏳ Temp Ban', value: `-${p.tempban}`, inline: true },
-          { name: '🔨 Ban', value: `-${p.ban}`, inline: true },
-        );
+      const container = errorContainer('⚖️ Reputation Penalties', 'Points deducted from reputation per punishment type:');
+      addFields(container, [
+        { name: '⚠️ Warn', value: `-${p.warn}`, inline: true },
+        { name: '🔇 Mute', value: `-${p.mute}`, inline: true },
+        { name: '👢 Kick', value: `-${p.kick}`, inline: true },
+        { name: '⏳ Temp Ban', value: `-${p.tempban}`, inline: true },
+        { name: '🔨 Ban', value: `-${p.ban}`, inline: true },
+      ]);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(v2Payload([container]));
       return;
     }
   },

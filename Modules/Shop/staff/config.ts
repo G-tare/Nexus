@@ -1,8 +1,10 @@
-import {  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Colors, PermissionFlagsBits, ChannelSelectMenuBuilder, ChannelType, MessageFlags } from 'discord.js';
+import {  SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, ChannelSelectMenuBuilder, ChannelType, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { shopHelpers, ShopConfig } from '../helpers';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
-import { getRedis, getDb } from '../../../Shared/src/database/connection';
+import { cache } from '../../../Shared/src/cache/cacheManager';
+import { getDb } from '../../../Shared/src/database/connection';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 const logger = createModuleLogger('Shop');
 
 const command: BotCommand = {
@@ -118,31 +120,30 @@ const command: BotCommand = {
 
       switch (subcommand) {
         case 'view': {
-          const embed = new EmbedBuilder()
-            .setTitle('Shop Configuration')
-            .setColor(Colors.Blurple)
-            .addFields(
-              { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
-              { name: 'Currency Type', value: config.currencyType, inline: true },
-              { name: 'Tax %', value: `${config.taxPercent}%`, inline: true },
-              { name: 'Max Items', value: `${config.maxItemsPerServer}`, inline: true },
-              { name: 'Show Out of Stock', value: config.showOutOfStock ? '✅ Yes' : '❌ No', inline: true },
-              { name: 'Refunds Enabled', value: config.refundsEnabled ? '✅ Yes' : '❌ No', inline: true },
-              { name: 'Refund %', value: `${config.refundPercent}%`, inline: true },
-              {
-                name: 'Log Channel',
-                value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
-                inline: true,
-              }
-            );
+          const container = moduleContainer('shop').setAccentColor(0x5865F2);
+          addText(container, '### Shop Configuration');
+          addFields(container, [
+            { name: 'Enabled', value: config.enabled ? '✅ Yes' : '❌ No', inline: true },
+            { name: 'Currency Type', value: config.currencyType, inline: true },
+            { name: 'Tax %', value: `${config.taxPercent}%`, inline: true },
+            { name: 'Max Items', value: `${config.maxItemsPerServer}`, inline: true },
+            { name: 'Show Out of Stock', value: config.showOutOfStock ? '✅ Yes' : '❌ No', inline: true },
+            { name: 'Refunds Enabled', value: config.refundsEnabled ? '✅ Yes' : '❌ No', inline: true },
+            { name: 'Refund %', value: `${config.refundPercent}%`, inline: true },
+            {
+              name: 'Log Channel',
+              value: config.logChannelId ? `<#${config.logChannelId}>` : 'Not set',
+              inline: true,
+            }
+          ]);
 
-          return await interaction.editReply({ embeds: [embed] });
+          return await interaction.editReply(v2Payload([container]));
         }
 
         case 'currency': {
           const type = interaction.options.getString('type') as 'primary' | 'secondary' | 'tertiary';
           // TODO: Update shop config in database/cache
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Default currency set to **${type}**.`,
@@ -152,7 +153,7 @@ const command: BotCommand = {
         case 'tax': {
           const percent = interaction.options.getInteger('percent', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Tax set to **${percent}%**.`,
@@ -162,7 +163,7 @@ const command: BotCommand = {
         case 'max-items': {
           const count = interaction.options.getInteger('count', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Max items set to **${count}**.`,
@@ -172,7 +173,7 @@ const command: BotCommand = {
         case 'log-channel': {
           const channel = interaction.options.getChannel('channel');
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Log channel ${channel ? `set to <#${channel.id}>` : 'disabled'}.`,
@@ -182,7 +183,7 @@ const command: BotCommand = {
         case 'show-out-of-stock': {
           const enabled = interaction.options.getBoolean('enabled', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Show out of stock: **${enabled ? 'enabled' : 'disabled'}**.`,
@@ -192,7 +193,7 @@ const command: BotCommand = {
         case 'refunds': {
           const enabled = interaction.options.getBoolean('enabled', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Refunds: **${enabled ? 'enabled' : 'disabled'}**.`,
@@ -202,7 +203,7 @@ const command: BotCommand = {
         case 'refund-percent': {
           const percent = interaction.options.getInteger('percent', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Refund percentage set to **${percent}%**.`,
@@ -212,7 +213,7 @@ const command: BotCommand = {
         case 'toggle': {
           const enabled = interaction.options.getBoolean('enabled', true);
           // TODO: Update shop config in database
-          await getRedis().del(`shop:config:${guildId}`);
+          await cache.del(`shop:config:${guildId}`);
 
           return await interaction.editReply({
             content: `✅ Shop: **${enabled ? 'enabled' : 'disabled'}**.`,

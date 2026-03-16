@@ -2,7 +2,7 @@
  * Message Management Tools — 4 tools for sending, deleting, and pinning messages.
  */
 
-import { ChannelType, PermissionFlagsBits, EmbedBuilder, TextChannel, ColorResolvable } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, TextChannel, ColorResolvable, ContainerBuilder, TextDisplayBuilder } from 'discord.js';
 import { DiscordTool, ToolExecutionContext } from './registry';
 
 export const messageTools: DiscordTool[] = [
@@ -78,9 +78,9 @@ export const messageTools: DiscordTool[] = [
         return `Error: Text channel "${channelName}" not found.`;
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle(params.title as string)
-        .setDescription(params.description as string);
+      const container = new ContainerBuilder();
+      const title = params.title as string;
+      const description = params.description as string;
 
       if (params.color) {
         const colorStr = (params.color as string).toLowerCase();
@@ -90,15 +90,17 @@ export const messageTools: DiscordTool[] = [
           black: 0x000000, gray: 0x95A5A6, cyan: 0x1ABC9C, gold: 0xF1C40F,
         };
         const color = namedColors[colorStr] ?? (colorStr.startsWith('#') ? parseInt(colorStr.slice(1), 16) : 0x3498DB);
-        embed.setColor(color);
+        container.setAccentColor(color);
       }
 
-      if (params.footer) embed.setFooter({ text: params.footer as string });
-      if (params.thumbnail_url) embed.setThumbnail(params.thumbnail_url as string);
-      if (params.image_url) embed.setImage(params.image_url as string);
-      embed.setTimestamp();
+      const textContent = title ? `### ${title}\n${description}` : description;
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(textContent));
 
-      const msg = await (channel as TextChannel).send({ embeds: [embed] });
+      if (params.footer) {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${params.footer as string}`));
+      }
+
+      const msg = await (channel as TextChannel).send({ components: [container], flags: 1 << 20 });
       return `Embed sent to #${channel.name} (message ID: ${msg.id}).`;
     },
   },

@@ -1,19 +1,26 @@
 import {
   GuildMember,
   User,
-  EmbedBuilder,
+  ContainerBuilder,
   ChatInputCommandInteraction,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
   Guild,
+  PermissionFlagsBits,
 } from 'discord.js';
-import { getDb, getRedis } from '../../Shared/src/database/connection';
+import { getDb } from '../../Shared/src/database/connection';
+import { cache } from '../../Shared/src/cache/cacheManager';
 import { modCases, guildMembers, guilds, users } from '../../Shared/src/database/models/schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { eventBus } from '../../Shared/src/events/eventBus';
 import { moduleConfig } from '../../Shared/src/middleware/moduleConfig';
-import { Colors } from '../../Shared/src/utils/embed';
+import {
+  modActionContainer,
+  addTitleSection,
+  addFields as addFieldsV2,
+} from '../../Shared/src/utils/componentsV2';
 import { t } from '../../Shared/src/i18n';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
 
@@ -178,22 +185,23 @@ export async function sendModDM(params: {
   appealEnabled?: boolean;
 }): Promise<boolean> {
   try {
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Moderation)
-      .setTitle(`Moderation Action — ${params.guild.name}`)
-      .addFields(
-        { name: 'Action', value: params.action, inline: true },
-        { name: 'Case', value: `#${params.caseNumber}`, inline: true },
-        { name: 'Reason', value: params.reason },
-      )
-      .setTimestamp();
+    const container = new ContainerBuilder().setAccentColor(0xE74C3C); // Moderation color
+
+    // Add title and basic fields
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Action', value: params.action, inline: true },
+      { name: 'Case', value: `#${params.caseNumber}`, inline: true },
+      { name: 'Reason', value: params.reason },
+    ];
 
     if (params.duration) {
-      embed.addFields({ name: 'Duration', value: params.duration, inline: true });
+      fields.push({ name: 'Duration', value: params.duration, inline: true });
     }
 
-    const components: ActionRowBuilder<ButtonBuilder>[] = [];
+    addTitleSection(container, `Moderation Action — ${params.guild.name}`);
+    addFieldsV2(container, fields);
 
+    // Add appeal button if enabled
     if (params.appealEnabled) {
       const appealButton = new ButtonBuilder()
         .setCustomId(`moderation:appeal:${params.guild.id}:${params.caseNumber}`)
@@ -201,14 +209,13 @@ export async function sendModDM(params: {
         .setStyle(ButtonStyle.Secondary)
         .setEmoji('📝');
 
-      components.push(
-        new ActionRowBuilder<ButtonBuilder>().addComponents(appealButton)
-      );
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(appealButton);
+      container.addActionRowComponents(row);
     }
 
     await params.user.send({
-      embeds: [embed],
-      components,
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
 
     return true;
@@ -250,6 +257,11 @@ export function canModerate(
   const botMember = target.guild.members.me;
   if (botMember && target.roles.highest.position >= botMember.roles.highest.position) {
     return `I cannot ${action} that user — they have a higher role than me.`;
+  }
+
+  // Discord API restriction: cannot timeout members with Administrator permission
+  if (action === 'mute' && target.permissions.has(PermissionFlagsBits.Administrator)) {
+    return `I cannot timeout that user — Discord does not allow timing out members with Administrator permission.`;
   }
 
   return null;
@@ -310,6 +322,7 @@ export async function adjustReputation(
   userId: string,
   amount: number,
   reason?: string,
+  moderatorId?: string,
 ): Promise<number> {
   const db = getDb();
 
@@ -344,13 +357,12 @@ export async function adjustReputation(
     if (amount !== 0) {
       await db.execute(sql`
         INSERT INTO reputation_history (guild_id, user_id, given_by, delta, reason, created_at)
-        VALUES (${guildId}, ${userId}, ${'system'}, ${amount}, ${reason || 'Moderation action'}, ${Date.now()})
+        VALUES (${guildId}, ${userId}, ${moderatorId || 'system'}, ${amount}, ${reason || 'Moderation action'}, ${Date.now()})
       `);
     }
 
-    // Invalidate Redis cache for the Reputation module
-    const redis = getRedis();
-    await redis.del(`rep:${guildId}:${userId}`);
+    // Invalidate cache for the Reputation module
+    cache.del(`rep:${guildId}:${userId}`);
   } catch {
     // Non-fatal — guild_members is the source of truth
   }
@@ -404,13 +416,14 @@ export async function ensureGuildMember(guildId: string, userId: string): Promis
 }
 
 // ============================================
-// Mod Action Embed Builder
+// Mod Action Container Builder
 // ============================================
 
 /**
- * Build a standard mod action response embed.
+ * Build a standard mod action response container.
+ * Wrapper around the V2 modActionContainer from componentsV2.
  */
-export function modActionEmbed(params: {
+export function buildModActionContainer(params: {
   action: string;
   target: User;
   moderator: User;
@@ -419,31 +432,19 @@ export function modActionEmbed(params: {
   duration?: string;
   dmSent?: boolean;
   extraFields?: Array<{ name: string; value: string; inline?: boolean }>;
-}): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor(Colors.Moderation)
-    .setTitle(`${params.action} — Case #${params.caseNumber}`)
-    .addFields(
-      { name: 'User', value: `${params.target.tag} (${params.target.id})`, inline: true },
-      { name: 'Moderator', value: `${params.moderator.tag}`, inline: true },
-      { name: 'Reason', value: params.reason },
-    )
-    .setThumbnail(params.target.displayAvatarURL())
-    .setTimestamp();
-
-  if (params.duration) {
-    embed.addFields({ name: 'Duration', value: params.duration, inline: true });
-  }
-
-  if (params.dmSent !== undefined) {
-    embed.setFooter({ text: params.dmSent ? 'DM sent to user' : 'Could not DM user' });
-  }
-
-  if (params.extraFields) {
-    embed.addFields(...params.extraFields);
-  }
-
-  return embed;
+}): ContainerBuilder {
+  return modActionContainer({
+    action: params.action,
+    targetTag: params.target.tag,
+    targetId: params.target.id,
+    targetAvatarUrl: params.target.displayAvatarURL(),
+    moderatorTag: params.moderator.tag,
+    reason: params.reason,
+    caseNumber: params.caseNumber,
+    duration: params.duration,
+    dmSent: params.dmSent,
+    extraFields: params.extraFields,
+  });
 }
 
 /**

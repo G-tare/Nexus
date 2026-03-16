@@ -3,7 +3,7 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { createModCase, modActionEmbed, ensureGuild } from '../helpers';
+import { createModCase, buildModActionContainer, ensureGuild } from '../helpers';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -57,7 +57,7 @@ const command: BotCommand = {
     // Execute unban
     await guild.members.unban(userId, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
 
-    const embed = modActionEmbed({
+    const container = buildModActionContainer({
       action: 'Unban',
       target: ban.user,
       moderator: interaction.user,
@@ -65,7 +65,7 @@ const command: BotCommand = {
       caseNumber,
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };
 

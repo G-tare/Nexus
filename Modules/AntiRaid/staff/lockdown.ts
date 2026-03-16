@@ -1,11 +1,12 @@
-import { 
+import {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { triggerLockdown, isInLockdown, logRaidAction } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload, warningContainer } from '../../../Shared/src/utils/componentsV2';
 
 const logger = createModuleLogger('AntiRaid');
 
@@ -34,16 +35,9 @@ const command: BotCommand = {
       const alreadyLocked = await isInLockdown(interaction.guild.id);
 
       if (alreadyLocked) {
-        await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#FF9900')
-              .setTitle('⚠️ Already Locked Down')
-              .setDescription('The server is already in lockdown mode')
-              .addFields({ name: 'Tip', value: 'Use `/unlockdown` to end the current lockdown' })
-              .setTimestamp(),
-          ],
-        });
+        const warningCont = warningContainer('Already Locked Down', 'The server is already in lockdown mode');
+        addText(warningCont, '**Tip:** Use `/unlockdown` to end the current lockdown');
+        await interaction.reply(v2Payload([warningCont]));
         return;
       }
 
@@ -58,21 +52,16 @@ const command: BotCommand = {
       if (durationMinutes > 0) durationText += `${durationMinutes}m`;
       if (durationSeconds > 0) durationText += `${durationSeconds}s`;
 
-      await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('🔒 Lockdown Activated')
-            .setDescription('Server lockdown has been manually triggered')
-            .addFields(
-              { name: 'Duration', value: durationText || `${duration}s`, inline: true },
-              { name: 'Expires', value: `<t:${Math.floor(Date.now() / 1000) + duration}:R>`, inline: true },
-              { name: 'Effect', value: 'Members cannot send messages or join voice channels', inline: false }
-            )
-            .setFooter({ text: 'AntiRaid System' })
-            .setTimestamp(),
-        ],
-      });
+      const container = moduleContainer('anti_raid');
+      addText(container, '### 🔒 Lockdown Activated');
+      addText(container, 'Server lockdown has been manually triggered');
+      addFields(container, [
+        { name: 'Duration', value: durationText || `${duration}s`, inline: true },
+        { name: 'Expires', value: `<t:${Math.floor(Date.now() / 1000) + duration}:R>`, inline: true },
+        { name: 'Effect', value: 'Members cannot send messages or join voice channels', inline: false }
+      ]);
+
+      await interaction.editReply(v2Payload([container]));
     } catch (error) {
       logger.error('Error in lockdown command:', error);
       if (interaction.deferred) {

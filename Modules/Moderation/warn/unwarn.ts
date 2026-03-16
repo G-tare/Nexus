@@ -1,4 +1,4 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
@@ -6,7 +6,7 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import { getDb } from '../../../Shared/src/database/connection';
 import { modCases, guildMembers } from '../../../Shared/src/database/models/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
+import { successContainer, errorContainer } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -45,7 +45,8 @@ const command: BotCommand = {
 
     if (!warn) {
       await interaction.reply({
-        embeds: [errorEmbed('Not Found', `No active warning with Case #${caseId} found for ${target.tag}.`)],
+        components: [errorContainer('Not Found', `No active warning with Case #${caseId} found for ${target.tag}.`)],
+        flags: MessageFlags.IsComponentsV2,
       });
       return;
     }
@@ -62,7 +63,8 @@ const command: BotCommand = {
     `);
 
     await interaction.reply({
-      embeds: [successEmbed('Warning Removed', `Case #${caseId} has been removed from **${target.tag}**.`)],
+      components: [successContainer('Warning Removed', `Case #${caseId} has been removed from **${target.tag}**.`)],
+      flags: MessageFlags.IsComponentsV2,
     });
   },
 };

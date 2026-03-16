@@ -1,9 +1,12 @@
-import { 
+import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ChannelType, MessageFlags } from 'discord.js';
+  ChannelType,
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+} from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import {
@@ -12,6 +15,7 @@ import {
   canManageColors,
   ColorRolesConfig,
 } from '../helpers';
+import { moduleContainer, addText, addFields, v2Payload } from '../../../Shared/src/utils/componentsV2';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -148,22 +152,21 @@ const command: BotCommand = {
     switch (sub) {
       case 'view': {
         const colors = await getColorPalette(guild.id);
-        const embed = new EmbedBuilder()
-          .setColor(0x3498DB)
-          .setTitle('🎨 Color Roles Configuration')
-          .addFields(
-            { name: 'Colors', value: `${colors.length}/${config.maxColors}`, inline: true },
-            { name: 'Join Color', value: config.joinColor === null ? 'Disabled' : config.joinColor === 'random' ? 'Random' : `Color #${config.joinColor}`, inline: true },
-            { name: 'Reaction DMs', value: config.reactionMessages ? 'On' : 'Off', inline: true },
-            { name: 'Auto-Delete', value: config.deleteResponses ? `On (${config.deleteResponseDelay}s)` : 'Off', inline: true },
-            { name: 'Overlap Warning', value: config.overlapWarning ? `On (threshold: ${config.overlapThreshold})` : 'Off', inline: true },
-            { name: 'Command Channel', value: config.commandChannelId ? `<#${config.commandChannelId}>` : 'Any', inline: true },
-            { name: 'Whitelist', value: config.whitelistEnabled ? `On (${config.whitelistRoleIds.length} roles)` : 'Off', inline: true },
-            { name: 'Management Roles', value: config.managementRoleIds.length > 0 ? config.managementRoleIds.map(id => `<@&${id}>`).join(', ') : 'None (admin/manage roles only)', inline: false },
-            { name: 'Role Anchor', value: config.colorRoleAnchorId ? `${config.colorRolePosition} <@&${config.colorRoleAnchorId}>` : 'Default position', inline: true },
-          );
+        const container = moduleContainer('color_roles').setAccentColor(0x3498DB);
+        addText(container, `### 🎨 Color Roles Configuration`);
+        addFields(container, [
+          { name: 'Colors', value: `${colors.length}/${config.maxColors}`, inline: true },
+          { name: 'Join Color', value: config.joinColor === null ? 'Disabled' : config.joinColor === 'random' ? 'Random' : `Color #${config.joinColor}`, inline: true },
+          { name: 'Reaction DMs', value: config.reactionMessages ? 'On' : 'Off', inline: true },
+          { name: 'Auto-Delete', value: config.deleteResponses ? `On (${config.deleteResponseDelay}s)` : 'Off', inline: true },
+          { name: 'Overlap Warning', value: config.overlapWarning ? `On (threshold: ${config.overlapThreshold})` : 'Off', inline: true },
+          { name: 'Command Channel', value: config.commandChannelId ? `<#${config.commandChannelId}>` : 'Any', inline: true },
+          { name: 'Whitelist', value: config.whitelistEnabled ? `On (${config.whitelistRoleIds.length} roles)` : 'Off', inline: true },
+          { name: 'Management Roles', value: config.managementRoleIds.length > 0 ? config.managementRoleIds.map(id => `<@&${id}>`).join(', ') : 'None (admin/manage roles only)', inline: false },
+          { name: 'Role Anchor', value: config.colorRoleAnchorId ? `${config.colorRolePosition} <@&${config.colorRoleAnchorId}>` : 'Default position', inline: true },
+        ]);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply(v2Payload([container]));
         break;
       }
 

@@ -1,10 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
 import { successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
-import { getDb } from '../../../Shared/src/database/connection';
-import { guildMembers } from '../../../Shared/src/database/models/schema';
-import { eq, and } from 'drizzle-orm';
 import { ensureGuild, ensureGuildMember } from '../helpers';
+import { getUserRep, setUserRep } from '../../Reputation/helpers';
 
 export default {
   data: new SlashCommandBuilder()
@@ -36,7 +34,6 @@ export default {
     const guildId = interaction.guildId!;
     if (!guildId) return interaction.editReply({ embeds: [errorEmbed('Guild context required')] });
 
-    const db = getDb();
     const targetUser = interaction.options.getUser('user', true);
     const value = interaction.options.getInteger('value', true);
 
@@ -45,39 +42,11 @@ export default {
       await ensureGuild(guild);
       await ensureGuildMember(guildId, targetUser.id);
 
-      // Get current reputation
-      const memberData = await db
-        .select()
-        .from(guildMembers)
-        .where(
-          and(
-            eq(guildMembers.guildId, guildId),
-            eq(guildMembers.userId, targetUser.id)
-          )
-        )
-        .limit(1);
+      // Get current reputation from the canonical source (reputation_users table)
+      const oldReputation = await getUserRep(guildId, targetUser.id);
 
-      const oldReputation = memberData[0]?.reputation || 0;
-
-      // Update reputation directly
-      if (memberData.length > 0) {
-        await db
-          .update(guildMembers)
-          .set({ reputation: value })
-          .where(
-            and(
-              eq(guildMembers.guildId, guildId),
-              eq(guildMembers.userId, targetUser.id)
-            )
-          );
-      } else {
-        // Create new entry if doesn't exist
-        await db.insert(guildMembers).values({
-          guildId,
-          userId: targetUser.id,
-          reputation: value,
-        });
-      }
+      // Set reputation via the Reputation module helper (syncs both tables)
+      await setUserRep(guildId, targetUser.id, value);
 
       const embed = successEmbed(
         `Set reputation for ${targetUser.username}\n\n` +

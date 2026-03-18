@@ -4,12 +4,14 @@ import { cache } from '../cache/cacheManager';
 import { guildModuleConfigs, guilds } from '../database/models/schema';
 import { eq, and } from 'drizzle-orm';
 import { createModuleLogger } from '../utils/logger';
+import { eventBus } from '../events/eventBus';
 
 const logger = createModuleLogger('ModuleConfig');
-// TTLs increased — invalidation is now event-driven via pub/sub, not time-based
-const CACHE_TTL = 120; // 2 minutes (was 10s when relying on short TTL for sync)
-const GLOBAL_TOGGLE_CACHE_TTL = 120; // 2 minutes (was 30s)
-const SERVER_BAN_CACHE_TTL = 120; // 2 minutes (was 30s)
+// Primary invalidation is event-driven via Redis pub/sub.
+// TTL is a safety-net fallback in case a pub/sub message is missed.
+const CACHE_TTL = 15; // 15 seconds fallback
+const GLOBAL_TOGGLE_CACHE_TTL = 15; // 15 seconds fallback
+const SERVER_BAN_CACHE_TTL = 15; // 15 seconds fallback
 
 /**
  * Modules that should be DISABLED by default (opt-in rather than opt-out).
@@ -200,8 +202,12 @@ export class ModuleConfigManager {
   async updateConfig(guildId: string, moduleName: string, configUpdate: Record<string, any>): Promise<void> {
     const normalised = moduleName.toLowerCase();
     const existing = await this.getModuleConfig(guildId, normalised);
-    const newConfig = { ...(existing?.config || {}), ...configUpdate };
+    // Deep-clone the old config so callers who mutated the cached reference
+    // don't make oldConfig === newConfig (which breaks change detection in listeners)
+    const oldConfig = JSON.parse(JSON.stringify((existing?.config || {}))) as Record<string, any>;
+    const newConfig = { ...oldConfig, ...configUpdate };
     await this.upsertConfig(guildId, normalised, { config: newConfig });
+    eventBus.emit('configUpdated', { guildId, moduleName: normalised, oldConfig, newConfig });
   }
 
   /**

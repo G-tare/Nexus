@@ -12,6 +12,7 @@ import {
   ensureGuild,
   ensureGuildMember,
   adjustReputation,
+  deductFine,
 } from '../helpers';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
 import { getPool } from '../../../Shared/src/database/connection';
@@ -145,6 +146,9 @@ const command: BotCommand = {
     if (config.reputationEnabled) {
       await adjustReputation(guild.id, target.id, -(config.reputationPenalties.tempban ?? config.reputationPenalties.ban), 'Temporary ban', interaction.user.id);
     }
+
+    // Currency fine (uses 'ban' fine amount for tempbans)
+    await deductFine(guild.id, target.id, 'ban', config);
 
     const container = buildModActionContainer({
       action: 'Temporary Ban',

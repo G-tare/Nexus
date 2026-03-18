@@ -5,8 +5,9 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, buildModActionContainer,
-  getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
+  getModConfig, ensureGuild, ensureGuildMember, adjustReputation, deductFine,
 } from '../helpers';
+import { grantAppealsAccess } from '../appealsSetup';
 import { parseDuration, formatDuration } from '../../../Shared/src/utils/time';
 
 const command: BotCommand = {
@@ -109,6 +110,15 @@ const command: BotCommand = {
 
     if (config.reputationEnabled) {
       await adjustReputation(guild.id, target.id, -config.reputationPenalties.mute, 'Mute', interaction.user.id);
+    }
+
+    // Currency fine
+    await deductFine(guild.id, target.id, 'mute', config);
+
+    // Grant muted user ViewChannel on appeals channel (if configured)
+    // They can't send messages (timeout prevents it), but they CAN use buttons/modals
+    if (config.appealEnabled && config.appealChannelId) {
+      await grantAppealsAccess(guild, target.id, config.appealChannelId).catch(() => {});
     }
 
     const container = buildModActionContainer({

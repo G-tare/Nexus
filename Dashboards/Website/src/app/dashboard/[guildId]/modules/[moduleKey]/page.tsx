@@ -272,6 +272,7 @@ export default function ModuleConfigPage() {
   const { modules, channels, roles, permissions, toggleModule, updateModuleConfig, fetchPermissions, isLoadingGuild } = useGuildStore();
 
   const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
+  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('settings');
@@ -287,12 +288,17 @@ export default function ModuleConfigPage() {
   const commands = useMemo(() => getCommandsForModule(moduleKey), [moduleKey]);
   const commandCount = commands.length;
 
-  // Initialize local config from store
+  // Reset dirty state when switching modules
   useEffect(() => {
-    if (moduleState) {
+    setDirty(false);
+  }, [moduleKey]);
+
+  // Initialize local config from store — but never overwrite unsaved edits
+  useEffect(() => {
+    if (moduleState && !dirty) {
       setLocalConfig(moduleState.config || {});
     }
-  }, [moduleState]);
+  }, [moduleState, dirty]);
 
   // Fetch permissions on mount
   useEffect(() => {
@@ -311,13 +317,45 @@ export default function ModuleConfigPage() {
   };
 
   const handleConfigChange = (newConfig: Record<string, unknown>) => {
+    setDirty(true);
     setLocalConfig(newConfig);
   };
 
   const handleSave = async () => {
+    // Validate warn threshold escalation order for moderation module
+    if (moduleKey === 'moderation') {
+      const cfg = localConfig;
+      const enabled: Array<{ key: string; label: string; count: number }> = [];
+      if (cfg.warnAutoMuteEnabled && typeof cfg.warnAutoMuteCount === 'number' && cfg.warnAutoMuteCount > 0) {
+        enabled.push({ key: 'mute', label: 'Auto-Mute', count: cfg.warnAutoMuteCount as number });
+      }
+      if (cfg.warnAutoKickEnabled && typeof cfg.warnAutoKickCount === 'number' && cfg.warnAutoKickCount > 0) {
+        enabled.push({ key: 'kick', label: 'Auto-Kick', count: cfg.warnAutoKickCount as number });
+      }
+      if (cfg.warnAutoBanEnabled && typeof cfg.warnAutoBanCount === 'number' && cfg.warnAutoBanCount > 0) {
+        enabled.push({ key: 'ban', label: 'Auto-Ban', count: cfg.warnAutoBanCount as number });
+      }
+      const mute = enabled.find(e => e.key === 'mute');
+      const kick = enabled.find(e => e.key === 'kick');
+      const ban = enabled.find(e => e.key === 'ban');
+      if (mute && kick && mute.count >= kick.count) {
+        showToast(`Auto-Mute threshold (${mute.count}) must be lower than Auto-Kick (${kick.count})`, 'error');
+        return;
+      }
+      if (mute && ban && mute.count >= ban.count) {
+        showToast(`Auto-Mute threshold (${mute.count}) must be lower than Auto-Ban (${ban.count})`, 'error');
+        return;
+      }
+      if (kick && ban && kick.count >= ban.count) {
+        showToast(`Auto-Kick threshold (${kick.count}) must be lower than Auto-Ban (${ban.count})`, 'error');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await updateModuleConfig(guildId, moduleKey, localConfig);
+      setDirty(false);
       showToast('Configuration saved successfully', 'success');
     } catch {
       showToast('Failed to save configuration', 'error');
@@ -330,6 +368,7 @@ export default function ModuleConfigPage() {
     if (moduleState) {
       setLocalConfig(moduleState.config || {});
     }
+    setDirty(false);
   };
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -1309,7 +1348,35 @@ function renderModuleConfig(
                 config={config}
                 onChange={onChange}
                 label="Fines"
-                description="Allow staff to issue currency fines as punishment"
+                description="Automatically deduct currency when a mod action is taken"
+              />
+              <ConfigNumberField
+                configKey="fineAmounts.warn"
+                config={config}
+                onChange={onChange}
+                label="Warn Fine"
+                placeholder="0"
+              />
+              <ConfigNumberField
+                configKey="fineAmounts.mute"
+                config={config}
+                onChange={onChange}
+                label="Mute Fine"
+                placeholder="0"
+              />
+              <ConfigNumberField
+                configKey="fineAmounts.kick"
+                config={config}
+                onChange={onChange}
+                label="Kick Fine"
+                placeholder="0"
+              />
+              <ConfigNumberField
+                configKey="fineAmounts.ban"
+                config={config}
+                onChange={onChange}
+                label="Ban Fine"
+                placeholder="0"
               />
             </ConfigSection>
           </ConfigGrid>
@@ -1363,6 +1430,69 @@ function renderModuleConfig(
                 onChange={onChange}
                 label="Perm Ban Penalty"
                 placeholder="-100"
+              />
+            </ConfigSection>
+            <ConfigSection title="Warn Thresholds" icon="⚠️">
+              <ConfigToggle
+                configKey="warnAutoMuteEnabled"
+                config={config}
+                onChange={onChange}
+                label="Auto-Mute"
+                description="Automatically mute users after reaching a warning threshold"
+              />
+              <ConfigNumberField
+                configKey="warnAutoMuteCount"
+                config={config}
+                onChange={onChange}
+                label="Auto-Mute at Warns"
+                placeholder="3"
+                min={1}
+                max={50}
+                disabled={!config.warnAutoMuteEnabled}
+              />
+              <ConfigNumberField
+                configKey="warnAutoMuteDuration"
+                config={config}
+                onChange={onChange}
+                label="Auto-Mute Duration (seconds)"
+                placeholder="3600"
+                min={60}
+                max={2419200}
+                disabled={!config.warnAutoMuteEnabled}
+              />
+              <ConfigToggle
+                configKey="warnAutoKickEnabled"
+                config={config}
+                onChange={onChange}
+                label="Auto-Kick"
+                description="Automatically kick users after reaching a warning threshold"
+              />
+              <ConfigNumberField
+                configKey="warnAutoKickCount"
+                config={config}
+                onChange={onChange}
+                label="Auto-Kick at Warns"
+                placeholder="5"
+                min={1}
+                max={50}
+                disabled={!config.warnAutoKickEnabled}
+              />
+              <ConfigToggle
+                configKey="warnAutoBanEnabled"
+                config={config}
+                onChange={onChange}
+                label="Auto-Ban"
+                description="Automatically ban users after reaching a warning threshold"
+              />
+              <ConfigNumberField
+                configKey="warnAutoBanCount"
+                config={config}
+                onChange={onChange}
+                label="Auto-Ban at Warns"
+                placeholder="10"
+                min={1}
+                max={50}
+                disabled={!config.warnAutoBanEnabled}
               />
             </ConfigSection>
           </ConfigGrid>

@@ -5,7 +5,7 @@ import {
 import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, buildModActionContainer,
-  getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
+  getModConfig, ensureGuild, ensureGuildMember, adjustReputation, deductFine,
 } from '../helpers';
 
 const command: BotCommand = {
@@ -80,6 +80,9 @@ const command: BotCommand = {
       if (config.reputationEnabled) {
         await adjustReputation(guild.id, target.id, -config.reputationPenalties.kick, 'Kick', interaction.user.id);
       }
+
+      // Currency fine
+      await deductFine(guild.id, target.id, 'kick', config);
 
       const container = buildModActionContainer({
         action: 'Kick',

@@ -12,9 +12,18 @@ const router = Router();
  */
 const MODULE_DEFAULTS: Record<string, Record<string, any>> = {
   moderation: {
-    dmOnBan: false, dmOnKick: false, dmOnMute: false, dmOnWarn: true,
-    autoDeleteModCommands: false, muteRoleId: null, modLogChannelId: null,
-    appealUrl: null, banMessageDeleteDays: 0,
+    dmOnBan: true, dmOnKick: true, dmOnMute: true, dmOnWarn: true,
+    requireReason: false, appealEnabled: false,
+    reputationEnabled: true, defaultReputation: 80,
+    reputationPenalties: { warn: 1, mute: 5, kick: 10, tempban: 15, ban: 20 },
+    warnAutoMuteEnabled: false, warnAutoMuteCount: 3, warnAutoMuteDuration: 3600,
+    warnAutoKickEnabled: false, warnAutoKickCount: 10,
+    warnAutoBanEnabled: false, warnAutoBanCount: 20,
+    shadowBanEnabled: true, altDetectionEnabled: false,
+    altDetectionLogChannelId: null, quarantineRoleId: null,
+    watchlistChannelId: null, fineEnabled: false,
+    fineAmounts: { warn: 0, mute: 0, kick: 0, ban: 0 },
+    appealChannelId: null,
   },
   automod: {
     antiSpam: false, antiSpamThreshold: 5, antiSpamInterval: 5,
@@ -164,10 +173,20 @@ router.get('/:guildId', async (req: Request, res: Response) => {
     const guildId = req.params.guildId as string;
     const configs = await moduleConfig.getAllConfigs(guildId);
 
-    // Merge defaults for any modules that don't have a DB row yet
+    // Merge defaults into every module config so newly-added fields
+    // always have a value, even when a DB row already exists.
     for (const [mod, defaults] of Object.entries(MODULE_DEFAULTS)) {
       if (!configs[mod]) {
-        configs[mod] = { enabled: !DISABLED_BY_DEFAULT.has(mod), config: defaults };
+        configs[mod] = { enabled: !DISABLED_BY_DEFAULT.has(mod), config: { ...defaults } };
+      } else {
+        // Backfill any keys present in defaults but missing from the stored config
+        const stored = configs[mod].config ?? {};
+        for (const [key, val] of Object.entries(defaults)) {
+          if (stored[key] === undefined) {
+            stored[key] = val;
+          }
+        }
+        configs[mod].config = stored;
       }
     }
 
@@ -225,6 +244,15 @@ router.get('/:guildId/:moduleName', async (req: Request, res: Response) => {
       res.json({ enabled: !DISABLED_BY_DEFAULT.has(moduleName), config: defaults });
       return;
     }
+    // Backfill any keys present in defaults but missing from the stored config
+    const defaults = MODULE_DEFAULTS[moduleName];
+    if (defaults && config.config) {
+      for (const [key, val] of Object.entries(defaults)) {
+        if (config.config[key] === undefined) {
+          config.config[key] = val;
+        }
+      }
+    }
     res.json(config);
   } catch (err: any) {
     logger.error('Get module config error', { error: err.message });
@@ -270,6 +298,46 @@ router.put('/:guildId/:moduleName/config', async (req: Request, res: Response) =
 
     const gid2 = req.params.guildId as string;
     const mod2 = req.params.moduleName as string;
+
+    // Moderation: clamp negative threshold values and validate escalation order
+    if (mod2 === 'moderation') {
+      const thresholdCountKeys = ['warnAutoMuteCount', 'warnAutoKickCount', 'warnAutoBanCount'];
+      for (const key of thresholdCountKeys) {
+        if (key in newConfig && typeof newConfig[key] === 'number' && newConfig[key] < 1) {
+          newConfig[key] = 1;
+        }
+      }
+      if ('warnAutoMuteDuration' in newConfig && typeof newConfig.warnAutoMuteDuration === 'number' && newConfig.warnAutoMuteDuration < 60) {
+        newConfig.warnAutoMuteDuration = 60;
+      }
+
+      // Merge with existing config for full validation context
+      const existing = await moduleConfig.getModuleConfig(gid2, mod2);
+      const merged = { ...(MODULE_DEFAULTS.moderation || {}), ...(existing?.config || {}), ...newConfig };
+
+      // Validate escalation order
+      const enabled: Array<{ key: string; count: number }> = [];
+      if (merged.warnAutoMuteEnabled && merged.warnAutoMuteCount > 0) enabled.push({ key: 'mute', count: merged.warnAutoMuteCount });
+      if (merged.warnAutoKickEnabled && merged.warnAutoKickCount > 0) enabled.push({ key: 'kick', count: merged.warnAutoKickCount });
+      if (merged.warnAutoBanEnabled && merged.warnAutoBanCount > 0) enabled.push({ key: 'ban', count: merged.warnAutoBanCount });
+
+      const mute = enabled.find(e => e.key === 'mute');
+      const kick = enabled.find(e => e.key === 'kick');
+      const ban = enabled.find(e => e.key === 'ban');
+      if (mute && kick && mute.count >= kick.count) {
+        res.status(400).json({ error: `Auto-Mute threshold (${mute.count}) must be lower than Auto-Kick (${kick.count})` });
+        return;
+      }
+      if (mute && ban && mute.count >= ban.count) {
+        res.status(400).json({ error: `Auto-Mute threshold (${mute.count}) must be lower than Auto-Ban (${ban.count})` });
+        return;
+      }
+      if (kick && ban && kick.count >= ban.count) {
+        res.status(400).json({ error: `Auto-Kick threshold (${kick.count}) must be lower than Auto-Ban (${ban.count})` });
+        return;
+      }
+    }
+
     await moduleConfig.updateConfig(gid2, mod2, newConfig);
     const { CacheInvalidator } = await import('../../cache/cacheInvalidator');
     await CacheInvalidator.publish(`modcfg:${gid2}:${mod2.toLowerCase()}`);

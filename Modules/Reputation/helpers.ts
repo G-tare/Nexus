@@ -49,8 +49,18 @@ export interface ReputationConfig {
 export async function getRepConfig(guildId: string): Promise<ReputationConfig> {
   const _cfgResult = await moduleConfig.getModuleConfig(guildId, 'reputation');
     const config = (_cfgResult?.config ?? {}) as Record<string, any>;
+
+  // Resolve defaultRep: check reputation module config first, then moderation
+  // config's "defaultReputation" field (users may configure either dashboard).
+  let resolvedDefaultRep = config?.defaultRep;
+  if (resolvedDefaultRep === undefined || resolvedDefaultRep === null) {
+    const modResult = await moduleConfig.getModuleConfig(guildId, 'moderation');
+    const modCfg = (modResult?.config ?? {}) as Record<string, any>;
+    resolvedDefaultRep = modCfg?.defaultReputation ?? 0;
+  }
+
   return {
-    defaultRep: config?.defaultRep ?? 80,
+    defaultRep: resolvedDefaultRep,
     giveCooldown: config?.giveCooldown ?? 3600, // 1 hour
     globalCooldown: config?.globalCooldown ?? 60, // 1 minute
     dailyLimit: config?.dailyLimit ?? 5,
@@ -207,8 +217,8 @@ export async function getRepLeaderboard(guildId: string, limit: number = 10): Pr
   `);
 
   return ((result as any).rows || []).map((row: any) => ({
-    userId: row.userId,
-    reputation: row.reputation,
+    userId: row.user_id,
+    reputation: Number(row.reputation),
     rank: parseInt(row.rank, 10),
   }));
 }

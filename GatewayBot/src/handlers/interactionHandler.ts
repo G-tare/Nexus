@@ -1,4 +1,4 @@
-import { 
+import {
   Client,
   Interaction,
   ChatInputCommandInteraction,
@@ -7,11 +7,21 @@ import {
   StringSelectMenuInteraction,
   ModalSubmitInteraction,
   Collection,
-  PermissionFlagsBits, MessageFlags } from 'discord.js';
+  PermissionFlagsBits,
+  MessageFlags,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ContainerBuilder,
+  ChannelType,
+} from 'discord.js';
+import type { TextChannel } from 'discord.js';
 import { permissionManager } from '../../../Shared/src/permissions/permissionManager';
 import { moduleConfig } from '../../../Shared/src/middleware/moduleConfig';
 import { premiumManager } from '../../../Shared/src/middleware/premiumCheck';
 import { errorEmbed } from '../../../Shared/src/utils/embed';
+import { addTitleSection, addFields as addFieldsV2 } from '../../../Shared/src/utils/componentsV2';
 import { createModuleLogger } from '../../../Shared/src/utils/logger';
 import { t } from '../../../Shared/src/i18n';
 import { formatDuration } from '../../../Shared/src/utils/time';
@@ -205,7 +215,27 @@ async function handleSlashCommand(client: Client, interaction: ChatInputCommandI
     // Module enabled check (hierarchy: global disable > server ban > server config)
     if (command.requiresModule !== false) {
       const moduleStatus = await moduleConfig.getModuleStatus(guildId, moduleName);
-      if (!moduleStatus.enabled) {
+      let moduleDisabled = !moduleStatus.enabled;
+
+      // If the module itself is enabled, also check cross-module toggles.
+      // The moderation config's "reputationEnabled" toggle should disable:
+      // 1. The reputation module's own commands (slug "rep")
+      // 2. The moderation module's reputation commands (slug "modrep": addreputation, removereputation, etc.)
+      if (!moduleDisabled) {
+        const isRepModule = moduleName === 'reputation';
+        const isModRepCommand = moduleName === 'moderation' && command.permissionPath?.includes('reputation');
+        if (isRepModule || isModRepCommand) {
+          const modConfig = await moduleConfig.getModuleConfig(guildId, 'moderation');
+          if (modConfig?.config) {
+            const modCfg = modConfig.config as Record<string, any>;
+            if (modCfg.reputationEnabled === false) {
+              moduleDisabled = true;
+            }
+          }
+        }
+      }
+
+      if (moduleDisabled) {
         let title = 'Module Disabled';
         let description = t('common:moduleDisabled');
 
@@ -368,10 +398,20 @@ async function handleAutocomplete(client: Client, interaction: AutocompleteInter
 // ============================================
 
 async function handleButton(client: Client, interaction: ButtonInteraction): Promise<void> {
+  // Buttons prefixed with "cfg:" belong to InteractiveSession collectors (e.g. /configs)
+  // — do NOT process them here or the collector won't be able to acknowledge them
+  if (interaction.customId.startsWith('cfg:')) return;
+
   // Button customIds follow format: module:action:data
   // e.g., "giveaway:enter:123", "ticket:close:456", "confession:approve:789"
   const [moduleName, action, ...dataParts] = interaction.customId.split(':');
   const data = dataParts.join(':');
+
+  // Handle appeal buttons specifically — show modal for appeal submission
+  if (moduleName === 'moderation' && (action === 'appeal' || action === 'appealform')) {
+    await handleAppealButton(interaction, action, data);
+    return;
+  }
 
   const module = client.modules.get(moduleName);
   if (!module) {
@@ -393,6 +433,9 @@ async function handleButton(client: Client, interaction: ButtonInteraction): Pro
 // ============================================
 
 async function handleSelectMenu(client: Client, interaction: StringSelectMenuInteraction): Promise<void> {
+  // Select menus prefixed with "cfg:" belong to InteractiveSession collectors (e.g. /configs)
+  if (interaction.customId.startsWith('cfg:')) return;
+
   const [moduleName, action, ...dataParts] = interaction.customId.split(':');
   const data = dataParts.join(':');
 
@@ -407,7 +450,150 @@ async function handleModal(client: Client, interaction: ModalSubmitInteraction):
   const [moduleName, action, ...dataParts] = interaction.customId.split(':');
   const data = dataParts.join(':');
 
+  // Handle appeal modal submissions
+  if (moduleName === 'moderation' && action === 'appealsubmit') {
+    await handleAppealModalSubmit(interaction, data);
+    return;
+  }
+
   logger.debug(`Modal submit: ${moduleName}:${action}`, { data });
+}
+
+// ============================================
+// Appeal Handlers
+// ============================================
+
+/**
+ * Handle appeal button click — show a modal for the user to fill out.
+ * Works for both DM appeal buttons (moderation:appeal:guildId:caseNumber)
+ * and in-channel appeal buttons (moderation:appealform:guildId).
+ */
+async function handleAppealButton(interaction: ButtonInteraction, action: string, data: string): Promise<void> {
+  const parts = data.split(':');
+  const guildId = parts[0];
+  const caseNumber = action === 'appeal' ? parts[1] : undefined;
+
+  const modal = new ModalBuilder()
+    .setCustomId(`moderation:appealsubmit:${guildId}${caseNumber ? `:${caseNumber}` : ''}`)
+    .setTitle('Submit Appeal');
+
+  const caseInput = new TextInputBuilder()
+    .setCustomId('case_number')
+    .setLabel('Case Number')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g. 42')
+    .setRequired(true)
+    .setMaxLength(10);
+
+  if (caseNumber) {
+    caseInput.setValue(caseNumber);
+  }
+
+  const reasonInput = new TextInputBuilder()
+    .setCustomId('appeal_reason')
+    .setLabel('Why should this action be reversed?')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('Explain why you believe this punishment was unjust or provide any relevant context...')
+    .setRequired(true)
+    .setMinLength(20)
+    .setMaxLength(1000);
+
+  const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(caseInput);
+  const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput);
+  modal.addComponents(row1, row2);
+
+  await interaction.showModal(modal);
+}
+
+/**
+ * Handle appeal modal submission — post the appeal to the appeals channel
+ * (or a fallback mod log channel) for staff review.
+ */
+async function handleAppealModalSubmit(interaction: ModalSubmitInteraction, data: string): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const parts = data.split(':');
+  const guildId = parts[0];
+
+  const caseNumberStr = interaction.fields.getTextInputValue('case_number');
+  const appealReason = interaction.fields.getTextInputValue('appeal_reason');
+  const caseNum = parseInt(caseNumberStr, 10);
+
+  if (isNaN(caseNum) || caseNum < 1) {
+    await interaction.editReply({ content: 'Invalid case number. Please provide a valid case number.' });
+    return;
+  }
+
+  // Verify the case exists and belongs to this user
+  const pool = getPool();
+  const caseResult = await pool.query(
+    'SELECT case_number, action, reason, moderator_id, created_at FROM mod_cases WHERE guild_id = $1 AND case_number = $2 AND target_id = $3',
+    [guildId, caseNum, interaction.user.id],
+  );
+
+  if (caseResult.rows.length === 0) {
+    await interaction.editReply({
+      content: 'No case found with that number for your account. Make sure you entered the correct case number.',
+    });
+    return;
+  }
+
+  const caseRow = caseResult.rows[0];
+
+  // Get moderation config to find the appeals channel
+  const modCfg = await moduleConfig.getModuleConfig(guildId, 'moderation');
+  const appealChannelId = (modCfg?.config as Record<string, any>)?.appealChannelId as string | undefined;
+
+  // Try to find a channel to post the appeal
+  const guild = interaction.client.guilds.cache.get(guildId);
+  if (!guild) {
+    await interaction.editReply({ content: 'Unable to process appeal — server not found.' });
+    return;
+  }
+
+  let targetChannel: TextChannel | null = null;
+
+  if (appealChannelId) {
+    const ch = guild.channels.cache.get(appealChannelId);
+    if (ch && ch.type === ChannelType.GuildText) {
+      targetChannel = ch as TextChannel;
+    }
+  }
+
+  if (!targetChannel) {
+    await interaction.editReply({
+      content: 'Your appeal has been noted. A moderator will review it shortly.',
+    });
+    return;
+  }
+
+  // Post the appeal to the appeals channel
+  const container = new ContainerBuilder().setAccentColor(0xFFA500); // Orange for pending appeals
+
+  addTitleSection(container, `📨 New Appeal — Case #${caseNum}`);
+  addFieldsV2(container, [
+    { name: 'User', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
+    { name: 'Case Number', value: `#${caseNum}`, inline: true },
+    { name: 'Original Action', value: caseRow.action, inline: true },
+    { name: 'Original Reason', value: caseRow.reason || 'No reason provided' },
+    { name: 'Appeal Reason', value: appealReason },
+  ]);
+
+  try {
+    await targetChannel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+
+    await interaction.editReply({
+      content: '✅ Your appeal has been submitted successfully. A moderator will review it and respond.',
+    });
+  } catch (err: any) {
+    logger.error('Failed to post appeal', { error: err.message, guildId });
+    await interaction.editReply({
+      content: 'Your appeal has been noted but could not be posted to the appeals channel. A moderator has been notified.',
+    });
+  }
 }
 
 // ============================================

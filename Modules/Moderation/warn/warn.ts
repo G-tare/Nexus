@@ -6,7 +6,7 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import {
   createModCase, sendModDM, canModerate, buildModActionContainer,
   getModConfig, ensureGuild, ensureGuildMember, adjustReputation,
-  checkWarnThresholds,
+  checkWarnThresholds, deductFine,
 } from '../helpers';
 import { getDb } from '../../../Shared/src/database/connection';
 import { guildMembers } from '../../../Shared/src/database/models/schema';
@@ -99,8 +99,54 @@ const command: BotCommand = {
       await adjustReputation(guild.id, target.id, -config.reputationPenalties.warn, 'Warning', interaction.user.id);
     }
 
+    // Currency fine
+    const fineDeducted = await deductFine(guild.id, target.id, 'warn', config);
+
     // Check thresholds for auto-escalation
-    await checkWarnThresholds(guild.id, target.id, warnCount, config, guild);
+    const escalation = await checkWarnThresholds(guild.id, target.id, warnCount, config, guild);
+
+    // Build extra fields for the response embed
+    const extraFields: Array<{ name: string; value: string; inline?: boolean }> = [
+      { name: 'Total Warnings', value: `${warnCount}`, inline: true },
+    ];
+    if (fineDeducted > 0) {
+      extraFields.push({ name: 'Fine', value: `-${fineDeducted} coins`, inline: true });
+    }
+
+    if (escalation) {
+      const actionLabel = escalation.action === 'mute' ? 'Muted'
+        : escalation.action === 'kick' ? 'Kicked' : 'Banned';
+      let escalationText = `⚡ Auto-${actionLabel} — reached ${escalation.threshold} warnings`;
+      if (escalation.action === 'mute' && escalation.duration) {
+        const hours = Math.floor(escalation.duration / 3600);
+        const mins = Math.floor((escalation.duration % 3600) / 60);
+        const durationStr = hours > 0
+          ? `${hours}h${mins > 0 ? ` ${mins}m` : ''}`
+          : `${mins}m`;
+        escalationText += ` (${durationStr})`;
+      }
+      extraFields.push({ name: 'Auto-Escalation', value: escalationText });
+
+      // Send auto-escalation DM to the user
+      const dmAction = escalation.action === 'mute' ? 'Auto-Mute'
+        : escalation.action === 'kick' ? 'Auto-Kick' : 'Auto-Ban';
+      const dmDuration = escalation.action === 'mute' && escalation.duration
+        ? (() => {
+            const h = Math.floor(escalation.duration! / 3600);
+            const m = Math.floor((escalation.duration! % 3600) / 60);
+            return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+          })()
+        : undefined;
+      await sendModDM({
+        user: target,
+        guild,
+        action: `${dmAction} (${warnCount} warnings)`,
+        reason: `Automatic action — you have reached ${escalation.threshold} warnings`,
+        caseNumber,
+        duration: dmDuration,
+        appealEnabled: config.appealEnabled,
+      }).catch(() => {});
+    }
 
     const container = buildModActionContainer({
       action: 'Warning',
@@ -109,9 +155,7 @@ const command: BotCommand = {
       reason,
       caseNumber,
       dmSent,
-      extraFields: [
-        { name: 'Total Warnings', value: `${warnCount}`, inline: true },
-      ],
+      extraFields,
     });
 
     await interaction.editReply({ components: [container], flags: MessageFlags.IsComponentsV2 });

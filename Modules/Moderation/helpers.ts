@@ -23,6 +23,7 @@ import {
 } from '../../Shared/src/utils/componentsV2';
 import { t } from '../../Shared/src/i18n';
 import { createModuleLogger } from '../../Shared/src/utils/logger';
+import { removeCurrency } from '../Currency/helpers';
 
 const logger = createModuleLogger('Moderation');
 
@@ -40,12 +41,19 @@ export interface ModerationConfig {
   // Require reasons
   requireReason: boolean;
 
-  // Warning thresholds: [{ count, action, duration? }]
+  // Warning thresholds (flat fields for easy UI config)
   warnThresholds: Array<{
     count: number;
     action: 'mute' | 'kick' | 'ban';
     duration?: number; // seconds, for mute
   }>;
+  warnAutoMuteEnabled: boolean;
+  warnAutoMuteCount: number;
+  warnAutoMuteDuration: number; // seconds (default 3600 = 1h)
+  warnAutoKickEnabled: boolean;
+  warnAutoKickCount: number;
+  warnAutoBanEnabled: boolean;
+  warnAutoBanCount: number;
 
   // Appeal system
   appealEnabled: boolean;
@@ -94,6 +102,13 @@ export const DEFAULT_MOD_CONFIG: ModerationConfig = {
   dmOnWarn: true,
   requireReason: false,
   warnThresholds: [],
+  warnAutoMuteEnabled: false,
+  warnAutoMuteCount: 3,
+  warnAutoMuteDuration: 3600,
+  warnAutoKickEnabled: false,
+  warnAutoKickCount: 10,
+  warnAutoBanEnabled: false,
+  warnAutoBanCount: 20,
   appealEnabled: false,
   fineEnabled: false,
   fineAmounts: { warn: 0, mute: 0, kick: 0, ban: 0 },
@@ -131,7 +146,7 @@ export async function getNextCaseNumber(guildId: string): Promise<number> {
  */
 export async function createModCase(params: {
   guildId: string;
-  action: 'warn' | 'mute' | 'unmute' | 'kick' | 'ban' | 'unban' | 'tempban' | 'softban' | 'note';
+  action: 'warn' | 'mute' | 'unmute' | 'kick' | 'ban' | 'unban' | 'tempban' | 'softban' | 'note' | 'lock' | 'unlock' | 'deafen' | 'undeafen' | 'quarantine' | 'unquarantine' | 'shadowban' | 'unshadowban' | 'autokick' | 'unautokick';
   targetId: string;
   moderatorId: string;
   reason?: string;
@@ -268,11 +283,61 @@ export function canModerate(
 }
 
 // ============================================
+// Warning Threshold Validation
+// ============================================
+
+/**
+ * Validate warn threshold escalation order.
+ * When multiple auto-actions are enabled, thresholds must increase: mute < kick < ban.
+ * Returns null if valid, or an error string describing the issue.
+ */
+export function validateWarnThresholds(config: Partial<ModerationConfig>): string | null {
+  const enabled: Array<{ key: string; label: string; count: number }> = [];
+
+  if (config.warnAutoMuteEnabled && config.warnAutoMuteCount && config.warnAutoMuteCount > 0) {
+    enabled.push({ key: 'mute', label: 'Auto-Mute', count: config.warnAutoMuteCount });
+  }
+  if (config.warnAutoKickEnabled && config.warnAutoKickCount && config.warnAutoKickCount > 0) {
+    enabled.push({ key: 'kick', label: 'Auto-Kick', count: config.warnAutoKickCount });
+  }
+  if (config.warnAutoBanEnabled && config.warnAutoBanCount && config.warnAutoBanCount > 0) {
+    enabled.push({ key: 'ban', label: 'Auto-Ban', count: config.warnAutoBanCount });
+  }
+
+  // Check escalation order: mute < kick < ban
+  const muteEntry = enabled.find(e => e.key === 'mute');
+  const kickEntry = enabled.find(e => e.key === 'kick');
+  const banEntry = enabled.find(e => e.key === 'ban');
+
+  if (muteEntry && kickEntry && muteEntry.count >= kickEntry.count) {
+    return `Auto-Mute threshold (${muteEntry.count}) must be lower than Auto-Kick (${kickEntry.count})`;
+  }
+  if (muteEntry && banEntry && muteEntry.count >= banEntry.count) {
+    return `Auto-Mute threshold (${muteEntry.count}) must be lower than Auto-Ban (${banEntry.count})`;
+  }
+  if (kickEntry && banEntry && kickEntry.count >= banEntry.count) {
+    return `Auto-Kick threshold (${kickEntry.count}) must be lower than Auto-Ban (${banEntry.count})`;
+  }
+
+  return null;
+}
+
+// ============================================
 // Warning Threshold Check
 // ============================================
 
 /**
+ * Result from a threshold check — null if no threshold was hit.
+ */
+export interface ThresholdResult {
+  action: 'mute' | 'kick' | 'ban';
+  threshold: number;
+  duration?: number; // seconds, for mute
+}
+
+/**
  * Check if a user has hit a warning threshold and auto-escalate.
+ * Returns the triggered action info so callers can include it in embeds/DMs.
  */
 export async function checkWarnThresholds(
   guildId: string,
@@ -280,20 +345,35 @@ export async function checkWarnThresholds(
   warnCount: number,
   config: ModerationConfig,
   guild: Guild
-): Promise<void> {
-  if (!config.warnThresholds || config.warnThresholds.length === 0) return;
+): Promise<ThresholdResult | null> {
+  // Build thresholds from flat config fields
+  let thresholds = config.warnThresholds ?? [];
 
-  // Sort thresholds descending so we match the highest first
-  const sorted = [...config.warnThresholds].sort((a, b) => b.count - a.count);
+  // Flat fields take priority if any are enabled
+  const flatThresholds: typeof thresholds = [];
+  if (config.warnAutoMuteEnabled && config.warnAutoMuteCount > 0) {
+    flatThresholds.push({ count: config.warnAutoMuteCount, action: 'mute', duration: config.warnAutoMuteDuration || 3600 });
+  }
+  if (config.warnAutoKickEnabled && config.warnAutoKickCount > 0) {
+    flatThresholds.push({ count: config.warnAutoKickCount, action: 'kick' });
+  }
+  if (config.warnAutoBanEnabled && config.warnAutoBanCount > 0) {
+    flatThresholds.push({ count: config.warnAutoBanCount, action: 'ban' });
+  }
 
-  for (const threshold of sorted) {
-    if (warnCount >= threshold.count) {
+  if (flatThresholds.length > 0) thresholds = flatThresholds;
+  if (thresholds.length === 0) return null;
+
+  // Only fire at exact threshold counts — not on every warn above
+  for (const threshold of thresholds) {
+    if (warnCount === threshold.count) {
       eventBus.emit('warnThresholdReached', {
         guildId,
         userId,
         warnCount,
         threshold: threshold.count,
         action: threshold.action,
+        duration: threshold.duration,
       });
 
       logger.info('Warning threshold reached', {
@@ -304,9 +384,15 @@ export async function checkWarnThresholds(
         action: threshold.action,
       });
 
-      break; // Only trigger the highest matching threshold
+      return {
+        action: threshold.action as 'mute' | 'kick' | 'ban',
+        threshold: threshold.count,
+        duration: threshold.duration,
+      };
     }
   }
+
+  return null;
 }
 
 // ============================================
@@ -368,6 +454,54 @@ export async function adjustReputation(
   }
 
   return newRep;
+}
+
+// ============================================
+// Currency Fine Deduction
+// ============================================
+
+/**
+ * Deduct a currency fine from a user for a moderation action.
+ * Only deducts if fineEnabled is true and the fine amount for the action is > 0.
+ * Uses the currency module's removeCurrency if available, falls back to raw SQL.
+ *
+ * @returns The amount deducted (0 if fines disabled or amount is 0)
+ */
+export async function deductFine(
+  guildId: string,
+  userId: string,
+  action: 'warn' | 'mute' | 'kick' | 'ban',
+  config: ModerationConfig,
+): Promise<number> {
+  if (!config.fineEnabled) return 0;
+
+  const fineAmount = config.fineAmounts?.[action] ?? 0;
+  if (fineAmount <= 0) return 0;
+
+  try {
+    const result = await removeCurrency(guildId, userId, 'coins', fineAmount, `Fine: ${action}`, {
+      type: 'moderation_fine',
+      action,
+    });
+
+    if (result.success) {
+      logger.debug('Fine deducted', { guildId, userId, action, amount: fineAmount });
+      return fineAmount;
+    }
+
+    // If insufficient balance, force-deduct to 0 (fines are non-optional)
+    const db = getDb();
+    await db.execute(sql`
+      UPDATE guild_members
+      SET coins = GREATEST(0, coins - ${fineAmount})
+      WHERE guild_id = ${guildId} AND user_id = ${userId}
+    `);
+    logger.debug('Fine force-deducted (insufficient balance)', { guildId, userId, action, amount: fineAmount });
+    return fineAmount;
+  } catch (err: any) {
+    logger.warn('Fine deduction failed', { guildId, userId, action, error: err.message });
+    return 0;
+  }
 }
 
 // ============================================

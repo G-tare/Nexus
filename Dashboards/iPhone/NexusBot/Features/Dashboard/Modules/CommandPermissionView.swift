@@ -14,7 +14,7 @@ struct CommandPermissionView: View {
 
     // Computed permission groups — from cache, resolved with role names
     private var rules: [Permission] {
-        guildCache.permissionsForCommand(command.name)
+        guildCache.permissionsForCommand(command.id)
     }
 
     private var allowedRoles: [Permission] {
@@ -120,7 +120,7 @@ struct CommandPermissionView: View {
                 if config.targetType == "role" {
                     RolePickerSheet(
                         guildId: guildId,
-                        commandName: command.name,
+                        commandName: command.id,
                         allowed: config.allowed,
                         existingIds: Set(rules.filter { $0.targetType == "role" }.map(\.targetId))
                     ) {
@@ -129,7 +129,7 @@ struct CommandPermissionView: View {
                 } else {
                     MemberPickerSheet(
                         guildId: guildId,
-                        commandName: command.name,
+                        commandName: command.id,
                         allowed: config.allowed,
                         existingIds: Set(rules.filter { $0.targetType == "user" }.map(\.targetId))
                     ) {
@@ -330,7 +330,7 @@ struct CommandPermissionView: View {
             // Delete
             Button {
                 Task {
-                    try? await APIClient.shared.removePermission(guildId, command: command.name, targetId: rule.targetId)
+                    try? await APIClient.shared.removePermission(guildId, command: command.id, targetId: rule.targetId)
                     await guildCache.refreshPermissions()
                 }
             } label: {

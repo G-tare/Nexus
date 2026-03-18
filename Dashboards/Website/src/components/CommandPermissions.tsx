@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useGuildStore } from '@/stores/guild';
 import { getCommandsForModule, DEFAULT_ACCESS_LABELS } from '@/lib/commandRegistry';
 import type { CommandDef, DefaultAccess } from '@/lib/commandRegistry';
-import type { PermissionRule, Role } from '@/lib/types';
+import type { PermissionRule, Role, Channel } from '@/lib/types';
 
 // ─── Access Level Colors ─────────────────────────────────────
 const ACCESS_COLORS: Record<DefaultAccess, string> = {
@@ -16,7 +16,7 @@ const ACCESS_COLORS: Record<DefaultAccess, string> = {
 
 // ─── Main Component: Command List for a Module ──────────────
 export function CommandPermissions({ moduleKey, guildId }: { moduleKey: string; guildId: string }) {
-  const { permissions, roles } = useGuildStore();
+  const { permissions, roles, channels } = useGuildStore();
   const commands = useMemo(() => getCommandsForModule(moduleKey), [moduleKey]);
   const [searchText, setSearchText] = useState('');
   const [expandedCommand, setExpandedCommand] = useState<string | null>(null);
@@ -30,10 +30,10 @@ export function CommandPermissions({ moduleKey, guildId }: { moduleKey: string; 
   }, [commands, searchText]);
 
   // Count total permission rules for this module's commands
-  const moduleCommandNames = useMemo(() => new Set(commands.map((c) => c.name)), [commands]);
+  const moduleCommandIds = useMemo(() => new Set(commands.map((c) => c.id)), [commands]);
   const totalRules = useMemo(
-    () => permissions.filter((p) => moduleCommandNames.has(p.command)).length,
-    [permissions, moduleCommandNames]
+    () => permissions.filter((p) => moduleCommandIds.has(p.command)).length,
+    [permissions, moduleCommandIds]
   );
 
   if (commands.length === 0) return null;
@@ -87,7 +87,7 @@ export function CommandPermissions({ moduleKey, guildId }: { moduleKey: string; 
       ) : (
         <div className="space-y-2">
           {filteredCommands.map((cmd) => {
-            const cmdRules = permissions.filter((p) => p.command === cmd.name);
+            const cmdRules = permissions.filter((p) => p.command === cmd.id);
             const isExpanded = expandedCommand === cmd.id;
 
             return (
@@ -129,6 +129,7 @@ export function CommandPermissions({ moduleKey, guildId }: { moduleKey: string; 
                     command={cmd}
                     rules={cmdRules}
                     roles={roles}
+                    channels={channels}
                     guildId={guildId}
                   />
                 )}
@@ -146,11 +147,13 @@ function CommandPermissionEditor({
   command,
   rules,
   roles,
+  channels,
   guildId,
 }: {
   command: CommandDef;
   rules: PermissionRule[];
   roles: Role[];
+  channels: Channel[];
   guildId: string;
 }) {
   const { setPermission, removePermission } = useGuildStore();
@@ -168,7 +171,7 @@ function CommandPermissionEditor({
   const handleRemove = async (rule: PermissionRule) => {
     setSaving(true);
     try {
-      await removePermission(guildId, command.name, rule.targetId);
+      await removePermission(guildId, command.id, rule.targetId);
     } catch {
       console.error('Failed to remove permission');
     } finally {
@@ -179,7 +182,7 @@ function CommandPermissionEditor({
   const handleAddPermission = async (targetType: string, targetId: string, allowed: boolean) => {
     setSaving(true);
     try {
-      await setPermission(guildId, command.name, targetType, targetId, allowed);
+      await setPermission(guildId, command.id, targetType, targetId, allowed);
       setShowAddModal(null);
     } catch {
       console.error('Failed to set permission');
@@ -191,6 +194,18 @@ function CommandPermissionEditor({
   const resolveRoleName = (targetId: string): string => {
     const role = roles.find((r) => r.id === targetId);
     return role ? role.name : targetId;
+  };
+
+  const resolveUserName = (targetId: string): string => {
+    // Check if the rule has a resolvedName from the API
+    const rule = rules.find((r) => r.targetType === 'user' && r.targetId === targetId);
+    if (rule?.resolvedName) return rule.resolvedName;
+    return targetId;
+  };
+
+  const resolveChannelName = (targetId: string): string => {
+    const channel = channels.find((c) => c.id === targetId);
+    return channel ? `#${channel.name}` : targetId;
   };
 
   return (
@@ -243,7 +258,7 @@ function CommandPermissionEditor({
           title="Allowed Users"
           color="var(--nexus-green)"
           items={allowedUsers}
-          resolveLabel={(id) => id}
+          resolveLabel={resolveUserName}
           onRemove={handleRemove}
           onAdd={() => setShowAddModal({ targetType: 'user', allowed: true })}
           emptyText="No users explicitly allowed"
@@ -253,7 +268,7 @@ function CommandPermissionEditor({
           title="Denied Users"
           color="var(--nexus-red)"
           items={deniedUsers}
-          resolveLabel={(id) => id}
+          resolveLabel={resolveUserName}
           onRemove={handleRemove}
           onAdd={() => setShowAddModal({ targetType: 'user', allowed: false })}
           emptyText="No users explicitly denied"
@@ -267,7 +282,7 @@ function CommandPermissionEditor({
           title="Channel Overrides"
           color="var(--nexus-yellow)"
           items={channelRules}
-          resolveLabel={(id) => id}
+          resolveLabel={resolveChannelName}
           onRemove={handleRemove}
           emptyText=""
           saving={saving}

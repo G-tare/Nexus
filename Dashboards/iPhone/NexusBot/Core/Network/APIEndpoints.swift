@@ -114,6 +114,14 @@ extension APIClient {
         return try await request(endpoint)
     }
 
+    func editModCase(_ guildId: String, caseNumber: Int, reason: String) async throws -> EditCaseResponse {
+        return try await request(
+            "/guilds/\(guildId)/modlogs/\(caseNumber)",
+            method: "PATCH",
+            body: ["reason": reason]
+        )
+    }
+
     // MARK: - Automod Logs
 
     func fetchAutomodLogs(_ guildId: String, page: Int = 1, limit: Int = 25, action: String? = nil) async throws -> AutomodLogResponse {

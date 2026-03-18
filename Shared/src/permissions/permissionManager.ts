@@ -1,7 +1,7 @@
 import { GuildMember, PermissionsBitField, PermissionResolvable, PermissionFlagsBits, ChatInputCommandInteraction } from 'discord.js';
 import { getDb } from '../database/connection';
 import { commandPermissions } from '../database/models/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, inArray } from 'drizzle-orm';
 import { cache } from '../cache/cacheManager';
 import { createModuleLogger } from '../utils/logger';
 import { config } from '../config';
@@ -25,7 +25,7 @@ interface PermissionRule {
   allowed: boolean;
 }
 
-const CACHE_TTL = 300; // 5 minutes
+const CACHE_TTL = 15; // 15 seconds fallback (primary invalidation via Redis pub/sub)
 
 export class PermissionManager {
   /**
@@ -44,7 +44,7 @@ export class PermissionManager {
     const userId = member?.id ?? interaction.user.id;
     const channelId = interaction.channelId!;
 
-    // Bot owners always have access
+    // Bot owners (developers) always have access — cannot be overridden
     if (config.discord.ownerIds.includes(userId)) {
       return { allowed: true };
     }
@@ -59,58 +59,30 @@ export class PermissionManager {
 
     // If no custom rules, fall back to default Discord permissions
     if (rules.length === 0) {
-      if (defaultPermissions) {
-        const memberPerms = member.permissions;
-        // Administrator always passes any permission check
-        if (memberPerms.has(PermissionFlagsBits.Administrator)) {
-          return { allowed: true };
-        }
-        const hasPerms = memberPerms.has(defaultPermissions);
-        if (!hasPerms) {
-          // Build a human-readable list of missing permissions
-          const required = new PermissionsBitField(defaultPermissions);
-          const missing = required.toArray().filter(p => !memberPerms.has(PermissionFlagsBits[p as keyof typeof PermissionFlagsBits]));
-          return {
-            allowed: false,
-            reason: `You need the following permission(s): ${missing.join(', ')}`,
-          };
-        }
-      }
-      return { allowed: true }; // No rules and no default perms → allow
+      return this.checkDefaultPermissions(member, defaultPermissions);
     }
 
-    // Priority 1: User-specific DENY
+    // ──────────────────────────────────────────────────────────────
+    // Priority 1: User-specific DENY — highest priority, always blocks
+    // ──────────────────────────────────────────────────────────────
     const userDeny = rules.find(r => r.targetType === 'user' && r.targetId === userId && !r.allowed);
     if (userDeny) {
       return { allowed: false, reason: 'You have been specifically denied access to this command.' };
     }
 
-    // Priority 2: User-specific ALLOW
+    // ──────────────────────────────────────────────────────────────
+    // Priority 2: User-specific ALLOW — overrides all role/channel restrictions
+    // ──────────────────────────────────────────────────────────────
     const userAllow = rules.find(r => r.targetType === 'user' && r.targetId === userId && r.allowed);
     if (userAllow) {
       return { allowed: true };
     }
 
-    // Priority 3 & 4: Role-based rules
-    const memberRoleIds = member.roles.cache.map(r => r.id);
-
-    // Check for any role DENY
-    const roleDeny = rules.find(r =>
-      r.targetType === 'role' && memberRoleIds.includes(r.targetId) && !r.allowed
-    );
-    if (roleDeny) {
-      return { allowed: false, reason: 'Your role does not have permission to use this command.' };
-    }
-
-    // Check for any role ALLOW
-    const roleAllow = rules.find(r =>
-      r.targetType === 'role' && memberRoleIds.includes(r.targetId) && r.allowed
-    );
-    if (roleAllow) {
-      return { allowed: true };
-    }
-
-    // Priority 5: Channel-based rules
+    // ──────────────────────────────────────────────────────────────
+    // Priority 3: Channel whitelist — if ANY allowed channels are set,
+    // the command can ONLY be used in those channels. All others are
+    // implicitly denied. Explicit channel deny rules still work too.
+    // ──────────────────────────────────────────────────────────────
     const channelDeny = rules.find(r =>
       r.targetType === 'channel' && r.targetId === channelId && !r.allowed
     );
@@ -118,33 +90,77 @@ export class PermissionManager {
       return { allowed: false, reason: 'This command cannot be used in this channel.' };
     }
 
-    const channelAllow = rules.find(r =>
-      r.targetType === 'channel' && r.targetId === channelId && r.allowed
+    const allowedChannels = rules.filter(r => r.targetType === 'channel' && r.allowed);
+    if (allowedChannels.length > 0) {
+      const inAllowedChannel = allowedChannels.some(r => r.targetId === channelId);
+      if (!inAllowedChannel) {
+        return { allowed: false, reason: 'This command can only be used in designated channels.' };
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Priority 4: Role deny — blocks the user
+    // ──────────────────────────────────────────────────────────────
+    const memberRoleIds = member.roles.cache.map(r => r.id);
+
+    const roleDeny = rules.find(r =>
+      r.targetType === 'role' && memberRoleIds.includes(r.targetId) && !r.allowed
     );
-    if (channelAllow) {
+    if (roleDeny) {
+      return { allowed: false, reason: 'Your role does not have permission to use this command.' };
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Priority 5: Role whitelist — if ANY allowed roles are set,
+    // ONLY members with those roles can use the command. All other
+    // roles are implicitly denied. If the member has an allowed
+    // role, they pass.
+    // ──────────────────────────────────────────────────────────────
+    const allowedRoles = rules.filter(r => r.targetType === 'role' && r.allowed);
+    if (allowedRoles.length > 0) {
+      const hasAllowedRole = allowedRoles.some(r => memberRoleIds.includes(r.targetId));
+      if (hasAllowedRole) {
+        return { allowed: true };
+      }
+      // Member has none of the allowed roles → implicit deny
+      return { allowed: false, reason: 'You do not have a role that is allowed to use this command.' };
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Priority 6: Fall back to default Discord permissions
+    // ──────────────────────────────────────────────────────────────
+    return this.checkDefaultPermissions(member, defaultPermissions);
+  }
+
+  /**
+   * Check default Discord permissions for a member.
+   * Administrator always passes. Returns allow if no default permissions required.
+   */
+  private checkDefaultPermissions(
+    member: GuildMember,
+    defaultPermissions?: PermissionResolvable | null,
+  ): { allowed: boolean; reason?: string } {
+    if (!defaultPermissions) {
       return { allowed: true };
     }
 
-    // ADDITIVE MODEL: Custom rules work alongside defaults.
-    // If no deny rules matched the user, fall back to default Discord permissions.
-    // Adding a specific allow or deny rule for one target should NOT affect other users.
-    if (defaultPermissions) {
-      const memberPerms = member.permissions;
-      if (memberPerms.has(PermissionFlagsBits.Administrator)) {
-        return { allowed: true };
-      }
-      const hasPerms = memberPerms.has(defaultPermissions);
-      if (!hasPerms) {
-        const required = new PermissionsBitField(defaultPermissions);
-        const missing = required.toArray().filter(p => !memberPerms.has(PermissionFlagsBits[p as keyof typeof PermissionFlagsBits]));
-        return {
-          allowed: false,
-          reason: `You need the following permission(s): ${missing.join(', ')}`,
-        };
-      }
+    const memberPerms = member.permissions;
+    if (memberPerms.has(PermissionFlagsBits.Administrator)) {
+      return { allowed: true };
     }
 
-    // Default: allow
+    const hasPerms = memberPerms.has(defaultPermissions);
+    if (!hasPerms) {
+      const required = new PermissionsBitField(defaultPermissions);
+      const missing = required.toArray().filter(p =>
+        !memberPerms.has(PermissionFlagsBits[p as keyof typeof PermissionFlagsBits])
+      );
+      return {
+        allowed: false,
+        reason: `You need the following permission(s): ${missing.join(', ')}`,
+      };
+    }
+
     return { allowed: true };
   }
 
@@ -158,14 +174,23 @@ export class PermissionManager {
     const cached = cache.get<PermissionRule[]>(cacheKey);
     if (cached !== null) return cached;
 
-    // Query DB
+    // Build command name match condition.
+    // The dashboard may have saved the full path ("moderation.ban") or
+    // just the short name ("ban"). We check for both so rules always apply.
+    const shortName = commandPath.includes('.') ? commandPath.split('.').slice(1).join('.') : null;
+
+    // Query DB — match full path OR short name
     const db = getDb();
+    const commandMatch = shortName
+      ? or(eq(commandPermissions.command, commandPath), eq(commandPermissions.command, shortName))
+      : eq(commandPermissions.command, commandPath);
+
     const rows = await db.select()
       .from(commandPermissions)
       .where(
         and(
           eq(commandPermissions.guildId, guildId),
-          eq(commandPermissions.command, commandPath)
+          commandMatch!
         )
       );
 
@@ -210,8 +235,8 @@ export class PermissionManager {
       allowed,
     });
 
-    // Invalidate in-memory cache
-    cache.del(`perms:${guildId}:${commandPath}`);
+    // Invalidate in-memory cache — clear both full path and short name keys
+    this.invalidatePermCache(guildId, commandPath);
 
     logger.info('Permission updated', { guildId, commandPath, targetType, targetId, allowed });
   }
@@ -234,8 +259,8 @@ export class PermissionManager {
       )
     );
 
-    // Invalidate in-memory cache
-    cache.del(`perms:${guildId}:${commandPath}`);
+    // Invalidate in-memory cache — clear both full path and short name keys
+    this.invalidatePermCache(guildId, commandPath);
   }
 
   /**
@@ -267,6 +292,20 @@ export class PermissionManager {
    * Uses deleteByPrefix instead of redis.keys() — instant, free.
    */
   async clearGuildCache(guildId: string): Promise<void> {
+    cache.deleteByPrefix(`perms:${guildId}:`);
+  }
+
+  /**
+   * Invalidate permission cache for a command — clears both the full path
+   * key ("moderation.ban") and the short name key ("ban") since either
+   * format may have been used as the lookup key.
+   */
+  private invalidatePermCache(guildId: string, commandPath: string): void {
+    cache.del(`perms:${guildId}:${commandPath}`);
+    // Also clear the full-path key if commandPath is just the short name,
+    // or the short-name key if commandPath is the full path.
+    // Since we don't know the module prefix from a short name, just wipe
+    // all permission caches for this guild — fast and safe.
     cache.deleteByPrefix(`perms:${guildId}:`);
   }
 }

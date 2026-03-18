@@ -14,6 +14,7 @@ struct ModuleConfigView: View {
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var showSavedToast = false
+    @State private var validationError: String? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -65,6 +66,21 @@ struct ModuleConfigView: View {
                         }
                     } else {
                         typedConfigSections
+                    }
+
+                    // Validation error
+                    if let validationError {
+                        HStack(spacing: NexusSpacing.sm) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                            Text(validationError)
+                                .font(NexusFont.body(13))
+                                .foregroundStyle(.red)
+                        }
+                        .padding(NexusSpacing.md)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: NexusRadius.md))
                     }
 
                     // Save button
@@ -363,11 +379,25 @@ struct ModuleConfigView: View {
             ConfigNumberField(label: "Ban Penalty", key: "reputationPenalties.ban", config: $config, nested: true)
         }
 
+        ConfigSection(title: "Warn Thresholds", icon: "exclamationmark.triangle.fill") {
+            ConfigToggle(label: "Auto-Mute", key: "warnAutoMuteEnabled", config: $config)
+            ConfigNumberField(label: "Auto-Mute at Warns", key: "warnAutoMuteCount", config: $config, minValue: 1, maxValue: 50, disabled: !(config["warnAutoMuteEnabled"]?.value as? Bool ?? false))
+            ConfigNumberField(label: "Auto-Mute Duration (s)", key: "warnAutoMuteDuration", config: $config, minValue: 60, maxValue: 2419200, disabled: !(config["warnAutoMuteEnabled"]?.value as? Bool ?? false))
+            ConfigToggle(label: "Auto-Kick", key: "warnAutoKickEnabled", config: $config)
+            ConfigNumberField(label: "Auto-Kick at Warns", key: "warnAutoKickCount", config: $config, minValue: 1, maxValue: 50, disabled: !(config["warnAutoKickEnabled"]?.value as? Bool ?? false))
+            ConfigToggle(label: "Auto-Ban", key: "warnAutoBanEnabled", config: $config)
+            ConfigNumberField(label: "Auto-Ban at Warns", key: "warnAutoBanCount", config: $config, minValue: 1, maxValue: 50, disabled: !(config["warnAutoBanEnabled"]?.value as? Bool ?? false))
+        }
+
         ConfigSection(title: "Advanced", icon: "gearshape.2.fill") {
             ConfigToggle(label: "Shadow Bans", key: "shadowBanEnabled", config: $config)
             ConfigToggle(label: "Alt Detection", key: "altDetectionEnabled", config: $config)
             ConfigChannelPicker(label: "Alt Log Channel", key: "altDetectionLogChannelId", config: $config)
             ConfigToggle(label: "Currency Fines", key: "fineEnabled", config: $config)
+            ConfigNumberField(label: "Warn Fine", key: "fineAmounts.warn", config: $config, nested: true)
+            ConfigNumberField(label: "Mute Fine", key: "fineAmounts.mute", config: $config, nested: true)
+            ConfigNumberField(label: "Kick Fine", key: "fineAmounts.kick", config: $config, nested: true)
+            ConfigNumberField(label: "Ban Fine", key: "fineAmounts.ban", config: $config, nested: true)
         }
     }
 
@@ -1461,6 +1491,30 @@ struct ModuleConfigView: View {
     }
 
     private func saveConfig() async {
+        // Validate warn threshold escalation order for moderation
+        if moduleKey == "moderation" {
+            let muteEnabled = config["warnAutoMuteEnabled"]?.value as? Bool ?? false
+            let kickEnabled = config["warnAutoKickEnabled"]?.value as? Bool ?? false
+            let banEnabled = config["warnAutoBanEnabled"]?.value as? Bool ?? false
+            let muteCount = (config["warnAutoMuteCount"]?.value as? Int) ?? (config["warnAutoMuteCount"]?.value as? Double).map { Int($0) } ?? 0
+            let kickCount = (config["warnAutoKickCount"]?.value as? Int) ?? (config["warnAutoKickCount"]?.value as? Double).map { Int($0) } ?? 0
+            let banCount = (config["warnAutoBanCount"]?.value as? Int) ?? (config["warnAutoBanCount"]?.value as? Double).map { Int($0) } ?? 0
+
+            if muteEnabled && kickEnabled && muteCount >= kickCount {
+                validationError = "Auto-Mute threshold (\(muteCount)) must be lower than Auto-Kick (\(kickCount))"
+                return
+            }
+            if muteEnabled && banEnabled && muteCount >= banCount {
+                validationError = "Auto-Mute threshold (\(muteCount)) must be lower than Auto-Ban (\(banCount))"
+                return
+            }
+            if kickEnabled && banEnabled && kickCount >= banCount {
+                validationError = "Auto-Kick threshold (\(kickCount)) must be lower than Auto-Ban (\(banCount))"
+                return
+            }
+        }
+
+        validationError = nil
         isSaving = true
         do {
             try await APIClient.shared.updateModuleConfig(guildId, name: moduleKey, config: config)
@@ -1602,6 +1656,9 @@ struct ConfigNumberField: View {
     let key: String
     @Binding var config: [String: AnyCodable]
     var nested: Bool = false
+    var minValue: Int? = nil
+    var maxValue: Int? = nil
+    var disabled: Bool = false
 
     private var currentValue: Int {
         if nested {
@@ -1622,12 +1679,15 @@ struct ConfigNumberField: View {
         HStack {
             Text(label)
                 .font(NexusFont.body(14))
-                .foregroundStyle(NexusColors.textPrimary)
+                .foregroundStyle(disabled ? NexusColors.textPrimary.opacity(0.35) : NexusColors.textPrimary)
             Spacer()
             TextField("0", text: Binding(
                 get: { "\(currentValue)" },
                 set: { newValue in
-                    guard let n = Int(newValue) else { return }
+                    guard !disabled else { return }
+                    guard var n = Int(newValue) else { return }
+                    if let minValue, n < minValue { n = minValue }
+                    if let maxValue, n > maxValue { n = maxValue }
                     if nested {
                         let parts = key.split(separator: ".")
                         if parts.count == 2 {
@@ -1641,10 +1701,11 @@ struct ConfigNumberField: View {
                 }
             ))
             .font(NexusFont.mono(14))
-            .foregroundStyle(NexusColors.cyan)
+            .foregroundStyle(disabled ? NexusColors.cyan.opacity(0.35) : NexusColors.cyan)
             .multilineTextAlignment(.trailing)
             .keyboardType(.numberPad)
             .frame(width: 80)
+            .disabled(disabled)
         }
         .padding(.horizontal, NexusSpacing.md)
         .padding(.vertical, NexusSpacing.sm + 2)

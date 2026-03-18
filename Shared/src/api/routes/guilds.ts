@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
-import { getDb } from '../../database/connection';
+import { getDb, getRedis } from '../../database/connection';
 import { cache } from '../../cache/cacheManager';
 import { guilds, guildModuleConfigs, guildMembers, modCases, automodLogs, users } from '../../database/models/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
@@ -94,20 +94,22 @@ router.get('/:guildId/roles', async (req: Request, res: Response) => {
   const guildId = req.params.guildId as string;
   const cacheKey = `guild_roles:${guildId}`;
 
-  // 1. Read from cache (bot writes here on startup + role events)
+  // 1. Read from Redis (bot writes here instantly on role create/update/delete)
   try {
-    const cached = cache.get<any>(cacheKey);
-    if (cached) {
-      if (cached.roles && cached.roles.length > 0) {
-        res.json(cached);
+    const redis = getRedis();
+    const redisData = await redis.get(cacheKey);
+    if (redisData) {
+      const parsed = JSON.parse(redisData);
+      if (parsed.roles && parsed.roles.length > 0) {
+        res.json(parsed);
         return;
       }
     }
-  } catch (cacheErr: any) {
-    logger.warn('Cache read error (roles)', { error: cacheErr.message });
+  } catch (redisErr: any) {
+    logger.warn('Redis read error (roles)', { error: redisErr.message });
   }
 
-  // 2. Fallback: Discord REST API (bot hasn't started yet or cache was cleared)
+  // 2. Fallback: Discord REST API (bot hasn't started yet or Redis was cleared)
   logger.info('Roles cache miss — falling back to Discord API', { guildId });
   const maxRetries = 3;
 
@@ -127,10 +129,6 @@ router.get('/:guildId/roles', async (req: Request, res: Response) => {
         }));
 
       const result = { roles };
-
-      // Write to cache so subsequent requests are instant (120s TTL for cross-dashboard freshness)
-      try { cache.set(cacheKey, result, 120); } catch { /* ignore */ }
-
       res.json(result);
       return;
     } catch (err: any) {
@@ -233,20 +231,22 @@ router.get('/:guildId/channels', async (req: Request, res: Response) => {
   const guildId = req.params.guildId as string;
   const cacheKey = `guild_channels:${guildId}`;
 
-  // 1. Read from cache
+  // 1. Read from Redis (bot writes here instantly on channel create/update/delete)
   try {
-    const cached = cache.get<any>(cacheKey);
-    if (cached) {
-      if (cached.channels && cached.channels.length > 0) {
-        res.json(cached);
+    const redis = getRedis();
+    const redisData = await redis.get(cacheKey);
+    if (redisData) {
+      const parsed = JSON.parse(redisData);
+      if (parsed.channels && parsed.channels.length > 0) {
+        res.json(parsed);
         return;
       }
     }
-  } catch (cacheErr: any) {
-    logger.warn('Cache read error (channels)', { error: cacheErr.message });
+  } catch (redisErr: any) {
+    logger.warn('Redis read error (channels)', { error: redisErr.message });
   }
 
-  // 2. Fallback: Discord REST API
+  // 2. Fallback: Discord REST API (bot hasn't started yet or Redis was cleared)
   logger.info('Channels cache miss — falling back to Discord API', { guildId });
   const maxRetries = 3;
 
@@ -265,10 +265,6 @@ router.get('/:guildId/channels', async (req: Request, res: Response) => {
         .sort((a: any, b: any) => a.position - b.position);
 
       const result = { channels };
-
-      // Cache for 2 minutes (reduced from 10 min for cross-dashboard freshness)
-      try { cache.set(cacheKey, result, 120); } catch { /* ignore */ }
-
       res.json(result);
       return;
     } catch (err: any) {
@@ -476,6 +472,62 @@ router.get('/:guildId/modlogs', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     logger.error('Get mod logs error', { error: err.message });
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/**
+ * PATCH /api/guilds/:guildId/modlogs/:caseNumber
+ * Edit a moderation case (reason field).
+ */
+router.patch('/:guildId/modlogs/:caseNumber', async (req: Request, res: Response) => {
+  try {
+    const guildId = req.params.guildId as string;
+    const caseNumber = parseInt(req.params.caseNumber as string, 10);
+    const { reason } = req.body;
+
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      res.status(400).json({ error: 'reason is required and must be a non-empty string' });
+      return;
+    }
+
+    if (reason.length > 1000) {
+      res.status(400).json({ error: 'reason must be 1000 characters or less' });
+      return;
+    }
+
+    if (isNaN(caseNumber) || caseNumber < 1) {
+      res.status(400).json({ error: 'Invalid case number' });
+      return;
+    }
+
+    const db = getDb();
+
+    // Verify case exists and belongs to this guild
+    const [existing] = await db.select()
+      .from(modCases)
+      .where(and(
+        eq(modCases.guildId, guildId),
+        eq(modCases.caseNumber, caseNumber),
+      ))
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: 'Case not found' });
+      return;
+    }
+
+    // Update reason
+    await db.update(modCases)
+      .set({ reason: reason.trim() })
+      .where(and(
+        eq(modCases.guildId, guildId),
+        eq(modCases.caseNumber, caseNumber),
+      ));
+
+    res.json({ success: true, caseNumber, reason: reason.trim() });
+  } catch (err: any) {
+    logger.error('Edit mod case error', { error: err.message });
     res.status(500).json({ error: 'Internal error' });
   }
 });

@@ -3,6 +3,7 @@ import { BotCommand } from '../../../Shared/src/types/command';
 import { Colors, successEmbed, errorEmbed } from '../../../Shared/src/utils/embed';
 import { cache } from '../../../Shared/src/cache/cacheManager';
 import { canModerate, createModCase, ensureGuild, ensureGuildMember, getModConfig } from '../helpers';
+import { revokeAppealsAccess } from '../appealsSetup';
 
 export default {
   module: 'moderation',
@@ -39,9 +40,10 @@ export default {
       const targetMember = await guild.members.fetch(targetUser.id);
 
       // Hierarchy check
-      if (!canModerate(interaction.member as GuildMember, targetMember, 'unquarantine')) {
+      const moderateError = canModerate(interaction.member as GuildMember, targetMember, 'unquarantine');
+      if (moderateError) {
         await interaction.editReply({
-          embeds: [errorEmbed('Cannot moderate this user - they are equal or higher in hierarchy')]
+          embeds: [errorEmbed(moderateError)]
         });
         return;
       }
@@ -78,13 +80,20 @@ export default {
       // Clean up cache
       cache.del(quarantineKey);
 
+      // Revoke appeals channel access (quarantine role removal handles visibility
+      // for role-based overrides, but clean up any user-specific overrides too)
+      const modConfig2 = await getModConfig(guild.id);
+      if (modConfig2.appealEnabled && modConfig2.appealChannelId) {
+        await revokeAppealsAccess(guild, targetUser.id, modConfig2.appealChannelId).catch(() => {});
+      }
+
       // Create mod case
       await createModCase({
         guildId: guild.id,
-        action: 'note',
+        action: 'unquarantine',
         targetId: targetUser.id,
         moderatorId: interaction.user.id,
-        reason: `Unquarantine: ${reason}`,
+        reason,
       });
 
       const embed = successEmbed(`User ${targetUser.tag} has been unquarantined`);

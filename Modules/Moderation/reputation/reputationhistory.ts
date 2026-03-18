@@ -79,7 +79,8 @@ export default {
         let historyText = '';
         for (const entry of repHistory) {
           const time = relativeTimestamp(entry.createdAt);
-          historyText += `${formatDelta(entry.delta)} by <@${entry.givenBy}> ${time}`;
+          const who = entry.givenBy === 'system' ? 'Nexus (Auto)' : `<@${entry.givenBy}>`;
+          historyText += `${formatDelta(entry.delta)} by ${who} ${time}`;
           if (entry.reason) historyText += ` — ${entry.reason}`;
           historyText += '\n';
         }

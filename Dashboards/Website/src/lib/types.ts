@@ -98,6 +98,7 @@ export interface PermissionRule {
   targetType: 'role' | 'user' | 'channel';
   targetId: string;
   allowed: boolean;
+  resolvedName?: string;
 }
 
 // Owner dashboard types

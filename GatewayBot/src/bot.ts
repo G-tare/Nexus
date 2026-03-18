@@ -20,11 +20,18 @@ import { BotCommand, BotContextMenuCommand, BotModule } from '../../Shared/src/t
 import {
   syncAllGuilds,
   syncGuildRoles,
+  syncGuildChannels,
   syncGuildMembers,
   clearGuildCache,
   CachedRole,
+  CachedChannel,
   CachedMember,
 } from '../../Shared/src/cache/guildCacheSync';
+import { SocketManager } from '../../Shared/src/websocket/socketManager';
+import { invalidator } from '../../Shared/src/cache/cacheInvalidator';
+import { registerModActionLogger } from '../../Modules/Logging/modActionLogger';
+import { registerQuarantineSetup } from '../../Modules/Moderation/quarantineSetup';
+import { registerAppealsSetup } from '../../Modules/Moderation/appealsSetup';
 import { registerTicketDmListener } from '../../Shared/src/handlers/botTicketDmHandler';
 
 const logger = createModuleLogger('Bot');
@@ -271,6 +278,13 @@ function setupEventHandlers() {
     // Run startup tasks in background so the ready event resolves immediately
     // (prevents "Client took too long to become ready" shard timeout)
     setImmediate(async () => {
+      // Start Redis pub/sub subscriber for instant dashboard → bot cache invalidation
+      try {
+        await invalidator.init();
+      } catch (err: any) {
+        logger.warn('Cache invalidator init failed — config changes will rely on TTL expiry', { error: err.message });
+      }
+
       // Clear stale global commands (they cause duplicates with guild-specific ones)
       try {
         const rest = new REST({ version: '10' }).setToken(config.discord.token);
@@ -401,29 +415,47 @@ function setupEventHandlers() {
     }
   });
 
-  // ── Role events: keep Redis in sync when roles change ──
-  client.on(Events.GuildRoleCreate, async (role) => {
-    const g = role.guild;
-    const roles: CachedRole[] = g.roles.cache.map((r) => ({
+  // ── Role events: keep Redis in sync + push real-time to dashboards ──
+  const syncRolesForGuild = async (guild: any) => {
+    const roles: CachedRole[] = guild.roles.cache.map((r: any) => ({
       id: r.id, name: r.name, color: r.color, position: r.position, managed: r.managed ?? false,
     }));
-    await syncGuildRoles(g.id, roles);
+    await syncGuildRoles(guild.id, roles);
+    await SocketManager.publish('guild:roles', { guildId: guild.id, roles });
+  };
+
+  client.on(Events.GuildRoleCreate, async (role) => {
+    await syncRolesForGuild(role.guild);
   });
 
   client.on(Events.GuildRoleUpdate, async (_oldRole, newRole) => {
-    const g = newRole.guild;
-    const roles: CachedRole[] = g.roles.cache.map((r) => ({
-      id: r.id, name: r.name, color: r.color, position: r.position, managed: r.managed ?? false,
-    }));
-    await syncGuildRoles(g.id, roles);
+    await syncRolesForGuild(newRole.guild);
   });
 
   client.on(Events.GuildRoleDelete, async (role) => {
-    const g = role.guild;
-    const roles: CachedRole[] = g.roles.cache.map((r) => ({
-      id: r.id, name: r.name, color: r.color, position: r.position, managed: r.managed ?? false,
+    await syncRolesForGuild(role.guild);
+  });
+
+  // ── Channel events: keep Redis in sync + push real-time to dashboards ──
+  const syncChannelsForGuild = async (guild: any) => {
+    const channels: CachedChannel[] = guild.channels.cache.map((ch: any) => ({
+      id: ch.id, name: ch.name, type: ch.type, position: ch.position ?? 0, parentId: ch.parentId ?? null,
     }));
-    await syncGuildRoles(g.id, roles);
+    await syncGuildChannels(guild.id, channels);
+    // Push to dashboards via Redis pub/sub → WebSocket
+    await SocketManager.publish('guild:channels', { guildId: guild.id, channels });
+  };
+
+  client.on(Events.ChannelCreate, async (channel) => {
+    if (channel.guild) await syncChannelsForGuild(channel.guild);
+  });
+
+  client.on(Events.ChannelUpdate, async (_oldChannel, newChannel) => {
+    if ((newChannel as any).guild) await syncChannelsForGuild((newChannel as any).guild);
+  });
+
+  client.on(Events.ChannelDelete, async (channel) => {
+    if ('guild' in channel && channel.guild) await syncChannelsForGuild(channel.guild);
   });
 
   // ── Member events: refresh the member snapshot when members change ──
@@ -501,6 +533,11 @@ function setupEventHandlers() {
       }
     }
   }
+
+  // Register eventBus-based listeners (needs client reference)
+  registerModActionLogger(client);
+  registerQuarantineSetup(client);
+  registerAppealsSetup(client);
 
   logger.info('Event handlers registered');
 }

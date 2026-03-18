@@ -42,6 +42,12 @@ struct ModLogResponse: Codable {
     let total: Int
 }
 
+struct EditCaseResponse: Codable {
+    let success: Bool
+    let caseNumber: Int
+    let reason: String
+}
+
 // MARK: - Automod Logs
 
 struct AutomodLog: Codable, Identifiable {
@@ -100,10 +106,10 @@ struct Permission: Codable, Identifiable {
     var resolvedName: String?
 
     // API returns permissions grouped by command key — the rule objects
-    // only contain targetType, targetId, allowed. The command is populated
-    // from the dictionary key after decoding.
+    // contain targetType, targetId, allowed, and optionally resolvedName.
+    // The command is populated from the dictionary key after decoding.
     enum CodingKeys: String, CodingKey {
-        case targetType, targetId, allowed
+        case targetType, targetId, allowed, resolvedName
     }
 
     init(from decoder: Decoder) throws {
@@ -111,9 +117,9 @@ struct Permission: Codable, Identifiable {
         self.targetType = try container.decode(String.self, forKey: .targetType)
         self.targetId = try container.decode(String.self, forKey: .targetId)
         self.allowed = try container.decode(Bool.self, forKey: .allowed)
+        self.resolvedName = try container.decodeIfPresent(String.self, forKey: .resolvedName)
         // Command is populated later from the dictionary key
         self.command = ""
-        self.resolvedName = nil
     }
 
     init(command: String, targetType: String, targetId: String, allowed: Bool) {

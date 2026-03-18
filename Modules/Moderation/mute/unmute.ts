@@ -3,7 +3,8 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { BotCommand } from '../../../Shared/src/types/command';
-import { createModCase, buildModActionContainer, ensureGuild } from '../helpers';
+import { createModCase, buildModActionContainer, ensureGuild, getModConfig } from '../helpers';
+import { revokeAppealsAccess } from '../appealsSetup';
 
 const command: BotCommand = {
   data: new SlashCommandBuilder()
@@ -48,6 +49,12 @@ const command: BotCommand = {
     });
 
     await targetMember.timeout(null, `[Case #${caseNumber}] ${reason} (by ${interaction.user.tag})`);
+
+    // Revoke appeals channel access now that the mute is removed
+    const config = await getModConfig(guild.id);
+    if (config.appealEnabled && config.appealChannelId) {
+      await revokeAppealsAccess(guild, target.id, config.appealChannelId).catch(() => {});
+    }
 
     const container = buildModActionContainer({
       action: 'Unmute',

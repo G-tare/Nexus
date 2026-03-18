@@ -664,6 +664,12 @@ struct AutomodLogDetailView: View {
 struct ModCaseDetailView: View {
     let modCase: ModCase
 
+    @State private var isEditing = false
+    @State private var editedReason: String = ""
+    @State private var saving = false
+    @State private var currentReason: String?
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         ZStack {
             NexusColors.background.ignoresSafeArea()
@@ -690,16 +696,81 @@ struct ModCaseDetailView: View {
                         detailRow("Date", value: modCase.createdDate.formatted(date: .abbreviated, time: .shortened))
                     }
 
-                    // Reason
-                    if let reason = modCase.reason, !reason.isEmpty {
-                        VStack(alignment: .leading, spacing: NexusSpacing.sm) {
+                    // Reason (editable)
+                    VStack(alignment: .leading, spacing: NexusSpacing.sm) {
+                        HStack {
                             Text("REASON")
                                 .font(NexusFont.caption(11))
                                 .fontWeight(.bold)
                                 .foregroundStyle(NexusColors.textSecondary)
                                 .tracking(1)
+                            Spacer()
+                            if !isEditing {
+                                Button {
+                                    editedReason = displayedReason
+                                    isEditing = true
+                                } label: {
+                                    Text("Edit")
+                                        .font(NexusFont.caption(12))
+                                        .foregroundStyle(NexusColors.cyan)
+                                }
+                            }
+                        }
 
-                            Text(reason)
+                        if isEditing {
+                            VStack(spacing: NexusSpacing.sm) {
+                                TextEditor(text: $editedReason)
+                                    .font(NexusFont.body(14))
+                                    .foregroundStyle(NexusColors.textPrimary)
+                                    .scrollContentBackground(.hidden)
+                                    .frame(minHeight: 80)
+                                    .padding(NexusSpacing.sm)
+                                    .background(NexusColors.cardBackground)
+                                    .clipShape(RoundedRectangle(cornerRadius: NexusRadius.md))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: NexusRadius.md)
+                                            .stroke(NexusColors.cyan.opacity(0.3), lineWidth: 1)
+                                    )
+
+                                HStack(spacing: NexusSpacing.sm) {
+                                    Button {
+                                        isEditing = false
+                                    } label: {
+                                        Text("Cancel")
+                                            .font(NexusFont.caption(13))
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(NexusColors.textSecondary)
+                                            .padding(.horizontal, NexusSpacing.lg)
+                                            .padding(.vertical, NexusSpacing.sm)
+                                            .background(NexusColors.cardBackground)
+                                            .clipShape(RoundedRectangle(cornerRadius: NexusRadius.md))
+                                    }
+
+                                    Button {
+                                        Task { await saveReason() }
+                                    } label: {
+                                        HStack(spacing: NexusSpacing.xs) {
+                                            if saving {
+                                                ProgressView()
+                                                    .tint(NexusColors.background)
+                                                    .scaleEffect(0.7)
+                                            }
+                                            Text("Save")
+                                                .font(NexusFont.caption(13))
+                                                .fontWeight(.semibold)
+                                        }
+                                        .foregroundStyle(NexusColors.background)
+                                        .padding(.horizontal, NexusSpacing.lg)
+                                        .padding(.vertical, NexusSpacing.sm)
+                                        .background(NexusColors.cyan)
+                                        .clipShape(RoundedRectangle(cornerRadius: NexusRadius.md))
+                                    }
+                                    .disabled(saving || editedReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    .opacity(saving || editedReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                                }
+                            }
+                        } else {
+                            Text(displayedReason)
                                 .font(NexusFont.body(14))
                                 .foregroundStyle(NexusColors.textPrimary)
                                 .padding(NexusSpacing.md)
@@ -712,6 +783,32 @@ struct ModCaseDetailView: View {
                 .padding(NexusSpacing.xl)
             }
         }
+        .onAppear {
+            currentReason = modCase.reason
+        }
+    }
+
+    private var displayedReason: String {
+        currentReason ?? modCase.reason ?? "No reason provided"
+    }
+
+    @MainActor
+    private func saveReason() async {
+        let trimmed = editedReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        saving = true
+        do {
+            let _ = try await APIClient.shared.editModCase(
+                modCase.guildId,
+                caseNumber: modCase.caseNumber,
+                reason: trimmed
+            )
+            currentReason = trimmed
+            isEditing = false
+        } catch {
+            // Silently fail — user can retry
+        }
+        saving = false
     }
 
     private var actionColor: Color {

@@ -1,17 +1,59 @@
 import { Router, Request, Response } from 'express';
 import { permissionManager } from '../../permissions/permissionManager';
 import { createModuleLogger } from '../../utils/logger';
+import { getDb } from '../../database/connection';
+import { users } from '../../database/models/schema';
+import { inArray } from 'drizzle-orm';
 
 const logger = createModuleLogger('PermissionsAPI');
 const router = Router();
 
 /**
  * GET /api/permissions/:guildId
- * Get all permission rules for a guild.
+ * Get all permission rules for a guild, with resolved display names for users and channels.
  */
 router.get('/:guildId', async (req: Request, res: Response) => {
   try {
-    const permissions = await permissionManager.getGuildPermissions(req.params.guildId as string);
+    const guildId = req.params.guildId as string;
+    const permissions = await permissionManager.getGuildPermissions(guildId);
+
+    // Collect user IDs that need name resolution
+    const userIds = new Set<string>();
+    for (const rules of Object.values(permissions)) {
+      for (const rule of rules) {
+        if (rule.targetType === 'user') {
+          userIds.add(rule.targetId);
+        }
+      }
+    }
+
+    // Resolve usernames from users table
+    const userLookup = new Map<string, string>();
+    if (userIds.size > 0) {
+      try {
+        const db = getDb();
+        const userRows = await db.select({ id: users.id, username: users.username, globalName: users.globalName })
+          .from(users)
+          .where(inArray(users.id, [...userIds]));
+        for (const u of userRows) {
+          if (u.globalName || u.username) {
+            userLookup.set(u.id, u.globalName || u.username || u.id);
+          }
+        }
+      } catch {
+        // Non-fatal — IDs will still be shown as fallback
+      }
+    }
+
+    // Attach resolvedName to user rules
+    for (const rules of Object.values(permissions)) {
+      for (const rule of rules) {
+        if (rule.targetType === 'user') {
+          (rule as any).resolvedName = userLookup.get(rule.targetId) || null;
+        }
+      }
+    }
+
     res.json(permissions);
   } catch (err: any) {
     logger.error('Get permissions error', { error: err.message });
